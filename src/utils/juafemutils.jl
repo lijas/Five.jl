@@ -25,9 +25,9 @@ JuAFEM.vertices(c::Cell{2,2,1}) = (c.nodes[1], c.nodes[2])
 JuAFEM.default_interpolation(::Type{Cell{2,2,1}}) = Lagrange{1,RefCube,1}()
 JuAFEM.vertices(::Interpolation{1,RefCube}) = (1,2)
 
-convert_index(T::Type{FaceIndex}, set::IndexSet) = Set([T(c,i) for (c,i) in set])
-convert_index(T::Type{VertexIndex}, set::IndexSet) = Set([T(c,i) for (c,i) in set])
-convert_index(T::Type{EdgeIndex}, set::IndexSet) = Set([T(c,i) for (c,i) in set])
+convert_index(T::Type{FaceIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
+convert_index(T::Type{VertexIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
+convert_index(T::Type{EdgeIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
 
 JuAFEM.getdim(::MixedDofHandler{dim,C,T}) where {dim,C,T} = dim
 getT(::MixedDofHandler{dim,C,T}) where {dim,C,T} = T
@@ -38,7 +38,7 @@ JuAFEM.cellid(f::Index) = f[1]
 
 JuAFEM.FieldHandler() = FieldHandler(Field[],Set([0])) 
 
-function JuAFEM.Dirichlet(;field::Symbol,set::IndexSet,func::Function,dofs::Vector{Int})
+function JuAFEM.Dirichlet(;field::Symbol,set::IndexSets,func::Function,dofs::Vector{Int})
     return JuAFEM.Dirichlet(field, set, func, dofs)
 end
 

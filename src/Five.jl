@@ -33,6 +33,8 @@ abstract type AbstractPartState end
 
 abstract type AbstractSolver{T} end
 
+export SystemArrays, StateVariables, GlobalData
+
 mutable struct SystemArrays{T}
     fⁱ::Vector{T}
     Kⁱ::SparseArrays.SparseMatrixCSC{T,Int}

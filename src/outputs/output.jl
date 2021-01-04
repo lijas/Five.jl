@@ -1,5 +1,5 @@
 export Output, OutputData, VTKOutput
-export VTKCellOutput
+export VTKCellOutput, VTKNodeOutput
 export push_output!
 
 abstract type AbstractOutput end
@@ -7,7 +7,7 @@ abstract type StateOutput <:AbstractOutput end
 
 struct OutputData{output <: AbstractOutput}
     type::output
-    set::JuAFEM.IndexSet
+    set::JuAFEM.IndexSets
     data::Vector{Any} #Stores the data for each timestep.
     interval::Float64 
     last_output::Base.RefValue{Float64}
@@ -20,6 +20,10 @@ end
 function OutputData(output::OutputData{OutputType}, dh) where OutputType
     o = OutputType(output.type, output.set, dh)
     return OutputData(o, output.set, output.data, output.interval, output.last_output)
+end
+
+struct VTKNodeOutput{output <: AbstractOutput}
+    #todo
 end
 
 struct VTKCellOutput{output <: AbstractOutput}
@@ -139,13 +143,13 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; o
         @timeit "disp" node_coords = get_vtk_displacements(dh, part, state)
         vtkfile["u"] = reshape_vtk_coords(node_coords)
 
-        @timeit "nodedata" for celloutput in output.vtkoutput.nodeoutputs
+        #=@timeit "nodedata" for celloutput in output.vtkoutput.nodeoutputs
             data = get_vtk_nodedata(part, celloutput, state, globaldata)
             if data !== nothing
                 name = "Name"  #string(celloutput.name)
                 vtk_node_data(vtkfile, data, name)
             end
-        end
+        end=#
 
         @timeit "celldata" for celloutput in output.vtkoutput.celloutputs
             data = get_vtk_celldata(part, celloutput, state, globaldata)

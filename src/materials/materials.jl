@@ -83,4 +83,4 @@ end
 
 nlayers(::LayeredMaterial{N}) where N = N
 
-export MatLinearElastic, Material2D
+export LayeredMaterial, MatLinearElastic, Material2D
