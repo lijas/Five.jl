@@ -1,0 +1,867 @@
+export gridmerge
+#
+# Stuff that I think should be in JuAFEM
+#
+#Base.getindex(fi::FaceIndex, i::Int) = fi.idx[i]
+JuAFEM.getdim(::Type{Cell{dim,N,M}}) where {dim,N,M} = dim
+
+JuAFEM.vertices(c::Cell{2,4,1}) = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
+JuAFEM.faces(c::Cell{2,4,1}) = ((c.nodes[1], c.nodes[2]), (c.nodes[3], c.nodes[4])) #might be wrong def
+
+JuAFEM.vertices(::Lagrange{2,RefCube,1}) = (1,2,3,4)
+JuAFEM.vertices(::Lagrange{3,RefCube,1}) = (1,2,3,4,5,6,7,8)
+
+JuAFEM.vertices(::Lagrange{3,RefTetrahedron,1}) = (1,2,3,4)
+
+JuAFEM.vertices(c::Cell{dim,1,0}) where dim= (c.nodes[1],) #c.nodes[1]??
+JuAFEM.faces(::Cell{dim,1,0}) where dim = ()
+
+JuAFEM.cell_to_vtkcell(::Type{Cell{3,27,6}}) = VTKCellTypes.VTK_BIQUADRATIC_QUADRATIC_HEXAHEDRON 
+JuAFEM.cell_to_vtkcell(::Type{Cell{2,2,1}}) = VTKCellTypes.VTK_LINE
+
+JuAFEM.vertices(::Lagrange{2,RefCube,2}) = ntuple(i->i, 9)
+
+JuAFEM.vertices(c::Cell{2,2,1}) = (c.nodes[1], c.nodes[2])
+JuAFEM.default_interpolation(::Type{Cell{2,2,1}}) = Lagrange{1,RefCube,1}()
+JuAFEM.vertices(::Interpolation{1,RefCube}) = (1,2)
+
+convert_index(T::Type{FaceIndex}, set::IndexSet) = Set([T(c,i) for (c,i) in set])
+convert_index(T::Type{VertexIndex}, set::IndexSet) = Set([T(c,i) for (c,i) in set])
+convert_index(T::Type{EdgeIndex}, set::IndexSet) = Set([T(c,i) for (c,i) in set])
+
+JuAFEM.getdim(::MixedDofHandler{dim,C,T}) where {dim,C,T} = dim
+getT(::MixedDofHandler{dim,C,T}) where {dim,C,T} = T
+
+JuAFEM.FaceIndex(array_or_set, b::Int) = [FaceIndex(a,b) for a in array_or_set]
+
+JuAFEM.cellid(f::Index) = f[1]
+
+JuAFEM.FieldHandler() = FieldHandler(Field[],Set([0])) 
+
+function JuAFEM.Dirichlet(;field::Symbol,set::IndexSet,func::Function,dofs::Vector{Int})
+    return JuAFEM.Dirichlet(field, set, func, dofs)
+end
+
+function getfieldhandler(dh::MixedDofHandler, cellid::Int)
+    for fh in dh.fieldhandlers
+        if cellid in fh.cellset
+            return fh
+        end
+    end
+    error("cellid not found in any field")
+end
+##
+#
+##
+function JuAFEM.create_face_quad_rule(quad_rule::QuadratureRule{0,shape,T}, ::Interpolation{2,shape}) where {T,shape<:RefCube}
+    w = getweights(quad_rule)
+    vertex_quad_rule = QuadratureRule{2,shape,T}[]
+
+    # Vertex 1
+    new_points = [Vec{2,T}((-one(T), -one(T)))] 
+    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
+    # Vertex 2
+    new_points = [Vec{2,T}((one(T), -one(T)))] 
+    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
+    # Vertex 3
+    new_points = [Vec{2,T}((one(T), one(T)))] 
+    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
+    # Vertex 4
+    new_points = [Vec{2,T}((-one(T), one(T)))] 
+    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
+
+    return vertex_quad_rule
+end
+
+##
+# 
+##
+JuAFEM.faces(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
+JuAFEM.vertices(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
+#JuAFEM.vertices(c::Cell{3,4,2}) where dim = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
+
+##
+# Serendipity
+##
+JuAFEM.default_interpolation(::Type{Cell{2,2,2}}) = Lagrange{1,RefCube,1}()
+JuAFEM.default_interpolation(::Type{Cell{dim,1,0}}) where dim = Serendipity{dim,RefCube,0}()
+JuAFEM.getnbasefunctions(::Serendipity{dim,RefCube,0}) where dim = 1
+JuAFEM.vertices(::Serendipity{dim,RefCube,0}) where dim = (1,)
+JuAFEM.ncelldofs(::Serendipity{dim,RefCube,0}) where dim = 1
+JuAFEM.faces(::Serendipity{dim,RefCube,0}) where dim = ()
+JuAFEM.value(::Serendipity{3,RefCube,0}, ::Int64, ::Tensor{1,3,T,3}) where T = T(1.0)
+
+
+#Face interpolation
+faceinterpolation(::Type{Triangle}) = Lagrange{1,RefCube,1}()
+faceinterpolation(::Type{Hexahedron}) = Lagrange{2,RefCube,1}()
+
+#
+JuAFEM.cell_to_vtkcell(::Type{Cell{3,4,2}}) = VTKCellTypes.VTK_QUAD
+JuAFEM.default_interpolation(::Type{Cell{3,4,2}}) = Lagrange{2,RefCube,1}()
+
+
+Tensors.cross(v::Vec{2}) = Vec{2}((-v[2], v[1]))
+
+##
+#CellValues
+
+function JuAFEM.function_value(fe_v::JuAFEM.Values{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{T} = collect(1:length(u))) where {dim,T}
+    @show typeof(fe_v)
+    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+    isa(fe_v, VectorValues) && (n_base_funcs *= dim)
+    @assert length(dof_range) == n_base_funcs
+    @boundscheck checkbounds(u, dof_range)
+    val = zero(JuAFEM._valuetype(fe_v, u))
+    @inbounds for (i, j) in enumerate(dof_range)
+        val += shape_value(fe_v, q_point, i) * u[j]
+    end
+    return val
+end
+
+macro showm(M)
+    return esc(:(display("text/plain", $M)))
+end
+
+function JuAFEM.reference_coordinates(::Serendipity{dim,RefCube,0}) where dim
+    return [zero(Vec{dim, Float64})]
+end
+
+function JuAFEM.value(ip::Serendipity{dim,RefCube,0}, i::Int, ξ::Vec{dim}) where dim
+    i == 1 && return 1
+    throw(ArgumentError("no shape function $i for interpolation $ip"))
+end
+
+face_coordinate(dh::DofHandler{dim,T}, element::AbstractElement, faceindex::FaceIndex, location::Int) where {dim,T} = 
+    _x_coordinate(dh, element, faceindex, location, JuAFEM.faces)   
+vertex_coordinate(dh::DofHandler{dim,T}, element::AbstractElement, vertexindex::FaceIndex, location::Int) where {dim,T} = 
+    _x_coordinate(dh, element, vertexindex, location, JuAFEM.vertices)
+
+function _x_coordinate(dh::DofHandler{dim,T}, element, faceindex, location::Int, func::F) where {dim,T,F}
+    xh = getcoordinates(dh.grid, faceindex[1])
+
+    bcvalues = BCValues(get_field(element, :u).interpolation, default_interpolation(celltype(element)), func)
+    #bcvalues = get_bcvalue(element, :u) 
+
+    bcvalues.current_face[] = faceindex[2]
+
+    x = spatial_coordinate(bcvalues,location, xh)
+
+    return x
+end
+
+function faceset_to_nodes(grid, master_faceset)
+
+    face_nodes = Int[]
+    for faceindex in master_faceset
+        cellid = faceindex[1]
+        faceid = faceindex[2]
+
+        facenodes = faces(getcells(grid, cellid))[faceid]
+        push!(face_nodes, facenodes[1])
+        push!(face_nodes, facenodes[2])
+    end
+    return unique(face_nodes)
+
+end
+
+function faceset_to_cellset(grid, master_faceset)
+
+    face_nodes_set = Tuple{Int,Int}[]
+    for faceindex in master_faceset
+        cellid = faceindex[1]
+        faceid = faceindex[2]
+
+        facenodes = faces(getcells(grid, cellid))[faceid]
+        push!(face_nodes_set, facenodes)
+    end
+    return face_nodes_set
+
+end
+
+function bezieroperator_to_matrix(C::IGA.BezierExtractionOperator)
+
+    mat= zeros(Float64, length(C), length(first(C)))
+    for i in 1:length(C)
+        for j in 1:length(C[i])
+            mat[i,j] = C[i][j]
+        end
+    end
+    return mat
+end
+
+
+#=function cellcoords!(coords::Vector{Vec{dim,T}}, dh::JuAFEM.AbstractDofHandler, i::Int) where {dim,T}
+    @assert JuAFEM.isclosed(dh)
+    coords2 = JuAFEM.getcoordinates(dh.grid, i)
+    @assert length(coords) == length(coords2)
+    coords .= coords2
+    return coords2
+end
+
+function cellnodes!(nodes::Vector{Int}, dh::JuAFEM.AbstractDofHandler, i::Int) where {dim,T}
+    @assert JuAFEM.isclosed(dh)
+    nodes2 = dh.grid.cells[i].nodes
+    @assert length(nodes) == length(nodes2)
+    nodes .= nodes2
+    return nodes2
+end
+
+function JuAFEM.celldofs(dh::JuAFEM.AbstractDofHandler, i::Int)
+    global_dofs = zeros(Int, ndofs_per_cell(dh,i))
+    celldofs!(global_dofs, dh, i)
+    return global_dofs
+end=#
+
+function cellcoords(dh::MixedDofHandler, i::Int)
+    @assert JuAFEM.isclosed(dh)
+    return dh.cell_coords[i]
+end
+
+function Base.getindex(v::AbstractArray, i::Vec{2,Int})
+       return Vec{2,eltype(v)}((v[i[1]],v[i[2]]))
+end
+
+function Base.getindex(v::AbstractArray, i::Vec{3,Int})
+       return Vec{3,eltype(v)}((v[i[1]],v[i[2]],v[i[3]]))
+end
+
+function second_derivative(ip::Interpolation{dim}, ξ::Vec{dim,T}) where {dim,T}
+    [hessian(ξ -> value(ip, i, ξ), ξ) for i in 1:getnbasefunctions(ip)]
+end
+
+#QuadratureRule for shells
+struct ShellQuadratureRule{dim,T}
+    qr::QuadratureRule{dim,RefCube,T}
+    npoints_inplane::Int
+    npoints_outofplane::Int
+end
+
+function ShellQuadratureRule{dim,T}(inplane_order, outofplane_order) where {dim,T}
+    qr = generate_shell_quadraturerule(T, dim, inplane_order, outofplane_order)
+    ShellQuadratureRule{dim,T}(qr, inplane_order^(dim-1), outofplane_order)
+end
+
+function _generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per_layer::Int) where {T}
+    
+    nlayers = length(zcoords)-1
+
+    points = Vector{Vec{1,T}}()
+    weights = Vector{T}()
+    oqr = QuadratureRule{1,RefCube}(nqp_per_layer)
+    #copy the oo-plane integration to each layer
+    addon = (last(zcoords) + first(zcoords))/2
+    scale = (last(zcoords) - first(zcoords))/2
+    zcoords = (zcoords.-addon)/scale
+    for ilay in 1:nlayers
+        addon = (zcoords[ilay+1] + zcoords[ilay])/2
+        scale = (zcoords[ilay+1] - zcoords[ilay])/2
+        for qp in 1:length(oqr.weights)
+            new_z = oqr.points[qp]*scale .+ addon
+            push!(points,  Vec(Tuple(new_z)))
+            push!(weights, oqr.weights[qp]*scale)
+        end
+    end
+    return QuadratureRule{1,RefCube,T}(weights,points)
+
+end
+
+#changes zcoord to -1 to 1
+function change_zcoord_range(zcoords::Vector{T}) where T
+    addon = (last(zcoords) + first(zcoords))/2
+    scale = (last(zcoords) - first(zcoords))/2
+    zcoords = (zcoords.-addon)/scale
+    return zcoords
+end
+
+
+function _generate_cohesive_oop_quadraturerule(zcoords::Vector{T}) where {T}
+    
+    ninterfaces = length(zcoords)-2
+    ε = 1e-13
+
+    points_top = Vector{Vec{1,T}}()
+    weights_top = Vector{T}()
+
+    points_bot = Vector{Vec{1,T}}()
+    weights_bot = Vector{T}()
+    #copy the oo-plane integration to each layer
+    zcoords_interfaces = change_zcoord_range(zcoords)[2:end-1]
+    for iinterface in 1:ninterfaces
+        #Add the zcoord to the quadrature rule
+        push!(points_top,  Vec( (zcoords_interfaces[iinterface] + ε, ) ))
+        push!(weights_top, 1.0)
+
+        #Add the zcoord to the quadrature rule
+        push!(points_bot,  Vec( (zcoords_interfaces[iinterface] - ε, ) ))
+        push!(weights_bot, 1.0)
+        #push!(weights, qr.weights[qp])
+    end
+    return [QuadratureRule{1,RefCube,T}(weights_bot,points_bot), QuadratureRule{1,RefCube,T}(weights_top,points_top)]
+
+end
+
+function generate_shell_quadraturerule(T::Type, dim, nqp_inplane::Int, nlayers::Int, nqp_opplane_per_layer::Int)
+    qri = QuadratureRule{dim-1,RefCube}(nqp_inplane)
+
+    qro = QuadratureRule{1,RefCube}(nqp_opplane_per_layer)
+
+    newpoints = Vec{dim,T}[]
+    newweights = T[]
+    for op in 1:length(qro.points)
+        for ip in 1:length(qri.points)
+            
+            push!(newpoints, Vec{dim,T}((collect(qri.points[ip])...,collect(qro.points[op])...,)))
+            push!(newweights, qri.weights[ip]*qro.weights[op])
+        end
+    end
+
+    return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
+end
+
+function JuAFEM.QuadratureRule{2,RefCube}(orders::NTuple{2,Int}) 
+    T = Float64
+    dim = 2
+    
+    qrs = [QuadratureRule{1,RefCube}(orders[d]) for d in 1:dim]
+
+    newpoints = Vec{dim,T}[]
+    newweights = T[]
+        for i2 in 1:orders[2]
+            for i1 in 1:orders[1]
+                _v = (qrs[1].points[i1][1], qrs[2].points[i2][1])
+                _w  = qrs[1].weights[i1] *  qrs[2].weights[i2] 
+                push!(newpoints, Vec{dim,T}(_v))
+                push!(newweights, _w)
+            end
+        end
+
+    return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
+end
+
+function JuAFEM.QuadratureRule{3,RefCube}(orders::NTuple{3,Int}) 
+    T = Float64
+    dim = 3
+    
+    qrs = [QuadratureRule{1,RefCube}(orders[d]) for d in 1:dim]
+
+    newpoints = Vec{dim,T}[]
+    newweights = T[]
+    for i3 in 1:orders[3]
+        for i2 in 1:orders[2]
+            for i1 in 1:orders[1]
+                _v = (qrs[1].points[i1][1], qrs[2].points[i2][1], qrs[3].points[i3][1])
+                _w  = qrs[1].weights[i1] *  qrs[2].weights[i2] * qrs[3].weights[i3]
+                push!(newpoints, Vec{dim,T}(_v))
+                push!(newweights, _w)
+            end
+        end
+    end
+
+    return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
+end
+
+function merge_quadrules(qrs::Vararg{QuadratureRule,N}) where N
+    @assert(N == 2 || N == 3)
+
+    dim = N
+    T = Float64
+    #make this prettier:
+    if N == 3
+        newpoints = Vec{dim,T}[]
+        newweights = T[]
+        for i3 in 1:length(qrs[3].points)
+            for i2 in 1:length(qrs[2].points)
+                for i1 in 1:length(qrs[1].points)
+                    _v = (qrs[1].points[i1][1], qrs[2].points[i2][1], qrs[3].points[i3][1])
+                    _w  = qrs[1].weights[i1] *  qrs[2].weights[i2] * qrs[3].weights[i3]
+                    push!(newpoints, Vec{dim,T}(_v))
+                    push!(newweights, _w)
+                end
+            end
+        end
+    
+        return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
+    elseif N == 2
+        newpoints = Vec{dim,T}[]
+        newweights = T[]
+        for i2 in 1:length(qrs[2].points)
+            for i1 in 1:length(qrs[1].points)
+                _v = (qrs[1].points[i1][1], qrs[2].points[i2][1])
+                _w  = qrs[1].weights[i1] *  qrs[2].weights[i2] 
+                push!(newpoints, Vec{dim,T}(_v))
+                push!(newweights, _w)
+            end
+        end
+    
+        return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
+    end
+
+end
+
+#=
+@generated function JuAFEM.QuadratureRule{dim,RefCube}(order::NTuple{dim,Int}) where {dim}
+    
+    ws = [Float64[] for d in 1:dim]
+    ps = [Float64[] for d in 1:dim]
+    for d in 1:dim
+        p, w = JuAFEM.GaussQuadrature.legendre(Float64, order[d])
+        ws[d] = w
+        ps[d] = p
+    end
+    
+    npoints = prod(order)::Int
+    
+    weights = Vector{Float64}(undef, npoints)
+    points = Vector{Vec{dim,Float64}}(undef, npoints)
+    count = 1
+    quote
+        Base.Cartesian.@nloops $dim i j->(1:order[i_j]) begin
+            t = Base.Cartesian.@ntuple $dim q -> ps[q][i_q]
+            points[count] = Vec{$dim,Float64}(t)
+            weight = 1.0
+            Base.Cartesian.@nexprs $dim j->(weight *= ws[j][i_{j}])
+            weights[count] = weight
+            count += 1
+        end
+        return QuadratureRule{$dim,RefCube,Float64}(weights, points)
+    end
+end
+=#
+
+
+#From Jim
+
+abstract type SurfaceInterpolation{dim,shape,order,dim_s} <:  JuAFEM.Interpolation{dim,shape,order} end
+
+struct CohesiveZone{dim,shape,order,dim_s} <: SurfaceInterpolation{dim,shape,order,dim_s} end
+
+JuAFEM.getnbasefunctions(::CohesiveZone{dim,shape,1,dim_s}) where {dim,shape,order,dim_s} = 4
+JuAFEM.nvertexdofs(::CohesiveZone) = 1
+
+"""
+Return the refeerence coordinates for the fictious mid-surface
+"""
+JuAFEM.reference_coordinates(::CohesiveZone{1,shape,order,dim_s})  where {dim,shape,order,dim_s} = reference_coordinates(Lagrange{1,RefCube,order}())
+
+"""
+Return the spatial dimension of a `SurfInterpolation`
+"""
+@inline getspacedim(ip::SurfaceInterpolation{dim,shape,order,dim_s}) where {dim,shape,order,dim_s} = dim_s
+
+
+function JuAFEM.value(ip::CohesiveZone{1,RefCube,1,dim_s}, i::Int, ξ::Vec{1}) where {dim_s}
+    """
+    Shape function values are defined such that ∑ Nᵢ(ξ) * aᵢ = j(ξ) (spatial jump)
+    Note: current node numbering is:
+    4__________3
+    |          |
+    |__________|
+    1          2
+    """
+    ξ_x = ξ[1]
+    i == 1 && return -(1 - ξ_x) * 0.5
+    i == 2 && return -(1 + ξ_x) * 0.5
+    i == 3 && return (1 + ξ_x) * 0.5
+    i == 4 && return (1 - ξ_x) * 0.5
+    throw(ArgumentError("no shape function $i for interpolation $ip"))
+end
+
+function mid_surf_value(ip::CohesiveZone{1,RefCube,1,dim_s}, i::Int, ξ::Vec{1}) where {dim_s}
+    """
+    Shape function values are defined such that ∑ Nᵢ(ξ) * xᵢ = x̄(ξ) (mid-surface)
+    Note: current node numbering is:
+    4__________3
+    |          |
+    |__________|
+    1          2
+    """
+    ξ_x = ξ[1]
+    i == 1 && return (1 - ξ_x) * 0.25
+    i == 2 && return (1 + ξ_x) * 0.25
+    i == 3 && return (1 + ξ_x) * 0.25
+    i == 4 && return (1 - ξ_x) * 0.25
+    throw(ArgumentError("no shape function $i for interpolation $ip"))
+end
+
+
+#Also from jim
+
+struct SurfaceVectorValues{dim_p,dim_s,T<:Real,M2,refshape<:JuAFEM.AbstractRefShape} <: JuAFEM.CellValues{dim_s,T,refshape}
+    N::Matrix{Vec{dim_s,T}}
+    dNdξ::Matrix{Tensor{2,dim_s,T,M2}}
+    dNdx::Matrix{Tensor{2,dim_s,T,M2}}
+    R::Vector{Tensor{2,dim_s,T,M2}}
+    detJdA::Vector{T}
+    M::Matrix{T}  # Shape values for geometric interp
+    dMdξ::Matrix{Vec{dim_p,T}}
+    qr_weights::Vector{T}
+    covar_base::Vector{Tensor{2,dim_s,T}}
+end
+
+
+function SurfaceVectorValues(quad_rule::QuadratureRule, func_interpol::Interpolation, geom_interpol::Interpolation=func_interpol)
+    SurfaceVectorValues(Float64, quad_rule, func_interpol, geom_interpol)
+end
+
+@inline getR(cv::SurfaceVectorValues, qp::Int) = cv.R[qp]
+
+getR(bcv::IGA.BezierValues{dim,T,<:Five.SurfaceVectorValues}, qp::Int64) where {dim,T} = getR(bcv.cv_bezier, qp)
+getdetJdA(bcv::IGA.BezierValues{dim,T,<:Five.SurfaceVectorValues}, qp::Int64) where {dim,T} = getdetJdA(bcv.cv_bezier, qp)
+
+function SurfaceVectorValues(::Type{T},
+    quad_rule::QuadratureRule{dim_p,RefCube},
+    func_interpol::Interpolation{dim_p},
+    geom_interpol::Interpolation{dim_p}=func_interpol) where {dim_p,T}
+
+    dim_s = dim_p+1
+    @assert JuAFEM.getdim(func_interpol) == JuAFEM.getdim(geom_interpol)
+    @assert JuAFEM.getrefshape(func_interpol) == JuAFEM.getrefshape(geom_interpol) == RefCube
+    n_qpoints = length(getweights(quad_rule))
+
+    # Function interpolation
+    n_func_basefuncs = getnbasefunctions(func_interpol) * dim_s * 2 #Note, multipy with two
+    N    = fill(zero(Vec{dim_s,T}) * T(NaN), n_func_basefuncs, n_qpoints)
+    dNdξ = fill(zero(Tensor{2,dim_s,T}) * T(NaN), n_func_basefuncs, n_qpoints)
+    dNdX = fill(zero(Tensor{2,dim_s,T}) * T(NaN), n_func_basefuncs, n_qpoints)
+
+    covar_base = fill(zero(Tensor{2,dim_s,T}) * T(NaN), n_qpoints)
+
+    # Geometry interpolation
+    n_geom_basefuncs = getnbasefunctions(geom_interpol) * 2
+    M    = fill(zero(T)          * T(NaN), n_geom_basefuncs, n_qpoints)
+    dMdξ = fill(zero(Vec{dim_p,T}) * T(NaN), n_geom_basefuncs, n_qpoints)
+
+    for (qp, ξ) in enumerate(quad_rule.points)
+        basefunc_count = 1
+        for basefunc in 1:getnbasefunctions(func_interpol)
+            dNdξ_temp, N_temp = JuAFEM.gradient(ξ -> JuAFEM.value(func_interpol, basefunc, ξ), ξ, :all)
+            for comp in 1:dim_s
+                N_comp = zeros(T, dim_s)
+                N_comp[comp] = N_temp
+
+                N[basefunc_count, qp] = -Vec{dim_s,T}((N_comp...,))
+                N[basefunc_count + n_func_basefuncs÷2, qp] = Vec{dim_s,T}((N_comp...,))
+
+                dN_comp = zeros(T, dim_s, dim_s)
+
+                dN_comp[comp, 1:dim_p] = dNdξ_temp
+                dNdξ[basefunc_count, qp] = -Tensor{2,dim_s,T}((dN_comp...,))
+                dNdξ[basefunc_count + n_func_basefuncs÷2, qp] = Tensor{2,dim_s,T}((dN_comp...,))
+                basefunc_count += 1
+            end
+        end
+        for i in 1:n_geom_basefuncs ÷ 2
+            dMdξ[i, qp], M[i, qp] = 0.5 .* JuAFEM.gradient(ξ -> JuAFEM.value(geom_interpol, i, ξ), ξ, :all)
+            dMdξ[i+n_geom_basefuncs÷2, qp] = dMdξ[i, qp]
+               M[i+n_geom_basefuncs÷2, qp] =    M[i, qp]
+        end
+    end
+
+    detJdA = fill(T(NaN), n_qpoints)
+    R = fill(zero(Tensor{2,dim_s,T}) *T(NaN), n_qpoints)
+    MM = Tensors.n_components(Tensors.get_base(eltype(R)))
+    SurfaceVectorValues{dim_p,dim_s,T,MM,RefCube}(N, dNdξ, dNdX, R, detJdA, M, dMdξ, quad_rule.weights, covar_base)
+end
+
+JuAFEM.getn_scalarbasefunctions(cv::SurfaceVectorValues{dim,dim_s}) where {dim,dim_s} = size(cv.N, 1) ÷ dim_s
+
+@inline getdetJdA(cv::SurfaceVectorValues, q_point::Int) = cv.detJdA[q_point]
+
+function JuAFEM.reinit!(cv::SurfaceVectorValues{dim_p,dim_s}, x::AbstractVector{Vec{dim_s,T}}) where {dim_p,dim_s,T}
+    n_geom_basefuncs = JuAFEM.getngeobasefunctions(cv)
+    n_func_basefuncs = JuAFEM.getn_scalarbasefunctions(cv)
+    @assert length(x) == n_geom_basefuncs
+    isa(cv, CellVectorValues) && (n_func_basefuncs *= dim_p)
+
+
+    @inbounds for i in 1:length(cv.qr_weights)
+        w = cv.qr_weights[i]
+
+        E = zeros(Vec{dim_s,T},dim_p)
+        for j in 1:n_geom_basefuncs
+            for d in 1:dim_p
+                E[d] += cv.dMdξ[j,i][d] * x[j]
+            end
+        end
+
+        D = cross(E...) #in 2d cross-product is defined as cross(a::Vec{2}) = [-a[2], a[1]]
+
+        #Rotation matrix and covariant vectors are similar becuase 
+        _R = hcat((E./norm.(E))..., D/norm(D))
+        _G = hcat(E...,D)
+
+        cv.R[i] = Tensor{2,dim_s,T}(_R)
+        cv.covar_base[i] = Tensor{2,dim_s,T}(_G)
+
+        detJ = norm(D)#sqrt(det(cv.covar_base[i]))
+        cv.detJdA[i] = detJ * w
+
+        #Update dNdX
+        #...not need at the moment
+
+    end
+
+end
+
+
+function JuAFEM.function_value(fe_v::SurfaceVectorValues{dim,dim_s}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T,dim_s}
+    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+    n_base_funcs *= dim_s
+    
+    @assert length(u) == length(dof_range)
+    val = zero(Vec{dim_s,T})
+    for (i, j) in enumerate(dof_range)
+        val += shape_value(fe_v, q_point, j) * u[i]
+    end
+    return val
+end
+
+
+
+#
+# Interpolation for cohesive zones
+#
+
+struct CohesiveZoneInterpolation{dim_p,dim_s,I<:Interpolation} <: SurfaceInterpolation{dim_p,RefCube,-1,dim_s} 
+    interpolation::I
+    function CohesiveZoneInterpolation{dim_p,dim_s}(interpolation) where {dim_p,dim_s}
+        @assert(JuAFEM.getdim(interpolation) == dim_p)
+        new{dim_p,dim_s,typeof(interpolation)}(interpolation)
+    end
+end
+
+JuAFEM.getnbasefunctions(ip::CohesiveZoneInterpolation{dim_p,dim_s,I}) where {dim_p,dim_s,I} = getnbasefunctions(ip.interpolation)*2
+JuAFEM.nvertexdofs(::CohesiveZoneInterpolation) = 1
+
+function JuAFEM.value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) where {dim_p,I}
+    _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $i for interpolation $ip"))
+    sign = _i <= (getnbasefunctions(ip)÷2) ? -1 : 1
+    i = (_i-1)%(getnbasefunctions(ip)÷2) +1
+
+    return sign*JuAFEM.value(ip.interpolation, i, ξ)
+end
+
+function mid_surf_value(ip::CohesiveZoneInterpolation{dim_p,dim_s,I}, _i::Int, ξ::Vec{dim_p}) where {dim_s,dim_p,I}
+    _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
+    i = (_i-1)%(getnbasefunctions(ip)÷2) +1
+
+    return JuAFEM.value(ip.interpolation, i, ξ)*0.5
+end
+
+
+##Adding edge set to dbc
+##
+##
+#
+function add_edge!(ch::ConstraintHandler, dbc::Dirichlet)
+    JuAFEM.dbc_check(ch, dbc)
+    field_idx = JuAFEM.find_field(ch.dh, dbc.field_name)
+    # Extract stuff for the field
+    interpolation =JuAFEM.getfieldinterpolation(ch.dh, field_idx)#ch.dh.field_interpolations[field_idx]
+    field_dim =JuAFEM. getfielddim(ch.dh, field_idx)#ch.dh.field_dims[field_idx] # TODO: I think we don't need to extract these here ...
+    bcvalue = JuAFEM.getbcvalue(ch.dh, field_idx)
+    _add_edge!(ch, dbc, dbc.faces, interpolation, field_dim, JuAFEM.field_offset(ch.dh, dbc.field_name), bcvalue)
+    return ch
+end
+
+function _add_edge!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Tuple{Int,Int}}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::JuAFEM.BCValues)
+    # calculate which local dof index live on each face
+    # face `i` have dofs `local_face_dofs[local_face_dofs_offset[i]:local_face_dofs_offset[i+1]-1]
+    local_face_dofs = Int[]
+    local_face_dofs_offset = Int[1]
+    for (i, face) in enumerate(JuAFEM.edges(interpolation))
+        for fdof in face, d in 1:field_dim
+            if d ∈ dbc.components # skip unless this component should be constrained
+                push!(local_face_dofs, (fdof-1)*field_dim + d + offset)
+            end
+        end
+        push!(local_face_dofs_offset, length(local_face_dofs) + 1)
+    end
+    JuAFEM.copy!!(dbc.local_face_dofs, local_face_dofs)
+    JuAFEM.copy!!(dbc.local_face_dofs_offset, local_face_dofs_offset)
+
+    # loop over all the faces in the set and add the global dofs to `constrained_dofs`
+    constrained_dofs = Int[]
+    #_celldofs = fill(0, ndofs_per_cell(ch.dh))
+    for (cellidx, faceidx) in bcfaces
+        _celldofs = fill(0, ndofs_per_cell(ch.dh, cellidx))
+        celldofs!(_celldofs, ch.dh, cellidx) # extract the dofs for this cell
+        r = local_face_dofs_offset[faceidx]:(local_face_dofs_offset[faceidx+1]-1)
+        append!(constrained_dofs, _celldofs[local_face_dofs[r]]) # TODO: for-loop over r and simply push! to ch.prescribed_dofs
+        @debug println("adding dofs $(_celldofs[local_face_dofs[r]]) to dbc")
+    end
+
+    # save it to the ConstraintHandler
+    push!(ch.dbcs, dbc)
+    push!(ch.bcvalues, bcvalue)
+    append!(ch.prescribed_dofs, constrained_dofs)
+end
+
+#=function JuAFEM.spatial_coordinate(bcv::JuAFEM.BCValues, q_point::Int, xh::AbstractVector{Vec{dim,T}}) where {dim,T}
+    return zero(Vec{dim,T})
+end=#
+
+
+#Overwrite juafem.function_value for scalar cellvalues to interpolate any type
+function JuAFEM.function_value(fe_v::JuAFEM.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
+    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+    #isa(fe_v, VectorValues) && (n_base_funcs *= dim)
+    @assert length(dof_range) == n_base_funcs
+    @boundscheck checkbounds(u, dof_range)
+    val = zero(T)#val = zero(_valuetype(fe_v, u))
+    @inbounds for (i, j) in enumerate(dof_range)
+        val += shape_value(fe_v, q_point, i) * u[j]
+    end
+    return val
+end
+
+function function_geometric_derivative(fe_v::JuAFEM.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, d::Int, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
+    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+    @assert length(dof_range) == n_base_funcs
+    @boundscheck checkbounds(u, dof_range)
+    grad = zero(T)
+    @inbounds for (i, j) in enumerate(dof_range)
+        grad += fe_v.dMdξ[i,q_point][d] * u[j]
+    end
+    return grad
+end
+
+function function_shape_derivative(fe_v::JuAFEM.ScalarValues{dim_p}, q_point::Int, x::Vector{Vec{dim_s,T}}, u::AbstractVector{T2}, a::Vec{dim_s,T}, b::Vec{dim_s,T}, dof_order::AbstractVector{Int} = collect(1:length(u))) where {dim_p,dim_s,T,T2}
+    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+    @assert length(dof_order) == n_base_funcs
+    @boundscheck checkbounds(u, dof_order)
+
+    dudξ = zeros(T2,dim_p)
+    dxdξ = zeros(Vec{dim_s,T},dim_p)
+
+    @inbounds for (i, j) in enumerate(dof_order)
+        for d in 1:dim_p
+            dxdξ[d] += fe_v.dMdξ[i,q_point][d] * x[i]
+            dudξ[d] += fe_v.dMdξ[i,q_point][d] * u[j]
+        end
+    end
+
+    #ab = [a,b]
+    #A = [ab[i]⋅ab[j] for i in 1:dim_p, j in 1:dim_p]
+    #B = [ab[i]⋅dxdξ[j] for i in 1:dim_p, j in 1:dim_p]
+
+    #dudξ̂ ::Vector{T2} = A'*inv(B') * dudξ
+
+    return dudξ#dudξ̂ 
+
+end
+
+
+function JuAFEM.spatial_coordinate(fe_v::JuAFEM.ScalarValues{dim_p}, q_point::Int, x::AbstractVector{Vec{dim_s,T}}) where {dim_p,dim_s,T}
+    n_base_funcs = JuAFEM.getngeobasefunctions(fe_v)
+    @assert length(x) == n_base_funcs
+    vec = zero(Vec{dim_s,T})
+    @inbounds for i in 1:n_base_funcs
+        vec += JuAFEM.geometric_value(fe_v, q_point, i) * x[i]
+    end
+    return vec
+end
+##
+
+
+function facedofs(dh::JuAFEM.AbstractDofHandler, fieldhandler::FieldHandler, faceindx::FaceIndex; field_name::Symbol = :all, components::Vector{Int} = [])
+
+
+    local_face_dofs = Int[]
+    for field in fieldhandler.fields
+
+        interpolation = field.interpolation
+        field_dim = field.dim
+
+        local _components
+        if field_name != :all
+            if field_name != field.name
+                continue
+            else
+                _components = components
+            end
+        else
+            _components = 1:field_dim
+        end
+
+        offset = JuAFEM.field_offset(fieldhandler, field.name)
+        
+        face = JuAFEM.faces(interpolation)[faceindx[2]]
+        
+        for fdof in face, d in 1:field_dim
+            if d ∈ _components # skip unless this component should be constrained
+                push!(local_face_dofs, (fdof-1)*field_dim + d + offset)
+            end
+        end
+
+    end
+
+    facedofs = celldofs(dh, faceindx[1])[local_face_dofs]
+    
+    return facedofs
+end
+
+function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
+    
+    nodes_new = Node{dim,T}[]
+    cells_new = JuAFEM.AbstractCell[]
+
+    faceset_new = Dict{String, Set{FaceIndex}}()
+    vertexset_new = Dict{String, Set{VertexIndex}}()
+    edgeset_new = Dict{String, Set{EdgeIndex}}()
+    nodeset_new = Dict{String, Set{Int}}()
+    cellset_new = Dict{String, Set{Int}}()
+
+    for (igrid, grid) in enumerate(grids)
+        nodeoffset = length(nodes_new)
+        celloffset = length(cells_new)
+
+        #For all cells in grid2, increment the nodeids
+        for cell in grid.cells
+            N = length(cell.nodes)
+            M = nfaces(cell)
+            offset_nodes = [n + nodeoffset for n in cell.nodes]
+            offset_cell  = Cell{dim,N,M}(NTuple{N,Int}(tuple(offset_nodes...)));
+            push!(cells_new, offset_cell)
+        end
+        append!(nodes_new, grid.nodes)
+
+        #Update sets
+        function updata_set(indexset, new_indexset, INDEX)
+            grid2_new_facesets = Dict{String, Set{INDEX}}()
+            for (facesetname, faceset) in getproperty(grid, indexset)
+                tmp_faceset = Set{INDEX}()
+                for (cellid, faceidx) in faceset
+                    push!(tmp_faceset, INDEX(cellid + celloffset, faceidx))
+                end
+                new_indexset[facesetname * string(igrid)] =  tmp_faceset
+            end
+        end
+
+        updata_set(:facesets, faceset_new, FaceIndex)
+        updata_set(:vertexsets, vertexset_new, VertexIndex)
+        updata_set(:edgesets, edgeset_new, EdgeIndex)
+
+        for (nodesetname, nodeset) in grid.nodesets
+            tmp_nodeset = Set{Int}()
+            for nodeid in nodeset
+                push!(tmp_nodeset, nodeid + nodeoffset)
+            end
+            nodeset_new[nodesetname * String(igrid)] =  tmp_nodeset
+        end
+
+        for (setname, cellset) in grid.cellsets
+            tmp_nodeset = Set{Int}()
+            for cellid in cellset
+                push!(tmp_nodeset, cellid + celloffset)
+            end
+            cellset_new[setname * String(igrid)] =  tmp_nodeset
+        end
+
+    end
+    bm = spzeros(Bool, 0, 0)
+    
+    return Grid(cells_new, nodes_new, cellset_new, nodeset_new, faceset_new, edgeset_new, vertexset_new, bm)
+
+end

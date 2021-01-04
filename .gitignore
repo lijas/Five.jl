@@ -1,0 +1,10 @@
+*jld2
+*.vtu
+*.pvd
+*.vtm
+*.pdf
+log.txt
+*.out
+submit
+interact.txt
+*.png
