@@ -12,9 +12,11 @@ mutable struct ProblemData{dim,T}
 
     t0::T
     tend::T
+    adaptive::Bool
 end
 
-function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0)
+function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
+    
     parts = Five.AbstractPart{dim}[]
     dbc   = JuAFEM.Dirichlet[]
     exfor = Five.AbstractExternalForce[]
@@ -24,7 +26,7 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0)
     states = Dict{Int, Vector{Any}}()
     grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend)
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)
@@ -91,7 +93,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
 
     contact = Contact_Node2Segment{dim,T}()# not used
 
-    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend)
+    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, adaptive)
 
     #State
     state = StateVariables(T, ndofs(dh))

@@ -21,7 +21,7 @@ import IGA #https://github.com/lijas/IGA.jl.git
 
 
 @reexport using JuAFEM
-using Tensors
+@reexport using Tensors
 
 LOG = Logging.global_logger()
 
@@ -48,6 +48,15 @@ mutable struct SystemArrays{T}
 
     #For dissipation solver:
     fˢ::Vector{T}
+    fᴬ::Vector{T}
+
+    G::Base.RefValue{T}
+end
+
+function SystemArrays(T::Type, ndofs::Int)
+    Mᵈⁱᵃᵍ = spzeros(T,ndofs,ndofs)
+    M = spzeros(T,ndofs,ndofs)
+    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
 mutable struct StateVariables{T}
@@ -126,12 +135,6 @@ function Base.copy!(a::StateVariables, b::StateVariables)
     a.solvermode = b.solvermode
 end
 
-function SystemArrays(T::Type, ndofs::Int)
-    Mᵈⁱᵃᵍ = spzeros(T,ndofs,ndofs)
-    M = spzeros(T,ndofs,ndofs)
-    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs))
-end
-
 function Base.fill!(sa::SystemArrays{T}, v::T) where T
     fill!(sa.fⁱ, v)
     fill!(sa.Kⁱ, v)
@@ -183,6 +186,8 @@ mutable struct GlobalData{dim,T,DH<:JuAFEM.AbstractDofHandler}
 
     t0::T
     tend::T
+
+    adaptive::Bool
 end
 
 

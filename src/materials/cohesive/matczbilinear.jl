@@ -1,5 +1,5 @@
 
-export MatCZBilinear
+export MatCZBilinear, MatCZBilinearState
 
 """
 MatCZBilinear
@@ -11,49 +11,65 @@ Camanho, P., & Davila, C. G. (2002). Mixed-Mode Decohesion Finite Elements in fo
 
 """
 
-struct MatCZBilinear{dim,T} <: AbstractCohesiveMaterial
+struct MatCZBilinear{T} <: AbstractCohesiveMaterial
     K::T #Initial stiffness
-    Gᴵ::NTuple{dim,T} #Fracture toughness
-    τᴹᵃˣ::NTuple{dim,T} #Streanghts 
-    δ⁰::NTuple{dim,T} #Value of jump when traction is maximum
-    δᶠ::NTuple{dim,T} #Complete seperation
+    Gᴵ::NTuple{3,T} #Fracture toughness
+    τᴹᵃˣ::NTuple{3,T} #Streanghts 
+    δ⁰::NTuple{3,T} #Value of jump when traction is maximum
+    δᶠ::NTuple{3,T} #Complete seperation
     η::T
 end
 
-struct MatCZBilinearState{dim,T} <: AbstractMaterialState
+struct MatCZBilinearState{T} <: AbstractMaterialState
     δᴹᵃˣₘ::T
     d::T
-    t::Vec{dim,T}
-    J::Vec{dim,T}
+    t::Vec{3,T}
+    J::Vec{3,T}
 end
 
-function MatCZBilinear(; K::T, Gᴵ::NTuple{dim,T}, τᴹᵃˣ::NTuple{dim,T}, η::T) where {dim,T}
+function MatCZBilinear(; K::T, Gᴵ::NTuple{3,T}, τᴹᵃˣ::NTuple{3,T}, η::T) where {T}
     δᶠ = 2 .*Gᴵ./τᴹᵃˣ
     δ⁰ = τᴹᵃˣ./K
-    return MatCZBilinear{dim,T}(K, Gᴵ, τᴹᵃˣ, δ⁰, δᶠ, η)
+    return MatCZBilinear{T}(K, Gᴵ, τᴹᵃˣ, δ⁰, δᶠ, η)
 end
 
-function MatCZBilinearState(mp::MatCZBilinear{dim,T}, d::T=zero(T)) where {dim,T}
-    t = zero(Vec{dim,T}) 
-    J = zero(Vec{dim,T})
+function MatCZBilinearState(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
+    t = zero(Vec{3,T}) 
+    J = zero(Vec{3,T})
 
-    δᶠₘ = dim==3 ? sqrt(mp.δᶠ[1]^2 + mp.δᶠ[2]^2) : mp.δᶠ[1]
+    δᶠₘ = sqrt(mp.δᶠ[1]^2 + mp.δᶠ[2]^2)
     δ⁰ₘ = mp.δ⁰[1]
     δᴹᵃˣₘ = _delta_max(d, δᶠₘ, δ⁰ₘ)
     δᴹᵃˣₘ += δᴹᵃˣₘ*0.01
     return MatCZBilinearState(δᴹᵃˣₘ, d,t,J)
 end
 
-function MatCZBilinearState{dim,T}(mp::MatCZBilinear{dim,T}, d::T=zero(T)) where {dim,T}
+function MatCZBilinearState{T}(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
     return MatCZBilinearState(mp, d)
 end
 
-get_material_state_type(::MatCZBilinear{dim,T}) where {dim,T} = MatCZBilinearState{dim,T}
+get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
 
-function constitutive_driver(mp::MatCZBilinear{dim,T}, J, prev_state::MatCZBilinearState) where {dim,T}
+
+function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
+    #Pad with zero
+    J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
+
+    #Call 3d routine
+    t, δᴹᵃˣₘ, d = _constitutive_driver(mp, J, prev_state)
+    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+
+    #Remove third direction
+    t2d = Vec{2,T}((t[1], t[2]))
+    dt2d = Matrix{2,T}((dt[1,1], dt[3,1], dt[1,3], dt[3,3]))
+    error("Should check")
+    return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J)
+end
+
+function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
     
     t, δᴹᵃˣₘ, d = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
     
     return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J)
 end
@@ -70,7 +86,7 @@ max_traction_force(mat::MatCZBilinear) = mat.τᴹᵃˣ
 onset_displacement(mat::MatCZBilinear) = mat.δ⁰
 onset_displacement(mat::MatCZBilinear, dim::Int) = mat.δ⁰[dim]
 
-function _constitutive_driver(mp::MatCZBilinear{dim,T1}, δ::Vec{dim,T2}, prev_state::MatCZBilinearState) where {dim,T1,T2}
+function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state::MatCZBilinearState) where {dim,T1,T2}
 
     K = mp.K
     

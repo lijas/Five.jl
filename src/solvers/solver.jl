@@ -28,34 +28,34 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         else
             @timeit "post" post_stuff!(dh, state, globaldata)
             
-            #commit
-            @timeit "Commiting part" instructions = commit_stuff!(dh, state, globaldata)
-            
             #Currently dont have a system for adaptivity,
             # so hack the adaptivity stuff in here:
-            #=
-            if length(instructions) != 0
-                #Upgrade state and prev_state
-                @timeit "Update dofhandler" update_dofhandler!(dh, state, prev_state, system_arrays, instructions)
+            if globaldata.adaptive
+                
+                @timeit "Commiting part" instructions = commit_stuff!(dh, state, globaldata)
 
-                #Upgrade dirichlet conditions
-                resize!(globaldata.dbc.free_dofs, ndofs(dh)); 
-                globaldata.dbc.free_dofs .= 1:ndofs(dh)    
+                if length(instructions) != 0
+                    #Upgrade state and prev_state
+                    @timeit "Update dofhandler" update_dofhandler!(dh, state, prev_state, system_arrays, instructions)
 
-                #Update q for dissipation solver
-                fill!(system_arrays, 0.0)
-                apply_external_forces!(dh, globaldata.efh, state, system_arrays, globaldata)
-                JuAFEM.copy!!(prev_state.q, system_arrays.fᵉ)
+                    #Upgrade dirichlet conditions
+                    resize!(globaldata.dbc.free_dofs, ndofs(dh)); 
+                    globaldata.dbc.free_dofs .= 1:ndofs(dh)    
 
-                #Recalculate fˢ for fstar
-                assemble_fstar!(globaldata.dh, state, system_arrays, globaldata)
-                JuAFEM.copy!!(prev_state.fˢ, system_arrays.fⁱ)
+                    #Update q for dissipation solver
+                    fill!(system_arrays, 0.0)
+                    apply_external_forces!(dh, globaldata.efh, state, system_arrays, globaldata)
+                    JuAFEM.copy!!(prev_state.q, system_arrays.fᵉ)
 
-                #Restart state
-                state = deepcopy(prev_state)
-                continue
+                    #Recalculate fˢ for fstar
+                    assemble_fstar!(globaldata.dh, state, system_arrays, globaldata)
+                    JuAFEM.copy!!(prev_state.fˢ, system_arrays.fⁱ)
+
+                    #Restart state
+                    state = deepcopy(prev_state)
+                    continue
+                end
             end
-            =#
 
             @timeit "vtk export" vtk_add_state!(output, state, globaldata)
             @timeit "output" outputs!(output, state, globaldata)
