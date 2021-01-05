@@ -1,3 +1,4 @@
+export MatLinearElastic
 """
     MatLinearElastic() <: AbstractMaterial
 
@@ -22,7 +23,7 @@ end
 
 MatLinearElasticState() = MatLinearElasticState(zero(SymmetricTensor{2,3,Float64}))
 
-function MatLinearElasticState(::MatLinearElastic)
+function getmaterialstate(::MatLinearElastic)
     σ = zero(SymmetricTensor{2,3,Float64})
     return MatLinearElasticState(σ)
 end
@@ -55,7 +56,7 @@ end
 
 function constitutive_driver(mp::MatLinearElastic, ε::SymmetricTensor{2,3}, ::MatLinearElasticState = MatLinearElasticState())
     dσ,σ = JuAFEM.gradient(e -> _constitutive_driver(mp, e), ε, :all)
-    return σ, dσ, MatLinearElasticState{3,Float64}(σ)
+    return σ, dσ, MatLinearElasticState(σ)
 end
 
 function constitutive_driver(mp::MatLinearElastic, ε::SymmetricTensor{2,2}, ::MatLinearElasticState = MatLinearElasticState()) 

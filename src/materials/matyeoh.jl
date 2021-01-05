@@ -14,7 +14,7 @@ end
 
 struct MatYeohState <: AbstractMaterialState end
 
-function MatYeohState(::MatYeoh) 
+function getmaterialstate(::MatYeoh) 
     return MatYeohState()
 end
 

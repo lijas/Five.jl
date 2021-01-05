@@ -93,7 +93,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
 
     contact = Contact_Node2Segment{dim,T}()# not used
 
-    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, adaptive)
+    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
 
     #State
     state = StateVariables(T, ndofs(dh))
@@ -106,7 +106,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
 
     for part in globaldata.parts
-        init!(part, dh)
+        init_part!(part, dh)
     end
 
     return state, globaldata

@@ -38,11 +38,11 @@ end
 
 function apply_external_forces!(dh, efh::ExternalForceHandler, state::StateVariables, globaldata)
     for force in efh.external_forces
-        _apply_external_force!(force, state, globaldata)
+        apply_external_force!(force, state, globaldata)
     end
 end
 
-function _apply_external_force!(force::PointForce, state::StateVariables, globaldata)
+function apply_external_force!(force::PointForce, state::StateVariables, globaldata)
     for vertex in force.set
         dofs = dofs_on_vertex(globaldata.dh, force.fieldhandler, vertex, force.field, force.comps)
         X = Vec((0.0,0.0)) # TODO: position
@@ -67,7 +67,7 @@ end
     return TractionForce{dim,T,FV}(collect(faces), traction, facevalues, beo)
 end=#
 
-function _apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:JuAFEM.Values}
+function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:JuAFEM.Values}
     
     fv = ef.facevalues
     ndofs = getnbasefunctions(fv)
@@ -121,21 +121,3 @@ function _compute_external_traction_force!(fv::JuAFEM.Values{dim,T}, cellcoords,
    
     return dA
 end
-
-#
-#
-#
-
-#=struct IGAShellExternalForce{dim,T,IS<:IGAShell} <: AbstractExternalForce
-    faces::Vector{FaceIndex}
-    traction::Vec{dim,T}
-    igashell::Ref{IS}
-end
-
-function _apply_external_force!(cf::IGAShellExternalForce{T}, f::AbstractVector, t::T) where {T}
-   
-    for face in faces
-        
-    end
-
-end=#

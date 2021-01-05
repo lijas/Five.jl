@@ -15,28 +15,27 @@ struct FieldDimUpgradeInstruction
 end
 
 
-function update_dofhandler!(dh::MixedDofHandler, state::StateVariables{T}, prev_state::StateVariables, systemarrays::SystemArrays, instructions::Vector{FieldDimUpgradeInstruction}) where T
+function update_dofhandler!(dh::MixedDofHandler, state::StateVariables{T}, instructions::Vector{FieldDimUpgradeInstruction}) where T
 
     vertexdict = Dict{Int, Array{Int}}()
 
     for instr in instructions
-        _update!(dh, state, prev_state, systemarrays, instr, vertexdict)
+        _update!(dh, state, instr, vertexdict)
     end
 
-    resize!(systemarrays.fᵉ, ndofs(dh))
-    resize!(systemarrays.fⁱ, ndofs(dh))
-    resize!(systemarrays.fᴬ, ndofs(dh))
-    systemarrays.Kᵉ = spzeros(T, ndofs(dh), ndofs(dh))
-    systemarrays.Kⁱ = create_sparsity_pattern(dh)
+    resize!(state.system_arrays.fᵉ, ndofs(dh))
+    resize!(state.system_arrays.fⁱ, ndofs(dh))
+    resize!(state.system_arrays.fᴬ, ndofs(dh))
+    state.system_arrays.Kᵉ = spzeros(T, ndofs(dh), ndofs(dh))
+    state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
 
     #Resize the velocites anc accelerations since they are not used
     resize!(state.v, ndofs(dh))
     resize!(state.a, ndofs(dh))
 
-    error("Update other")
 end
 
-function _update!(dh::MixedDofHandler, state::StateVariables, prev_state::StateVariables, systemarrays::SystemArrays, instr::FieldDimUpgradeInstruction, vertexdict)
+function _update!(dh::MixedDofHandler, state::StateVariables, instr::FieldDimUpgradeInstruction, vertexdict)
 
     _celldofs = celldofs(dh, instr.cellid)
 
@@ -74,17 +73,9 @@ function _update!(dh::MixedDofHandler, state::StateVariables, prev_state::StateV
         state.d[nodedofs] = instr.extended_ue[i][1:current_fielddim]
         state.d[dofs]     = instr.extended_ue[i][(1:length(dofs)) .+ current_fielddim]
 
-        resize!(prev_state.d, nextdof-1)
-        prev_state.d[nodedofs] = instr.extended_ue_prev[i][1:current_fielddim]
-        prev_state.d[dofs]     = instr.extended_ue_prev[i][(1:length(dofs)) .+ current_fielddim]
-
         resize!(state.Δd, nextdof-1)
         state.Δd[nodedofs] = instr.extended_Δue[i][1:current_fielddim]
         state.Δd[dofs]     = instr.extended_Δue[i][(1:length(dofs)) .+ current_fielddim]
-
-        resize!(prev_state.Δd, nextdof-1)
-        prev_state.Δd[nodedofs] = instr.extended_Δue_prev[i][1:current_fielddim]
-        prev_state.Δd[dofs]     = instr.extended_Δue_prev[i][(1:length(dofs)) .+ current_fielddim]
 
         dh.cell_dofs.length[instr.cellid] += Δ
     end
@@ -95,29 +86,4 @@ function _update!(dh::MixedDofHandler, state::StateVariables, prev_state::StateV
     dh.ndofs[] = nextdof-1
     
 
-end
-
-
-
-function initial_upgrade_of_dofhandler(dh::MixedDofHandler, igashell::IGAShell)
-
-    instructions = FieldDimUpgradeInstruction[]
-
-    for (ic, cellid) in enumerate(igashell.cellset)
-
-        cellnodes = igashell.cell_connectivity[:, ic]
-        cellnode_states = @view adapdata(igashell).control_point_states[cellnodes]
-
-        initial_cellnode_states = fill(LUMPED, length(cellnode_states))
-
-        if cellnode_states != initial_cellnode_states
-            ndofs = ndofs_per_cell(dh, cellid)
-
-            instr = construct_upgrade_instruction(igashell, cellid, initial_cellnode_states, cellnode_states, zeros(Float64, ndofs), zeros(Float64, ndofs), zeros(Float64, ndofs), zeros(Float64, ndofs))
-            push!(instructions, instr)
-        end
-
-    end
-    return instructions
-        
 end

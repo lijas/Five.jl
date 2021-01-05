@@ -79,7 +79,7 @@ end=#
 
 function apply_constraints!(dh, ch::Constraints, state::StateVariables, globaldata)
     for ef in ch.external_forces
-        _apply_external_force!(dh, ef, state, globaldata)
+        apply_external_force!(dh, ef, state, globaldata)
     end
 end
 

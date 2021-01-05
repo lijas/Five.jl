@@ -169,6 +169,8 @@ include("constraints/Constraints.jl")
 include("utils/utils.jl")
 include("utils/celliterator2.jl")
 include("utils/juafemutils.jl")
+include("utils/stresses_through_thickness.jl")
+include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
 

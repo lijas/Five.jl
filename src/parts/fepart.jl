@@ -94,7 +94,7 @@ function construct_partstates(part::FEPart)
 end
 
 
-function init!(part::Part, dh::JuAFEM.AbstractDofHandler)
+function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
     celltype = JuAFEM.cell_to_vtkcell(getcelltype(part.element))
     
     #cls = MeshCell[]
@@ -267,7 +267,7 @@ function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T},
     return node_coords
 end
 
-function init!(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim,C,T}) where {dim,C,T}
+function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim,C,T}) where {dim,C,T}
     
     @assert(dim==2)
     celltype = JuAFEM.VTKCellTypes.VTK_LINE

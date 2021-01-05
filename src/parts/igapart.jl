@@ -17,7 +17,7 @@ end
 
 get_bezier_operator(part::IGAPart, ie::Int) = return part.Cb[ie]
 
-function init!(part::IGAPart, dh::JuAFEM.AbstractDofHandler) 
+function init_part!(part::IGAPart, dh::JuAFEM.AbstractDofHandler) 
 
 end
 

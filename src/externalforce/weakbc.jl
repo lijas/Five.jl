@@ -32,7 +32,7 @@ function WeakBoundaryCondition{dim,T}(dh::JuAFEM.AbstractDofHandler, faces, pres
     return WeakBoundaryCondition{dim,T,FV}(faces, prescribed_displacement, local_dofs, facevalues, beo)
 end
 
-function _apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:JuAFEM.Values}
+function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:JuAFEM.Values}
     
     fv = ef.facevalues
     local_dofs = ef.local_dofs

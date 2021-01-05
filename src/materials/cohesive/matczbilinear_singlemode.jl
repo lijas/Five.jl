@@ -8,26 +8,27 @@ Camanho, P., & Davila, C. G. (2002). Mixed-Mode Decohesion Finite Elements in fo
 
 """
 
-struct MatCZBilinearSingleMode{dim,T} <: AbstractCohesiveMaterial
-    δ₀::T #Value of jump when traction is maximum
-    δf::T #Complete seperation
-    τ_max::T #Maximum traction value
-    K_tension::T
-    K_compression::T 
+struct MatCZBilinearSingleMode <: AbstractCohesiveMaterial
+    δ₀::Float64 #Value of jump when traction is maximum
+    δf::Float64 #Complete seperation
+    τ_max::Float64 #Maximum traction value
+    K_tension::Float64
+    K_compression::Float64
 end
 
-struct MatCZBilinearSingleModeState{dim,T} <: AbstractMaterialState
-    δmax::Vector{T}
-    damage::Vector{T}
-    traction::Vec{dim,T}
-    jump::Vec{dim,T}
+struct MatCZBilinearSingleModeState <: AbstractMaterialState
+    δmax::Vector{Float64}
+    damage::Vector{Float64}
+    traction::Vec{3,Float64}
+    jump::Vec{3,Float64}
 end
 
-function MatCZBilinearSingleMode{dim}(δ₀::T, δf::T, τ_max::T, K_traction::T, K_compression::T = K_traction) where {dim,T}
-    return MatCZBilinearSingleMode{dim,T}(δ₀, δf, τ_max, K_traction, K_compression)
+function MatCZBilinearSingleMode(δ₀::T, δf::T, τ_max::T, K_traction::T, K_compression::T = K_traction) where {T}
+    return MatCZBilinearSingleMode(δ₀, δf, τ_max, K_traction, K_compression)
 end
 
-function MatCZBilinearSingleModeState(mp::MatCZBilinearSingleMode{dim,T}, d::Vector{T}=zeros(T,dim)) where {dim,T}
+function getmaterialstate(mp::MatCZBilinearSingleMode, d::Vector{T}=zeros(T,3)) where {T}
+    dim = 3
     t = zero(Vec{dim,T}) #Traction vector
     J = zero(Vec{dim,T})
     δmax = zeros(T,dim)
@@ -37,18 +38,10 @@ function MatCZBilinearSingleModeState(mp::MatCZBilinearSingleMode{dim,T}, d::Vec
             δmax[i] = 0.0
         end
     end
-    return MatCZBilinearSingleModeState{dim,T}(δmax, d, t, J)
+    return MatCZBilinearSingleModeState(δmax, d, t, J)
 end
 
-function MatCZBilinearSingleModeState(mp::MatCZBilinearSingleMode{dim,T}, d::T) where {dim,T}
-    return MatCZBilinearSingleModeState(mp, fill(d,dim))
-end
-
-function MatCZBilinearSingleModeState{dim,T}(mp::MatCZBilinearSingleMode{dim,T}, d::T) where {dim,T}
-    return MatCZBilinearSingleModeState(mp, fill(d,dim))
-end
-
-get_material_state_type(::MatCZBilinearSingleMode{dim,T}) where {dim,T} = MatCZBilinearSingleModeState{dim,T}
+get_material_state_type(::MatCZBilinearSingleMode) = MatCZBilinearSingleModeState
 
 #
 interface_damage(state::MatCZBilinearSingleModeState) = state.damage[i]
@@ -58,7 +51,7 @@ max_traction_force(mat::MatCZBilinearSingleMode, ::Int = 1) = mat.τ_max
 
 onset_displacement(mat::MatCZBilinearSingleMode, ::Int = 1) = mat.δ⁰
 
-function _constitutive_driver(mp::MatCZBilinearSingleMode{dim,T}, J::Vec{dim,T2}, prev_state::MatCZBilinearSingleModeState) where {dim,T,T2}
+function _constitutive_driver(mp::MatCZBilinearSingleMode, J::Vec{dim,T2}, prev_state::MatCZBilinearSingleModeState) where {dim,T2}
     
     K = mp.K_tension
     delta_f = mp.δf
@@ -100,9 +93,9 @@ function _constitutive_driver(mp::MatCZBilinearSingleMode{dim,T}, J::Vec{dim,T2}
     return Vec{dim}(Tuple(t)), delta_max, d
 end
 
-function constitutive_driver(mp::MatCZBilinearSingleMode{dim,T}, J, prev_state::MatCZBilinearSingleModeState) where {dim,T}
+function constitutive_driver(mp::MatCZBilinearSingleMode, J::Vec{dim,T}, prev_state::MatCZBilinearSingleModeState) where {dim,T}
     _, delta_max, damage = _constitutive_driver(mp, J, prev_state)
     dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
 
-    return t, dt, MatCZBilinearSingleModeState{dim,T}(delta_max,damage,t,J)
+    return t, dt, MatCZBilinearSingleModeState(delta_max,damage,t,J)
 end

@@ -33,7 +33,7 @@ function MatCZBilinear(; K::T, Gᴵ::NTuple{3,T}, τᴹᵃˣ::NTuple{3,T}, η::T
     return MatCZBilinear{T}(K, Gᴵ, τᴹᵃˣ, δ⁰, δᶠ, η)
 end
 
-function MatCZBilinearState(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
+function getmaterialstate(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
     t = zero(Vec{3,T}) 
     J = zero(Vec{3,T})
 
@@ -44,12 +44,7 @@ function MatCZBilinearState(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
     return MatCZBilinearState(δᴹᵃˣₘ, d,t,J)
 end
 
-function MatCZBilinearState{T}(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
-    return MatCZBilinearState(mp, d)
-end
-
 get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
-
 
 function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
     #Pad with zero
@@ -61,8 +56,8 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
 
     #Remove third direction
     t2d = Vec{2,T}((t[1], t[2]))
-    dt2d = Matrix{2,T}((dt[1,1], dt[3,1], dt[1,3], dt[3,3]))
-    error("Should check")
+    dt2d = SymmetricTensor{2,2,T,3}((dt[1,1], dt[3,1], dt[3,3]))
+
     return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J)
 end
 

@@ -9,7 +9,6 @@ struct MatTransvLinearElastic <: AbstractMaterial
     C::SymmetricTensor{4,3,Float64,36}
     α::Float64
     density::Float64
-    plain_stress::Bool
 end
 
 struct MatTransvLinearElasticState <: AbstractMaterialState
@@ -20,12 +19,8 @@ end
 # Constructors
 # # # # # # #
 
-function MatTransvLinearElasticState(::MatTransvLinearElastic)
+function getmaterialstate(::MatTransvLinearElastic)
     σ = zero(SymmetricTensor{2,3,Float64})
-    return MatTransvLinearElasticState(σ)
-end
-
-function MatTransvLinearElasticState()  
     return MatTransvLinearElasticState(σ)
 end
 
@@ -45,7 +40,7 @@ function MatTransvLinearElastic(;    E1::T,   E2::T,   E3::T = E2,
 
     C = fromvoigt(SymmetricTensor{4,3}, inv(C))
 
-    return MatTransvLinearElastic(C,α,ρ,plane_stress)
+    return MatTransvLinearElastic(C,α,ρ)
 end
 
 get_material_state_type(::MatTransvLinearElastic) = MatTransvLinearElasticState

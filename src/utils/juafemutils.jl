@@ -242,7 +242,7 @@ function ShellQuadratureRule{dim,T}(inplane_order, outofplane_order) where {dim,
     ShellQuadratureRule{dim,T}(qr, inplane_order^(dim-1), outofplane_order)
 end
 
-function _generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per_layer::Int) where {T}
+function generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per_layer::Int) where {T}
     
     nlayers = length(zcoords)-1
 
@@ -266,40 +266,7 @@ function _generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per
 
 end
 
-#changes zcoord to -1 to 1
-function change_zcoord_range(zcoords::Vector{T}) where T
-    addon = (last(zcoords) + first(zcoords))/2
-    scale = (last(zcoords) - first(zcoords))/2
-    zcoords = (zcoords.-addon)/scale
-    return zcoords
-end
 
-
-function _generate_cohesive_oop_quadraturerule(zcoords::Vector{T}) where {T}
-    
-    ninterfaces = length(zcoords)-2
-    ε = 1e-13
-
-    points_top = Vector{Vec{1,T}}()
-    weights_top = Vector{T}()
-
-    points_bot = Vector{Vec{1,T}}()
-    weights_bot = Vector{T}()
-    #copy the oo-plane integration to each layer
-    zcoords_interfaces = change_zcoord_range(zcoords)[2:end-1]
-    for iinterface in 1:ninterfaces
-        #Add the zcoord to the quadrature rule
-        push!(points_top,  Vec( (zcoords_interfaces[iinterface] + ε, ) ))
-        push!(weights_top, 1.0)
-
-        #Add the zcoord to the quadrature rule
-        push!(points_bot,  Vec( (zcoords_interfaces[iinterface] - ε, ) ))
-        push!(weights_bot, 1.0)
-        #push!(weights, qr.weights[qp])
-    end
-    return [QuadratureRule{1,RefCube,T}(weights_bot,points_bot), QuadratureRule{1,RefCube,T}(weights_top,points_top)]
-
-end
 
 function generate_shell_quadraturerule(T::Type, dim, nqp_inplane::Int, nlayers::Int, nqp_opplane_per_layer::Int)
     qri = QuadratureRule{dim-1,RefCube}(nqp_inplane)

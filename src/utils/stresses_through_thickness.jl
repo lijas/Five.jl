@@ -1,4 +1,4 @@
-
+export ThroughThicknessStresses
 """
 ThroughThicknessStresses
     Struct containing the stresses, strains, and coordinates in the local and global systems
