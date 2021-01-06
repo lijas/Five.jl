@@ -36,10 +36,10 @@ function should_abort(solver::LocalDissipationSolver, ΔP, solvermode)
     return false
 end
 
-function step!(solver::LocalDissipationSolver, state::StateVariables, prev_state, system_arrays, globaldata)
+function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata)
 
     λ0     = state.λ
-    q      = state.q
+    q      = state.system_arrays.q
     state0 = deepcopy(state)
 
     #ΔP prepresents either ΔL or Δλ depending 
@@ -60,22 +60,23 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, prev_state
         ntries += 1
         while true
             state.newton_itr += 1
-            fill!(system_arrays, 0.0)
+            fill!(state.system_arrays, 0.0)
+
             #Get internal force                                                                       
-            assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, prev_state, system_arrays, globaldata)
-            apply_constraints!(globaldata.dh, globaldata.constraints, state, prev_state, system_arrays, globaldata)
-            
+            @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
+            @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
+
             #Normal stiffness matrix
-            Kₜ = system_arrays.Kⁱ - system_arrays.Kᵉ
-            rₜ = state.λ*q + system_arrays.fᵉ - system_arrays.fⁱ
+            Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
+            rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
             
-            assemble_dissipation!(globaldata.dh, state, prev_state, system_arrays, globaldata)#1/2 * dot(state.Δd, λ0*q - state.fˢ)
-            Δg = system_arrays.G[]
+            assemble_dissipation!(globaldata.dh, state, globaldata)#1/2 * dot(state.Δd, λ0*q - state.fˢ)
+            Δg = state.system_arrays.G[]
             
             #println("-----|>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("fs=$(norm(state.fˢ)),", 30))")
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ = _solve_dissipation_system(Kₜ, rₜ, q, system_arrays.fᵉ, system_arrays.fᴬ, system_arrays.G[], λ0, state.ΔL, state.solvermode)
+            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, state.system_arrays.G[], λ0, state.ΔL, state.solvermode)
             
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
@@ -83,14 +84,14 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, prev_state
             state.λ  += ΔΔλ
 
             #Check convergance
-            if norm(state.λ*q) <= 1e-1
+            if norm(state.λ*q) <= 1e-10
                 state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
             else
                 state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
             println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
-            #println("Maximum: $(maximum(abs.(state.d)))")
-            if newton_done(state.norm_residual, Δg, state.ΔL, solver.tol, state.solvermode)
+            
+            if newton_done(solver, state.norm_residual, Δg, state.ΔL, state.solvermode)
                 converged_failed = false
                 break
             end
@@ -101,7 +102,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, prev_state
             end
 
             #Reset partstates
-            state.partstates .= deepcopy(state.ⁿpartstates)
+            state.partstates .= deepcopy(state.prev_partstates)
         end
 
         if converged_failed 
@@ -127,10 +128,10 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, prev_state
     return true
 end
 
-function newton_done(residual, Δg, ΔL, tol, solvermode) 
-    if residual < tol 
+function newton_done(solver::LocalDissipationSolver, residual, Δg, ΔL, solvermode) 
+    if residual < solver.tol 
         if solvermode == DISSIPATION_LOCAL
-            if norm(Δg-ΔL) < tol
+            if norm(Δg-ΔL) < solver.tol
                 return true
             else
                 return false
@@ -141,7 +142,7 @@ function newton_done(residual, Δg, ΔL, tol, solvermode)
     return false
 end
 
-function _solve_dissipation_system(Kₜ, rₜ, q, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
+function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
     local ΔΔd, ΔΔλ
     if solvermode == DISSIPATION_LOCAL
         w = 0.0

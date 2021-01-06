@@ -156,6 +156,7 @@ include("outputs/material_output.jl")
 
 include("solvers/solver.jl")
 include("solvers/dissipation_solver.jl")
+include("solvers/local_dissipation_solver.jl")
 include("solvers/newton_solver.jl")
 include("solvers/arclength_solver.jl")
 

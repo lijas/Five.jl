@@ -9,9 +9,7 @@ struct FieldDimUpgradeInstruction
     current_fielddim::Vector{Int}
     upgrade_fielddim::Vector{Int}
     extended_ue::Vector{Vector{Float64}}
-    extended_ue_prev::Vector{Vector{Float64}}
     extended_Δue::Vector{Vector{Float64}}
-    extended_Δue_prev::Vector{Vector{Float64}}
 end
 
 

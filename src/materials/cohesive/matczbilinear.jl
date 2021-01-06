@@ -46,27 +46,49 @@ end
 
 get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
 
+function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
+    
+    t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
+    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    
+    return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J)
+end
+
+function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
+    
+    J_dual = Tensors._load(J)
+    _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
+
+    return Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
+end
+
+#2D
 function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
 
     #Call 3d routine
-    t, δᴹᵃˣₘ, d = _constitutive_driver(mp, J, prev_state)
+    t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
     dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
 
     #Remove third direction
-    t2d = Vec{2,T}((t[1], t[2]))
+    t2d = Vec{2,T}((t[1], t[3]))
     dt2d = SymmetricTensor{2,2,T,3}((dt[1,1], dt[3,1], dt[3,3]))
 
     return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J)
 end
 
-function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
+function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
     
-    t, δᴹᵃˣₘ, d = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    
-    return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J)
+    #Pad with zero
+    J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
+
+    J_dual = Tensors._load(J)
+    _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
+
+    g, dg =  Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
+
+    return g, Vec{2,T}((dg[1], dg[3]))
 end
 
 #
@@ -100,9 +122,16 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
         else
             D = zero(Tensor{2,dim,T1})
         end
-        return D⋅δ, prev_state.δᴹᵃˣₘ, prev_state.d
+        return D⋅δ, prev_state.δᴹᵃˣₘ, prev_state.d, 0.0
     end
-    δˢʰᵉᵃʳ = dim==3 ? sqrt(δ[1]^2 + δ[2]^2) : δ[1]
+
+    #Avoid singularity whene δˢʰᵉᵃʳ==0.0
+    if δ[1] == 0.0 && δ[2] == 0.0
+        δˢʰᵉᵃʳ = 0.0
+    else
+        δˢʰᵉᵃʳ = dim==3 ? sqrt(δ[1]^2 + δ[2]^2) : δ[1]
+    end
+
     δₘ = sqrt((δˢʰᵉᵃʳ)^2 + macl(δ[dim])^2)
 
     δᴹᵃˣₘ = max(prev_state.δᴹᵃˣₘ, δₘ)
@@ -111,27 +140,38 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
 
     δ⁰ₘ = _onset_softening(δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β)
     δᶠₘ = _cohesive_bk_criterion(δ[dim], δ⁰ₘ, mp.δᶠ, K, β, mp.η, mp.Gᴵ)
-    local D, d
+
+    local D, d, g
     if δᴹᵃˣₘ <= δ⁰ₘ
         D = K*δᵢⱼ
         d=0.0
+        g = 0.0
     elseif δ⁰ₘ < δᴹᵃˣₘ < δᶠₘ
         d = (δᶠₘ*(δᴹᵃˣₘ - δ⁰ₘ))/(δᴹᵃˣₘ*(δᶠₘ-δ⁰ₘ))
         D = δᵢⱼ * (1-d)*K
+        Dg = K*δᵢⱼ # For compuation of dissipation
         if δ[dim] <= 0.0
             D += δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * d * K# * macl(-δ₃)/-δ₃
+            Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
         end
+        Δd = d - prev_state.d
+        g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
     elseif δᴹᵃˣₘ >= δᶠₘ
         D = zero(δᵢⱼ)
+        Dg = K*δᵢⱼ # For compuation of dissipation
         if δ[dim] <= 0.0
             D += δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K# * macl(-δ₃)/-δ₃
+            Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
         end
         d=1.0
+
+        Δd = d - prev_state.d
+        g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
     else
         error("MatCZBilinear failed")
     end
     
-    return D⋅δ, δᴹᵃˣₘ, d
+    return D⋅δ, δᴹᵃˣₘ, d, g
 end
 
 

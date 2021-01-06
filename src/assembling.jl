@@ -77,6 +77,15 @@ function assemble_fstar!(dh, state, globaldata)
     end
 end
 
+function assemble_dissipation!(dh::MixedDofHandler, state::StateVariables, globaldata)
+    for (partid, part) in enumerate(globaldata.parts)
+
+        assemble_dissipation!(dh, 
+                                part, 
+                                state)
+    end
+end
+
 
 function post_stuff!(dh, state, globaldata)
     for (partid, part) in enumerate(globaldata.parts)
@@ -86,12 +95,12 @@ end
 
 #For adaptivity, future
 function commit_stuff!(dh, state, globaldata)
-    #=instructions = FieldDimUpgradeInstruction[]
+    instructions = FieldDimUpgradeInstruction[]
     for (partid, part) in enumerate(globaldata.parts)
         instr = commit_part!(dh, part, state)
         if instr !== nothing
             append!(instructions, instr)
         end
     end
-    return instructions=#
+    return instructions
 end

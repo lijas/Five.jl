@@ -121,7 +121,7 @@ function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
      #@show part.vtknode_coords
 end
 
-@enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR
+@enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI
 
 function assemble_stiffnessmatrix_and_forcevector!(dh::JuAFEM.AbstractDofHandler, 
     part::FEPart,
@@ -144,6 +144,16 @@ function assemble_fstar!(dh::JuAFEM.AbstractDofHandler,
     state::StateVariables)
 
     _assemble_part!(dh, part,state, FSTAR)
+
+end
+
+function assemble_dissipation!(dh::JuAFEM.AbstractDofHandler, 
+    part::FEPart,
+    state::StateVariables,
+    ⁿstate::StateVariables,
+    system_arrays::SystemArrays{T}) where T
+
+    _assemble_part!(dh, part, state, DISSI)
 
 end
 
@@ -194,6 +204,11 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
         elseif assemtype == FSTAR
             integrate_fstar!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
             state.system_arrays.fⁱ[celldofs] += fe
+        elseif assemtype == DISSI
+            ge = Base.RefValue(zero(T))
+            integrate_dissipation!(element, cellstate, part.elementinfo, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            system_arrays.fᴬ[celldofs] += fe
+            system_arrays.G[] += ge[]
         end
 
     end

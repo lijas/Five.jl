@@ -13,10 +13,19 @@ end
 function JuAFEM.close!(ef::ExternalForceHandler, dh::MixedDofHandler)
     for (i, e) in enumerate(ef.external_forces)
         ForceType = typeof(e)
-        ef.external_forces[i] = ForceType(e, dh)
+        ef.external_forces[i] = init_external_force!(e, dh)
     end
 end
 
+function apply_external_forces!(dh, efh::ExternalForceHandler, state::StateVariables, globaldata)
+    for force in efh.external_forces
+        apply_external_force!(force, state, globaldata)
+    end
+end
+
+"""
+Point force
+"""
 struct PointForce <: AbstractExternalForce
     field::Symbol
     comps::Vector{Int}
@@ -30,16 +39,10 @@ function PointForce(; field::Symbol, comps::AbstractVector{Int}, set::Set{Vertex
     return PointForce(field, collect(comps), set, func, FieldHandler())
 end
 
-function PointForce(force::PointForce, dh::MixedDofHandler)
+function init_external_force!(force::PointForce, dh::MixedDofHandler)
     JuAFEM._check_same_celltype(dh.grid, cellid.(force.set))
     fh = getfieldhandler(dh, cellid(first(force.set)))
     return PointForce(force.field, force.comps, force.set, force.func, fh)
-end
-
-function apply_external_forces!(dh, efh::ExternalForceHandler, state::StateVariables, globaldata)
-    for force in efh.external_forces
-        apply_external_force!(force, state, globaldata)
-    end
 end
 
 function apply_external_force!(force::PointForce, state::StateVariables, globaldata)
