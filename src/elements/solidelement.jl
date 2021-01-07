@@ -1,4 +1,4 @@
-
+export SolidElement
 """
 SolidElement{dim,order,shape,T,CV<:JuAFEM.Values}
 
@@ -222,4 +222,23 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
             end
         end
     end
+end
+
+
+function integrate_dissipation!(
+    element       :: SolidElement{dim_p,dim_s,CV},
+    elementstate  :: AbstractElementState,
+    material      :: AbstractMaterial,
+    materialstate :: AbstractArray{<:AbstractMaterialState},
+    fe            :: Vector{T},
+    ge            :: Base.RefValue{T},
+    coords, 
+    Δue           :: Vector,
+    ue            :: Vector,
+    due           :: Vector,
+    Δt            :: T
+    ) where {dim_p,dim_s,CV,T}
+    
+    fe .= 0.0
+    ge[] = 0.0
 end

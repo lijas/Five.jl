@@ -142,6 +142,8 @@ function Base.fill!(sa::SystemArrays{T}, v::T) where T
     fill!(sa.Kⁱ, v)
     fill!(sa.fᵉ, v)
     fill!(sa.Kᵉ, v)
+    fill!(sa.fᴬ, v)
+    sa.G[] = v
 end
 
 

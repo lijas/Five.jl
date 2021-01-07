@@ -29,13 +29,13 @@ Point force
 struct PointForce <: AbstractExternalForce
     field::Symbol
     comps::Vector{Int}
-    set::Set{VertexIndex}
+    set::Vector{VertexIndex}
     func::Function
     
     fieldhandler::FieldHandler
 end
 
-function PointForce(; field::Symbol, comps::AbstractVector{Int}, set::Set{VertexIndex}, func::Function)
+function PointForce(; field::Symbol, comps::AbstractVector{Int}, set, func::Function)
     return PointForce(field, collect(comps), set, func, FieldHandler())
 end
 

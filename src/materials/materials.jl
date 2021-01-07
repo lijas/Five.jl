@@ -1,4 +1,5 @@
 export LayeredMaterial, MatLinearElastic, Material2D
+export PlaneStressMaterial, PlaneStrainMaterial
 
 """
 Abstract type for Materials
@@ -91,6 +92,9 @@ struct Material2D{M <: AbstractMaterial} <: AbstractMaterial
     material::M
     plane_state::PLANE_STATE_2D
 end
+
+PlaneStressMaterial(mat) = Material2D(mat, PLANE_STRESS)
+PlaneStrainMaterial(mat) = Material2D(mat, PLANE_STRAIN)
 
 function getmaterialstate(m::Material2D)
     return getmaterialstate(m.material)

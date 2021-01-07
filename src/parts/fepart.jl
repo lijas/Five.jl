@@ -35,10 +35,10 @@ end
 function Part{dim,T}(; 
     material::AbstractMaterial,
     element::AbstractElement,
-    cellset::Vector{Int}
+    cellset::AbstractVector{Int}
     ) where {dim,T}
 
-   return Part{dim,T}(material, cellset, element)
+   return Part{dim,T}(material, collect(cellset), element)
 end
 
 struct IGAPart{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim}
@@ -85,7 +85,7 @@ function construct_partstates(part::FEPart)
 
         _materialstates = Vector{materialtype}(undef, nqp)
         for j in 1:nqp
-            _materialstates[j] = materialtype(part.material)
+            _materialstates[j] = getmaterialstate(part.material)
         end
 
         states[i] = PartState(_cellstate, _materialstates)
@@ -149,9 +149,7 @@ end
 
 function assemble_dissipation!(dh::JuAFEM.AbstractDofHandler, 
     part::FEPart,
-    state::StateVariables,
-    ⁿstate::StateVariables,
-    system_arrays::SystemArrays{T}) where T
+    state::StateVariables)
 
     _assemble_part!(dh, part, state, DISSI)
 
@@ -174,10 +172,9 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
     for (localid,cellid) in enumerate(part.cellset)
         
         partstate::get_partstate_type(part) = state.partstates[cellid]
-        ⁿpartstate::get_partstate_type(part) = state.prev_partstates[cellid]
 
-        materialstate      = partstate.materialstates
-        cellstate          = partstate.elementstate
+        materialstate = partstate.materialstates
+        cellstate     = partstate.elementstate
 
         fill!(fe, 0.0)
         (assemtype == STIFFMAT) && fill!(ke, 0.0)
@@ -206,9 +203,9 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
             state.system_arrays.fⁱ[celldofs] += fe
         elseif assemtype == DISSI
             ge = Base.RefValue(zero(T))
-            integrate_dissipation!(element, cellstate, part.elementinfo, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
-            system_arrays.fᴬ[celldofs] += fe
-            system_arrays.G[] += ge[]
+            integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            state.system_arrays.fᴬ[celldofs] += fe
+            state.system_arrays.G[] += ge[]
         end
 
     end
@@ -282,12 +279,13 @@ function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T},
     return node_coords
 end
 
-function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim,C,T}) where {dim,C,T}
-    
-    @assert(dim==2)
+function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::JuAFEM.AbstractDofHandler) where {dim,T}
+    return nothing
+    #=@assert(dim==2)
     celltype = JuAFEM.VTKCellTypes.VTK_LINE
     
     next_node_id = 1
+    @show part.cellset
     for cell in CellIterator(dh, part.cellset)
         new_ids = Int[]
         for nodeid in cell.nodes
@@ -307,11 +305,11 @@ function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim
         push!(part.vtkexport.vtkcells, MeshCell(celltype, new_ids[3:4]))
         push!(part.vtkexport.vtkcells, MeshCell(celltype, new_ids[[4,1]]))
         
-    end
+    end=#
 end
 
-function get_vtk_part_grid(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim,T}) where {dim,T}    
-    return part.vtkexport.vtkcells, part.vtkexport.vtknodes
+function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables) where {dim,T}
+    return Vec{dim,T}[]
 end
 
 function get_vtk_part_point_data(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim,T}, di) where {dim,T}
@@ -355,10 +353,7 @@ function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOut
 end
 
 function get_vtk_nodedata(part::FEPart, output::VTKNodeOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T
-
-    
-
-    return data
+    error("TODO")
 end
 
 function get_vtk_celldata(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}

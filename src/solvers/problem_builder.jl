@@ -42,8 +42,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         fields = get_fields(part)
         cells = get_cellset(part)
         push!(dh, FieldHandler(fields, Set(cells)))
-        @show fields
-        @show cells
+
         #partstates
         states = construct_partstates(part)
         append!(partstates, states)
