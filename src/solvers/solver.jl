@@ -47,9 +47,8 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
                     apply_external_forces!(dh, globaldata.efh, state, system_arrays, globaldata)
                     JuAFEM.copy!!(prev_state.q, system_arrays.fᵉ)
 
-                    #Recalculate fˢ for fstar
+                    #Recalculate fᴬ for fstar
                     assemble_fstar!(globaldata.dh, state, system_arrays, globaldata)
-                    JuAFEM.copy!!(prev_state.fˢ, system_arrays.fⁱ)
 
                     #Restart state
                     state = deepcopy(prev_state)

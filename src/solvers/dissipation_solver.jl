@@ -50,17 +50,18 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
     converged_failed = true
     ntries = 0
     Δg = 0.0
-    #println("------>Before $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("fs=$(norm(state.fˢ)),", 30))")
+    
     while converged_failed 
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
         
-        println("Mode: $(state.solvermode), ntries: $(ntries),  Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
+        println("Mode: $(state.solvermode), ntries: $(ntries), prev_λ = $(state0.λ-state0.Δλ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
         
         state.newton_itr = 0
         ntries += 1
         while true
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
+
             #Get internal force                                                                       
             assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
             apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)
@@ -69,12 +70,11 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
             
-            Δg = 1/2 * dot(state.Δd, λ0*q - state.fˢ)
+            Δg = 1/2 * dot(state.Δd, λ0*q - state0.system_arrays.fᴬ)
             
-            #println("-----|>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("fs=$(norm(state.fˢ)),", 30))")
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.fˢ, Δg, λ0, state.ΔL, state.solvermode)
+            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state0.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
             
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
@@ -82,11 +82,16 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             state.λ  += ΔΔλ
 
             #Arc-leanth equation
-            Δg = 1/2 * dot(state.Δd, λ0*q - state.fˢ)# - state.ΔL
+            Δg = 1/2 * dot(state.Δd, λ0*q - state0.system_arrays.fᴬ)# - state.ΔL
+            
             #Check convergance
-            state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])#/norm(state.λ*state.q)
+            if norm(state.λ*q) <= 1e-10
+                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
+            else
+                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+            end
             println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
-            #println("Maximum: $(maximum(abs.(state.d)))")
+
             if newton_done(solver, state.norm_residual, Δg, state.ΔL, state.solvermode)
                 converged_failed = false
                 break
@@ -120,9 +125,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
     determine_solvermode!(solver, state)
 
     #Recalculate f-start for this timestep
-    fill!(system_arrays, 0.0)
-    assemble_fstar!(globaldata.dh, state, globaldata)
-    state.fˢ .= system_arrays.fⁱ
+    assemble_fstar!(globaldata.dh, state, globaldata) #Stores in fᴬ
 
     return true
 end
@@ -141,12 +144,12 @@ function newton_done(solver::DissipationSolver, residual, Δg, ΔL, solvermode)
     return false
 end
 
-function _solve_dissipation_system(solver::DissipationSolver, Kₜ, rₜ, q, fᵉ, fˢ, Δg, λ0, ΔL, solvermode)
+function _solve_dissipation_system(solver::DissipationSolver, Kₜ, rₜ, q, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
     local ΔΔd, ΔΔλ
     if solvermode == DISSIPATION
         w = 0.0
-        h = 0.5*(λ0*q - fˢ)
-        #@show norm(Kₜ), norm(rₜ), norm(q), norm(fᵉ), norm(fˢ), norm(Δg), norm(ΔL), norm(λ0), solvermode
+        h = 0.5*(λ0*q - fᴬ)
+        
         KK = vcat(hcat(Kₜ, -q), hcat(h', w))
         ff = vcat(rₜ, -(Δg - ΔL))
 
@@ -174,7 +177,7 @@ function set_initial_guess!(solver::DissipationSolver, state::StateVariables, Δ
         ΔP_min = solver.Δλ_min
     end
 
-    if state.step == 1
+    if state.step == 1 || state.step == 2
         ⁿΔP = ΔP = solver.Δλ0 * (1/2)^ntries
     else
         if ntries == 0 

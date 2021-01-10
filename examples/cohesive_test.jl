@@ -1,7 +1,7 @@
 using Five
 
 
-function generate_enf_grid(nelx, nely, L, h, a0)
+function generate_test_grid(nelx, nely, L, h, a0)
 
     #
     grid1 = generate_grid(JuAFEM.Quadrilateral,(nelx,nely),Vec((0.0,0.0)),Vec((L,h)))
@@ -9,10 +9,9 @@ function generate_enf_grid(nelx, nely, L, h, a0)
     grid = gridmerge(grid1,grid2)
 
     #
-    addvertexset!(grid, "mid", (x)-> x[1] ≈ L/2 && x[2] ≈ h*2)
-    @assert(length(getvertexset(grid, "mid")) == 2)
-    addvertexset!(grid, "botleft", (x)-> x[1] ≈ 0.0 && x[2] ≈ 0.0)
-    addvertexset!(grid, "botright", (x)-> x[1] ≈ L && x[2] ≈ 0.0)
+    addvertexset!(grid, "topvertices", (x)->  x[2] ≈ 2h)
+    addfaceset!(grid, "topface", (x)->  x[2] ≈ 2h)
+    addfaceset!(grid, "bot", (x)-> x[2] ≈ 0.0)
 
     #
     construct_interfacer_cells!(grid, "top1", "bottom2")
@@ -23,11 +22,6 @@ function generate_enf_grid(nelx, nely, L, h, a0)
 
     addcellset!(grid, "solid_cells", solid_cells)
     addcellset!(grid, "cz_cells", cz_cells)
-
-    addcellset!(grid, "temp_precraced", (x)-> x[1]>L-a0)
-    precracked_cells = setdiff(getcellset(grid, "temp_precraced"), solid_cells)
-
-    addcellset!(grid, "precracked", precracked_cells)
 
     return grid
 end
@@ -70,30 +64,24 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String)
 end
 
 #Dimension
- DIM = 2
- NELX = 176
- NELY = 1
+const DIM = 2
+const NELX = 2
+const NELY = 2
 
- ORDERS = (2,2)
-
- L = 120.0
- h = 2.0
- b = 20.0
- a0 = 46.9
-
-angles = deg2rad.([0.0, 0.0])
-nlayers = length(angles)
-ninterfaces = nlayers - 1
+const L = 2.0
+const h = 2.0
+const b = 2.0
+const a0 = 46.9
 
 data = ProblemData(
     dim = DIM,
     tend = 1.0,
+    adaptive = true
 )
 
 #grid
-data.grid = generate_enf_grid(NELX, NELY, L, h, a0)
+data.grid = generate_test_grid(NELX, NELY, L, h, a0)
 
-#interfacematerial = IGAShell.MatCohesive{dim}(λ_0,λ_f,τ,K)
 interfacematerial = 
 MatCZBilinear(
     K    = 1.0e5,
@@ -103,12 +91,9 @@ MatCZBilinear(
 ) 
 
 material = 
-MatTransvLinearElastic(
-    E1 = 126.0e3,
-    E2 = 10.0e3,
-    ν_12 = 0.29, 
-    G_12 = 8.0e3, 
-    α = 0.0
+MatLinearElastic(
+    E = 1e7,
+    nu = 0.3
 ) |> PlaneStrainMaterial
 
 #
@@ -123,6 +108,7 @@ push!(data.parts, part)
 part = Part{2,Float64}(
     element = CohesiveElement{DIM}(
         order = 1,
+        nqp = 3,
         thickness = b
     ),
     material = interfacematerial,
@@ -130,15 +116,10 @@ part = Part{2,Float64}(
 )
 push!(data.parts, part)
 
-#Change initial states
-for cellid in getcellset(data.grid, "precracked")
-    data.materialstates[cellid] = [Five.getmaterialstate(interfacematerial, 1.0) for i in 1:2]
-end
-
 #
 dbc1 = JuAFEM.Dirichlet(
     field = :u,
-    set = getvertexset(data.grid, "botleft"),
+    set = getfaceset(data.grid, "bot"),
     func = (x,t)->[0.0, 0.0],
     dofs =  [1,2]
 )
@@ -146,58 +127,48 @@ push!(data.dirichlet, dbc1)
 
 dbc1 = JuAFEM.Dirichlet(
     field = :u,
-    set    = getvertexset(data.grid, "botright"),
-    func   = (x,t)->[0.0],
-    dofs  = [2]
+    set = getfaceset(data.grid, "topface"),
+    func = (x,t)->[t*0.02, 0.0],
+    dofs =  [1,2]
 )
 push!(data.dirichlet, dbc1)
 
-
 #
-force = PointForce(
+#=force = PointForce(
     field = :u,
     comps = [2],
-    set = [first(getvertexset(data.grid, "mid"))],
-    func = (X,t) -> -1.0
+    set = getvertexset(data.grid, "topvertices"),
+    func = (X,t) -> -1.0/2 
 )
-push!(data.external_forces, force)
+push!(data.external_forces, force)=#
 
 #
 data.output[] = Output(
     interval = 0.0,
-    runname = "enf_example",
+    runname = "cohesiv_test",
     savepath = "."
 )
 
 #
-#=output = OutputData(
+output = OutputData(
     type = DofValueOutput(
         field = :u,
         dofs = 1:2
     ),
     interval = 0.0,
-    set = first(getvertexset(grid, "mid"))
+    set = getvertexset(data.grid, "topvertices")
 )
-data.outputdata["reactionforce"] = output=#
+data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
-solver = DissipationSolver(
-    Δλ0          = 5.0,
-    Δλ_max       = 10.0,
-    Δλ_min       = 1e-2,
-    ΔL0          = 2.5,
-    ΔL_min       = 1e-2,
-    ΔL_max       = 5.0,
-    sw2d         = 0.2,
-    sw2i         = 1e-7,
-    optitr       = 8,
-    maxitr       = 50,
-    maxsteps     = 200,
-    λ_max        = 400.0,
-    λ_min        = -100.0,
-    tol          = 1e-3,
-    max_residual = 1e5
+solver = NewtonSolver(
+    Δt0 = 0.001,
+    Δt_max = 0.001,
 )
 
 output = solvethis(solver, state, globaldata)
+
+
+d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
+f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]

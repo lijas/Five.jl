@@ -49,7 +49,6 @@ mutable struct SystemArrays{T}
     q::Vector{T}
 
     #For dissipation solver:
-    fˢ::Vector{T}
     fᴬ::Vector{T}
 
     G::Base.RefValue{T}
@@ -58,7 +57,7 @@ end
 function SystemArrays(T::Type, ndofs::Int)
     Mᵈⁱᵃᵍ = spzeros(T,ndofs,ndofs)
     M = spzeros(T,ndofs,ndofs)
-    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
+    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
 mutable struct StateVariables{T}

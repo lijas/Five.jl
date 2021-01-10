@@ -29,7 +29,7 @@ function step!(solver::NewtonSolver, state, globaldata)
         set_initial_guess(solver, state, ntries)
         ntries += 1
 
-        println("Newton solver, ntries: $(ntries), prev_state.t = $(state0.t), Δt = $(state.Δt)")
+        println("Newton solver, ntries: $(ntries), prev_state.t = $(state0.t), Δt = $(state.Δt), diss: $(state.L)")
 
         #Apply boundary conditions
         update!(globaldata.dbc, state.t)
@@ -40,6 +40,8 @@ function step!(solver::NewtonSolver, state, globaldata)
             state.newton_itr +=1;
 
             fill!(state.system_arrays, 0.0)
+
+            @timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
@@ -59,7 +61,7 @@ function step!(solver::NewtonSolver, state, globaldata)
             state.Δd .+= ΔΔd
             state.d  .+= ΔΔd
 
-            println("---->Normg: $(state.norm_residual)")
+            println("---->Normg: $(state.norm_residual), Δg = $(state.system_arrays.G[])")
         
             if state.norm_residual < solver.tol
                 conv_failed = false
@@ -87,6 +89,8 @@ function step!(solver::NewtonSolver, state, globaldata)
 
     end
     
+    state.L += state.system_arrays.G[]
+
     return true
 end
 

@@ -36,7 +36,7 @@ struct PointForce <: AbstractExternalForce
 end
 
 function PointForce(; field::Symbol, comps::AbstractVector{Int}, set, func::Function)
-    return PointForce(field, collect(comps), set, func, FieldHandler())
+    return PointForce(field, collect(comps), collect(set), func, FieldHandler())
 end
 
 function init_external_force!(force::PointForce, dh::MixedDofHandler)

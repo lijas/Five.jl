@@ -50,7 +50,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     converged_failed = true
     ntries = 0
     Δg = 0.0
-    #println("------>Before $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("fs=$(norm(state.fˢ)),", 30))")
+
     while converged_failed 
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
         
@@ -62,7 +62,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
 
-            @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)#1/2 * dot(state.Δd, λ0*q - state.fˢ)
+            @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
@@ -73,7 +73,6 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
             Δg = state.system_arrays.G[]
             
-            #println("-----|>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("fs=$(norm(state.fˢ)),", 30))")
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
             ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)

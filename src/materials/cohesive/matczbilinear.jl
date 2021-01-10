@@ -64,6 +64,7 @@ end
 
 #2D
 function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
+    
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
 
@@ -174,9 +175,8 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
     return D⋅δ, δᴹᵃˣₘ, d, g
 end
 
-
-_cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ::NTuple{3,T}, K::T, β, η::T, G::NTuple{3,T}) where {T} = _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ[1], δᶠ[2], K, β, η, G[1], G[2])
-_cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ::NTuple{2,T}, K::T, β, η::T, G::NTuple{2,T}) where {T} = _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ[1], 0.0,   K, β, η, G[1], G[2])
+_cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ::NTuple{3,T}, K::T, β, η::T, G::NTuple{3,T}) where {T} = _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ[1], δᶠ[2], K, β, η, G[3], G[1])
+_cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ::NTuple{2,T}, K::T, β, η::T, G::NTuple{2,T}) where {T} = _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ[1], 0.0,   K, β, η, G[2], G[1])
 function _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ₁::T, δᶠ₂::T, K::T, β, η::T, Gᴵ::T, Gᴵᴵ::T) where T<:AbstractFloat
     δᶠₘ = 0.0
     if δ₃ > 0

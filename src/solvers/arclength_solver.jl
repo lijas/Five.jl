@@ -127,7 +127,7 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
         end
     end
     
-    state.system_arrays.fˢ .= δuₜ #reuse fˢ
+    state.system_arrays.fᴬ .= δuₜ #reuse fᴬ
     state.prev_detK = state0.detK
 
     return true
@@ -138,7 +138,7 @@ function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, glob
     prev_newton_itr = state.newton_itr
     detK = state.detK
     detK0 = state.prev_detK
-    δuₜ = copy(state.system_arrays.fˢ) #Reuse fs for ut
+    δuₜ = copy(state.system_arrays.fᴬ) #Reuse fs for ut
     Δλ0 = state.Δλ
     ⁿΔL = ΔL
 
