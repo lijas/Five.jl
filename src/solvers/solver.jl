@@ -23,7 +23,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         
         if !success
             @warn("NO SUCCESS")
-            set_simulation_termination!(output, NOT_CONVERGED)
+            set_simulation_termination!(output, ERROR_TERMINATION)
             break
         else
             @timeit "post" post_stuff!(dh, state, globaldata)
@@ -60,6 +60,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
             @timeit "output" outputs!(output, state, globaldata)
 
             #Update counter
+            state.prev_partstates .= deepcopy(state.partstates)
             ⁿstate = deepcopy(state)
             prev_state = deepcopy(state)
 

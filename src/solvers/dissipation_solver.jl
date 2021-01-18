@@ -21,6 +21,7 @@ const DISSIPATION = MODE2
     max_residual::T = 1e12
     optitr::Int = 5
     maxitr::Int = 10
+    maxitr_first_step::Int = maxitr
 end
 
 function Base.isdone(solver::DissipationSolver, state::StateVariables, globaldata)
@@ -42,7 +43,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
     q      = state.system_arrays.q
     state0 = deepcopy(state)
 
-    #ΔP prepresents either ΔL or Δλ depending 
+    #ΔP represents either ΔL or Δλ depending 
     # on the solver mode (INCREMENT or DISSIPATION).
     # Set ΔP to the privious time steps solution
     ΔP0 = ΔP = (state.solvermode == DISSIPATION ? (state.ΔL) : (state.Δλ))
@@ -70,7 +71,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
             
-            Δg = 1/2 * dot(state.Δd, λ0*q - state0.system_arrays.fᴬ)
+            Δg = 1/2 * dot(state.Δd, state0.λ*q - state0.system_arrays.fᴬ)
             
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
@@ -82,7 +83,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             state.λ  += ΔΔλ
 
             #Arc-leanth equation
-            Δg = 1/2 * dot(state.Δd, λ0*q - state0.system_arrays.fᴬ)# - state.ΔL
+            Δg = 1/2 * dot(state.Δd, state0.λ*q - state0.system_arrays.fᴬ)# - state.ΔL
             
             #Check convergance
             if norm(state.λ*q) <= 1e-10
@@ -90,17 +91,19 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             else
                 state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
-            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
+            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("Δg=$(Δg),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("λ=$(state.λ),", 20))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
 
             if newton_done(solver, state.norm_residual, Δg, state.ΔL, state.solvermode)
                 converged_failed = false
                 break
             end
 
-            if (state.newton_itr >= solver.maxitr || state.norm_residual > solver.max_residual) 
+            maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
+            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
                 converged_failed = true
                 break
             end
+
 
             #Reset partstates
             state.partstates .= deepcopy(state0.partstates)
@@ -126,6 +129,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
 
     #Recalculate f-start for this timestep
     assemble_fstar!(globaldata.dh, state, globaldata) #Stores in fᴬ
+    #state.system_arrays.fᴬ .= state0.system_arrays.fᴬ
 
     return true
 end
@@ -184,11 +188,11 @@ function set_initial_guess!(solver::DissipationSolver, state::StateVariables, Δ
             #For the first try, increase/decrease the step 
             # based on the number of newton_iteration in the previeus 
             # converged solution
-            ΔP *= (0.5^(0.25*(state.newton_itr-solver.optitr)))
+            ΔP *= (0.5^(0.1*(state.newton_itr-solver.optitr)))
         else
             #If the previous newton loop failed (ie ntries != 0),
             # half the step size
-            ΔP /= 2
+            ΔP /= 1.3
         end
     end
 

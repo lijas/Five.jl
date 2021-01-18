@@ -199,8 +199,11 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
             integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
             state.system_arrays.fⁱ[celldofs] += fe
         elseif assemtype == FSTAR
-            integrate_fstar!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
-            state.system_arrays.fⁱ[celldofs] += fe
+            prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
+            prev_materialstate = prev_partstate.materialstates
+
+            integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
+            state.system_arrays.fᴬ[celldofs] += fe
         elseif assemtype == DISSI
             ge = Base.RefValue(zero(T))
             integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)

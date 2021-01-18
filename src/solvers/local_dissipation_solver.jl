@@ -21,6 +21,7 @@ const DISSIPATION_LOCAL = MODE2
     max_residual::T = 1e12
     optitr::Int = 5
     maxitr::Int = 10
+    maxitr_first_step = maxitr
 end
 
 function Base.isdone(solver::LocalDissipationSolver, state::StateVariables, globaldata)
@@ -61,17 +62,17 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
         while true
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
-
+            
             @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
-
+            Δg = state.system_arrays.G[]
+            
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
             @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
-
+            
             #Normal stiffness matrix
             Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
-            Δg = state.system_arrays.G[]
             
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
@@ -88,14 +89,15 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             else
                 state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
-            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 30)) $(rpad("Δg=$(Δg),", 30)) $(rpad("Δλ=$(state.Δλ),", 30)) $(rpad("λ=$(state.λ),", 30))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
-            
+            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("Δg=$(Δg),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("λ=$(state.λ),", 20))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
+
             if newton_done(solver, state.norm_residual, Δg, state.ΔL, state.solvermode)
                 converged_failed = false
                 break
             end
 
-            if state.newton_itr >= solver.maxitr || state.norm_residual > solver.max_residual
+            maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
+            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
                 converged_failed = true
                 break
             end
@@ -174,7 +176,7 @@ function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariable
         ΔP_min = solver.Δλ_min
     end
 
-    if state.step == 1
+    if state.step == 1 || state.step == 2
         ⁿΔP = ΔP = solver.Δλ0 * (1/2)^ntries
     else
         if ntries == 0 

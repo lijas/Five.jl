@@ -99,8 +99,19 @@ MatCZBilinear(
     K    = 1.0e5,
     Gᴵ   = (0.5, 0.5, 0.5),
     τᴹᵃˣ = (50.0, 50.0, 50.0),
-    η    = 1.6
+    η    = 1.0
 ) 
+
+#interfacematerial = MatMixedCohesive(1.0e5, (0.5, 0.5), (50.0,50.0), 1.0) 
+
+#=
+interfacematerial = 
+MatCZBilinear2(
+    K    = 1.0e5,
+    Gᴵ   = (0.5, 0.5, 0.5),
+    τᴹᵃˣ = (50.0, 50.0, 50.0),
+    η    = 1.0
+) =#
 
 material = 
 MatTransvLinearElastic(
@@ -170,29 +181,30 @@ data.output[] = Output(
 )
 
 #
-#=output = OutputData(
+output = OutputData(
     type = DofValueOutput(
         field = :u,
         dofs = 1:2
     ),
     interval = 0.0,
-    set = first(getvertexset(grid, "mid"))
+    set = Set([first(getvertexset(data.grid, "mid"))])
 )
-data.outputdata["reactionforce"] = output=#
+data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
 solver = DissipationSolver(
     Δλ0          = 5.0,
     Δλ_max       = 10.0,
-    Δλ_min       = 1e-2,
+    Δλ_min       = 1e-7,
     ΔL0          = 2.5,
     ΔL_min       = 1e-2,
     ΔL_max       = 5.0,
     sw2d         = 0.2,
     sw2i         = 1e-7,
     optitr       = 8,
-    maxitr       = 50,
+    maxitr       = 13,
+    maxitr_first_step = 50,
     maxsteps     = 200,
     λ_max        = 400.0,
     λ_min        = -100.0,
@@ -201,3 +213,6 @@ solver = DissipationSolver(
 )
 
 output = solvethis(solver, state, globaldata)
+
+d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
+f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]

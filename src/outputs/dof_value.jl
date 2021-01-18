@@ -15,7 +15,7 @@ struct DofValueOutput <: AbstractOutput
     fieldhandler::JuAFEM.FieldHandler
 end
 
-function DofValueOutput(output::DofValueOutput, set::Set{<:Index}, dh::MixedDofHandler)
+function build_outputdata(output::DofValueOutput, set::Set{<:Index}, dh::MixedDofHandler)
     JuAFEM._check_same_celltype(dh.grid, cellid.(set))
     fh = getfieldhandler(dh, cellid(first(set)))
     return DofValueOutput(output.field, output.dofs, fh)

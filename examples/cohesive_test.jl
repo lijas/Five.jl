@@ -75,7 +75,7 @@ const a0 = 46.9
 
 data = ProblemData(
     dim = DIM,
-    tend = 1.0,
+    tend = .99,
     adaptive = true
 )
 
@@ -128,23 +128,23 @@ push!(data.dirichlet, dbc1)
 dbc1 = JuAFEM.Dirichlet(
     field = :u,
     set = getfaceset(data.grid, "topface"),
-    func = (x,t)->[t*0.02, 0.0],
+    func = (x,t)->[0.0, t*0.02],
     dofs =  [1,2]
 )
 push!(data.dirichlet, dbc1)
 
 #
-#=force = PointForce(
+force = PointForce(
     field = :u,
     comps = [2],
     set = getvertexset(data.grid, "topvertices"),
-    func = (X,t) -> -1.0/2 
+    func = (X,t) -> 1.0/2 
 )
-push!(data.external_forces, force)=#
+#push!(data.external_forces, force)
 
 #
 data.output[] = Output(
-    interval = 0.0,
+    interval = 10.1,
     runname = "cohesiv_test",
     savepath = "."
 )
@@ -166,6 +166,24 @@ solver = NewtonSolver(
     Δt0 = 0.001,
     Δt_max = 0.001,
 )
+
+#=solver = DissipationSolver(
+    Δλ0          = 5.0,
+    Δλ_max       = 10.0,
+    Δλ_min       = 0.1,
+    ΔL0          = 0.01,
+    ΔL_min       = 1e-2,
+    ΔL_max       = 0.2,
+    sw2d         = 0.2,
+    sw2i         = 1e-7,
+    optitr       = 5,
+    maxitr       = 10,
+    maxsteps     = 200,
+    λ_max        = 400.0,
+    λ_min        = -100.0,
+    tol          = 1e-8,
+    max_residual = 1e5
+)=#
 
 output = solvethis(solver, state, globaldata)
 

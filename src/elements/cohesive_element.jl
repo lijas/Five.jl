@@ -181,6 +181,11 @@ function integrate_dissipation!(element::CohesiveElement{dim_s,CV},
         #
         g, dgdĴ = constitutive_driver_dissipation(material, Ĵ, materialstate[qp])
         dgdJ =  R ⋅ dgdĴ
+        #ddd = material isa MatCZBilinear ? 3 : 2
+        #dgdJhat = Vec{2,T}((materialstate[qp].dgdJ[1], materialstate[qp].dgdJ[ddd]))
+        #g = materialstate[qp].g
+        #dgdJ =  R ⋅ dgdJhat
+
 
         ge[] += g * dΓ 
         for i in 1:ndofs

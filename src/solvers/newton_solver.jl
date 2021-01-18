@@ -24,6 +24,8 @@ function step!(solver::NewtonSolver, state, globaldata)
 
     conv_failed = true
     ntries = 0
+    Δg = 0.0
+    local r
     while conv_failed
         
         set_initial_guess(solver, state, ntries)
@@ -41,7 +43,8 @@ function step!(solver::NewtonSolver, state, globaldata)
 
             fill!(state.system_arrays, 0.0)
 
-            @timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
+            #@timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
+            #Δg = state.system_arrays.G[]
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
@@ -61,7 +64,9 @@ function step!(solver::NewtonSolver, state, globaldata)
             state.Δd .+= ΔΔd
             state.d  .+= ΔΔd
 
-            println("---->Normg: $(state.norm_residual), Δg = $(state.system_arrays.G[])")
+            Δg = 1/2 * dot(state.Δd, state0.system_arrays.q - state0.system_arrays.fᴬ)
+
+            println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
         
             if state.norm_residual < solver.tol
                 conv_failed = false
@@ -89,7 +94,14 @@ function step!(solver::NewtonSolver, state, globaldata)
 
     end
     
-    state.L += state.system_arrays.G[]
+    state.L += Δg
+
+    #@show norm(state0.system_arrays.fᴬ)
+    #state0.system_arrays.fᴬ .= 0.0
+    assemble_fstar!(globaldata.dh, state, globaldata) 
+    #state.system_arrays.fᴬ .= state0.system_arrays.fᴬ
+    state.system_arrays.q .= r
+    #@show norm(state.system_arrays.q)
 
     return true
 end

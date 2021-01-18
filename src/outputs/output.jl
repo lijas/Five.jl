@@ -7,7 +7,7 @@ abstract type StateOutput <:AbstractOutput end
 
 struct OutputData{output <: AbstractOutput}
     type::output
-    set::JuAFEM.IndexSets
+    set#::JuAFEM.IndexSets
     data::Vector{Any} #Stores the data for each timestep.
     interval::Float64 
     last_output::Base.RefValue{Float64}
@@ -17,13 +17,18 @@ function OutputData(; type, set, interval)
     return OutputData(type, set, Any[], interval, Ref(-Inf))
 end
 
-function OutputData(output::OutputData{OutputType}, dh) where OutputType
-    o = OutputType(output.type, output.set, dh)
+function build_outputdata(output::OutputData{OutputType}, dh) where OutputType
+    o = build_outputdata(output.type, output.set, dh)
     return OutputData(o, output.set, output.data, output.interval, output.last_output)
 end
 
 struct VTKNodeOutput{output <: AbstractOutput}
-    #todo
+    type::output
+    func::Function
+end
+
+function VTKNodeOutput(; type, func = mean)
+    return VTKNodeOutput(type, func)
 end
 
 struct VTKCellOutput{output <: AbstractOutput}
@@ -41,13 +46,14 @@ struct VTKOutput
     interval::Float64 
 
     celloutputs::Vector{VTKCellOutput}
+    nodeoutputs::Vector{VTKNodeOutput}
 
     last_output::Base.RefValue{Float64}
 end
 
 function VTKOutput(interval::Float64, savepath::String, filename::String)
     pvd = paraview_collection(joinpath(savepath, filename))
-    return VTKOutput(pvd, interval, VTKCellOutput[], Ref(-Inf))
+    return VTKOutput(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf))
 end
 
 mutable struct Output{T}
@@ -83,7 +89,7 @@ end
 function JuAFEM.close!(output::Output, dh::MixedDofHandler)
     for (key, outp) in output.outputdata
         #Overwright with new data
-        output.outputdata[key] = OutputData(outp, dh)
+        output.outputdata[key] = build_outputdata(outp, dh)
     end
 end
 
@@ -99,8 +105,12 @@ function push_output!(output::Output, name::String, o::OutputData)
     output.outputdata[name] = o
 end
 
-function push_vtkoutput!(output::Output, o::Union{VTKCellOutput})
+function push_vtkoutput!(output::Output, o::VTKCellOutput)
     push!(output.vtkoutput.celloutputs, o)
+end
+
+function push_vtkoutput!(output::Output, o::VTKNodeOutput)
+    push!(output.vtkoutput.nodeoutputs, o)
 end
 
 function WriteVTK.vtk_save(output::Output)
@@ -146,18 +156,18 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; o
         @timeit "disp" node_coords = get_vtk_displacements(dh, part, state)
         vtkfile["u"] = reshape_vtk_coords(node_coords)
 
-        #=@timeit "nodedata" for celloutput in output.vtkoutput.nodeoutputs
+        @timeit "nodedata" for celloutput in output.vtkoutput.nodeoutputs
             data = get_vtk_nodedata(part, celloutput, state, globaldata)
             if data !== nothing
-                name = "Name"  #string(celloutput.name)
-                vtk_node_data(vtkfile, data, name)
+                name = string(typeof(celloutput.type)) #string(celloutput.name)
+                vtk_point_data(vtkfile, data, name)
             end
-        end=#
+        end
 
         @timeit "celldata" for celloutput in output.vtkoutput.celloutputs
             data = get_vtk_celldata(part, celloutput, state, globaldata)
             if data !== nothing
-                name = "Name"  #string(celloutput.name)
+                name = string(typeof(celloutput.type))
                 vtk_cell_data(vtkfile, data, name)
             end
         end
