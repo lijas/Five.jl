@@ -106,19 +106,6 @@ Tensors.cross(v::Vec{2}) = Vec{2}((-v[2], v[1]))
 ##
 #CellValues
 
-function JuAFEM.function_value(fe_v::JuAFEM.Values{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{T} = collect(1:length(u))) where {dim,T}
-    @show typeof(fe_v)
-    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
-    isa(fe_v, VectorValues) && (n_base_funcs *= dim)
-    @assert length(dof_range) == n_base_funcs
-    @boundscheck checkbounds(u, dof_range)
-    val = zero(JuAFEM._valuetype(fe_v, u))
-    @inbounds for (i, j) in enumerate(dof_range)
-        val += shape_value(fe_v, q_point, i) * u[j]
-    end
-    return val
-end
-
 macro showm(M)
     return esc(:(display("text/plain", $M)))
 end
@@ -190,29 +177,6 @@ function bezieroperator_to_matrix(C::IGA.BezierExtractionOperator)
     return mat
 end
 
-
-#=function cellcoords!(coords::Vector{Vec{dim,T}}, dh::JuAFEM.AbstractDofHandler, i::Int) where {dim,T}
-    @assert JuAFEM.isclosed(dh)
-    coords2 = JuAFEM.getcoordinates(dh.grid, i)
-    @assert length(coords) == length(coords2)
-    coords .= coords2
-    return coords2
-end
-
-function cellnodes!(nodes::Vector{Int}, dh::JuAFEM.AbstractDofHandler, i::Int) where {dim,T}
-    @assert JuAFEM.isclosed(dh)
-    nodes2 = dh.grid.cells[i].nodes
-    @assert length(nodes) == length(nodes2)
-    nodes .= nodes2
-    return nodes2
-end
-
-function JuAFEM.celldofs(dh::JuAFEM.AbstractDofHandler, i::Int)
-    global_dofs = zeros(Int, ndofs_per_cell(dh,i))
-    celldofs!(global_dofs, dh, i)
-    return global_dofs
-end=#
-
 function cellcoords(dh::MixedDofHandler, i::Int)
     @assert JuAFEM.isclosed(dh)
     return dh.cell_coords[i]
@@ -228,18 +192,6 @@ end
 
 function second_derivative(ip::Interpolation{dim}, ξ::Vec{dim,T}) where {dim,T}
     [hessian(ξ -> value(ip, i, ξ), ξ) for i in 1:getnbasefunctions(ip)]
-end
-
-#QuadratureRule for shells
-struct ShellQuadratureRule{dim,T}
-    qr::QuadratureRule{dim,RefCube,T}
-    npoints_inplane::Int
-    npoints_outofplane::Int
-end
-
-function ShellQuadratureRule{dim,T}(inplane_order, outofplane_order) where {dim,T}
-    qr = generate_shell_quadraturerule(T, dim, inplane_order, outofplane_order)
-    ShellQuadratureRule{dim,T}(qr, inplane_order^(dim-1), outofplane_order)
 end
 
 function generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per_layer::Int) where {T}
@@ -264,26 +216,6 @@ function generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per_
     end
     return QuadratureRule{1,RefCube,T}(weights,points)
 
-end
-
-
-
-function generate_shell_quadraturerule(T::Type, dim, nqp_inplane::Int, nlayers::Int, nqp_opplane_per_layer::Int)
-    qri = QuadratureRule{dim-1,RefCube}(nqp_inplane)
-
-    qro = QuadratureRule{1,RefCube}(nqp_opplane_per_layer)
-
-    newpoints = Vec{dim,T}[]
-    newweights = T[]
-    for op in 1:length(qro.points)
-        for ip in 1:length(qri.points)
-            
-            push!(newpoints, Vec{dim,T}((collect(qri.points[ip])...,collect(qro.points[op])...,)))
-            push!(newweights, qri.weights[ip]*qro.weights[op])
-        end
-    end
-
-    return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
 end
 
 function JuAFEM.QuadratureRule{2,RefCube}(orders::NTuple{2,Int}) 
@@ -365,37 +297,6 @@ function merge_quadrules(qrs::Vararg{QuadratureRule,N}) where N
     end
 
 end
-
-#=
-@generated function JuAFEM.QuadratureRule{dim,RefCube}(order::NTuple{dim,Int}) where {dim}
-    
-    ws = [Float64[] for d in 1:dim]
-    ps = [Float64[] for d in 1:dim]
-    for d in 1:dim
-        p, w = JuAFEM.GaussQuadrature.legendre(Float64, order[d])
-        ws[d] = w
-        ps[d] = p
-    end
-    
-    npoints = prod(order)::Int
-    
-    weights = Vector{Float64}(undef, npoints)
-    points = Vector{Vec{dim,Float64}}(undef, npoints)
-    count = 1
-    quote
-        Base.Cartesian.@nloops $dim i j->(1:order[i_j]) begin
-            t = Base.Cartesian.@ntuple $dim q -> ps[q][i_q]
-            points[count] = Vec{$dim,Float64}(t)
-            weight = 1.0
-            Base.Cartesian.@nexprs $dim j->(weight *= ws[j][i_{j}])
-            weights[count] = weight
-            count += 1
-        end
-        return QuadratureRule{$dim,RefCube,Float64}(weights, points)
-    end
-end
-=#
-
 
 #From Jim
 

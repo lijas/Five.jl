@@ -55,7 +55,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatC
     t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
     dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
     
-    dgdJ::Vec{dim,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
+    dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
     
 
     return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)

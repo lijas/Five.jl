@@ -8,6 +8,8 @@ export NewtonSolver
 
     maxitr::Int = 10
     optitr::Int = 5
+    max_residual::T = Inf
+    maxitr_first_step::Int = maxitr
 end
 
 function Base.isdone(solver::NewtonSolver, state::StateVariables, globaldata)
@@ -73,7 +75,8 @@ function step!(solver::NewtonSolver, state, globaldata)
                 break
             end
 
-            if state.newton_itr >= solver.maxitr
+            maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
+            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
                 conv_failed = true
                 break
             end
@@ -110,7 +113,7 @@ function set_initial_guess(solver::NewtonSolver, state::StateVariables, ntries::
 
     #Initilize Δt and newton_itr depending on if 
     # this is the first step
-    ⁿΔt, newton_itr = (state.step == 1) ? (solver.Δt0, solver.optitr) : (state.Δt, state.newton_itr)
+    ⁿΔt, newton_itr = (state.step == 1 || state.step == 2) ? (solver.Δt0, solver.optitr) : (state.Δt, state.newton_itr)
 
     if ntries == 0
         #For the first try, increase/decrease the step 
