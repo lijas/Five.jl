@@ -143,11 +143,12 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
 
     δ⁰ₘ = _onset_softening(δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β)
     δᶠₘ = _cohesive_bk_criterion(δ[dim], δ⁰ₘ, mp.δᶠ, K, β, mp.η, mp.Gᴵ)
-    local D, d, g
+    local D, d, Dg
     if δᴹᵃˣₘ <= δ⁰ₘ
-        D = K*δᵢⱼ
+        D  = K*δᵢⱼ
+        Dg = K*δᵢⱼ
+
         d=0.0
-        g=0.0
     elseif δ⁰ₘ < δᴹᵃˣₘ < δᶠₘ
         d = (δᶠₘ*(δᴹᵃˣₘ - δ⁰ₘ))/(δᴹᵃˣₘ*(δᶠₘ-δ⁰ₘ))
         D = δᵢⱼ * (1-d)*K
@@ -157,9 +158,6 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
             Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
         end
 
-        Δd = d - prev_state.d
-        g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
-
     elseif δᴹᵃˣₘ >= δᶠₘ
         D = zero(δᵢⱼ)
         Dg = K*δᵢⱼ
@@ -168,14 +166,14 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
             Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
         end
         d=1.0
-        Δd = d - prev_state.d
-        g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
     else
         @show δᴹᵃˣₘ, δ⁰ₘ, δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β, δᶠₘ
         error("Wrong D")
     end
 
-    
+    Δd = d - prev_state.d
+    g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
+
     return D⋅δ, δᴹᵃˣₘ, d, g
 end
 

@@ -101,7 +101,7 @@ function step!(solver::NewtonSolver, state, globaldata)
 
     #@show norm(state0.system_arrays.fᴬ)
     #state0.system_arrays.fᴬ .= 0.0
-    assemble_fstar!(globaldata.dh, state, globaldata) 
+#    assemble_fstar!(globaldata.dh, state, globaldata) 
     #state.system_arrays.fᴬ .= state0.system_arrays.fᴬ
     state.system_arrays.q .= r
     #@show norm(state.system_arrays.q)
