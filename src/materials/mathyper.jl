@@ -71,11 +71,16 @@ function ψ(mp::MatNeoHook, C::SymmetricTensor{2,3})
     return mp.μ/2 * (I-3) - mp.μ*log(J) + mp.λ/2 * log(J)^2
 end
 
-#Calculates the 2nd PK and C using Autodiff.
-function constitutive_driver(mp::Union{MatYeoh, MatNeoHook}, C::SymmetricTensor{2,3}, ::AbstractMaterialState = getmaterialstate(mp))
+function _constitutive_driver(mp::Union{MatYeoh, MatNeoHook}, C::SymmetricTensor{2,3})
     ∂²Ψ∂C², ∂Ψ∂C, _Ψ =  hessian((C) -> ψ(mp, C), C, :all)
     S = 2.0 * ∂Ψ∂C
     ∂S∂C = 2.0 * ∂²Ψ∂C²
+    return S, ∂S∂C
+end
+
+#Calculates the 2nd PK and C using Autodiff.
+function constitutive_driver(mp::Union{MatYeoh, MatNeoHook}, C::SymmetricTensor{2,3}, ::AbstractMaterialState = getmaterialstate(mp))
+    S, ∂S∂C = _constitutive_driver(mp, C)
     state = mp isa MatYeoh ? MatYeohState(S) : MatNeoHookState(S)
     return S, ∂S∂C, state
 end

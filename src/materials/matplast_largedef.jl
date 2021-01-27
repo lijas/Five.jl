@@ -128,7 +128,7 @@ end
 function hyper_yield_function(C::SymmetricTensor, Fᵖ::Tensor, ϵᵖ::Float64, emat::MatNeoHook, τ₀::Float64, H::Float64)
     Cᵉ = symmetric(transpose(Fᵖ)⋅C⋅Fᵖ)
 
-    S̃, ∂S̃∂Cₑ, _ = constitutive_driver(emat, Cᵉ)
+    S̃, ∂S̃∂Cₑ = _constitutive_driver(emat, Cᵉ)
 
     #Mandel stress
     Mbar = Cᵉ⋅S̃
@@ -142,11 +142,88 @@ end
 function constitutive_driver(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,3}, state::MatHyperElasticPlasticState)
 
     #Is it possible to combine the computation for S and ∂S∂E (using auto diff?)
-    S, ∂S∂C, ϵᵖ, ν, Fᵖ = _compute_2nd_PK(mp, C, state)
+    S, ∂S∂C, ϵᵖ, ν, Fᵖ = _compute_2nd_PK_2(mp, C, state)
     
     #Numerical diff:
     # func(C) = _compute_2nd_PK(mp, C, state)[1]
     # ∂S∂C_num = numdiff(func, C)
 
     return S, ∂S∂C, MatHyperElasticPlasticState(S, ϵᵖ, Fᵖ, ν)
+end
+
+
+
+
+function _compute_2nd_PK_2(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,dim,T}, state::MatHyperElasticPlasticState) where {dim,T}
+    
+    Fᵖ = state.Fᵖ
+    ϵᵖ = state.ϵᵖ
+    Δγ = 0.0
+    I = one(C)
+    Cᵛ = tovoigt(Tensor{2,3}((i,j) -> C[i,j]))
+
+    phi, Mᵈᵉᵛ, Cᵉ, S̃, ∂S̃∂Cₑ = hyper_yield_function(C, state.Fᵖ, state.ϵᵖ, mp.elastic_material, mp.τ₀, mp.H)
+    
+    dFᵖdC = zero(Tensor{4,dim,T})
+    if phi > 0
+        residual(x) = compute_residual(x, Cᵛ, mp.H, mp.τ₀, mp.elastic_material, state.ϵᵖ, state.Fᵖ)
+        jacoban(x) = ForwardDiff.jacobian(residual, x)
+        x0 = vcat(tovoigt(state.Fᵖ), 0.0)
+
+        res = nlsolve(residual, jacoban, x0; iterations=20, ftol = 1e-9, method=:newton, show_trace = false)
+        x_res = res.zero
+
+        RY(Cᵛ) = compute_residual(x_res, Cᵛ, mp.H, mp.τ₀, mp.elastic_material, state.ϵᵖ, state.Fᵖ)
+
+        drdX = jacoban(x_res)
+        drdY = ForwardDiff.jacobian(RY, Cᵛ)
+
+        dXdY = -drdX \ drdY
+
+        dFᵖdC = fromvoigt(Tensor{4,3,Float64}, dXdY)
+        dΔγdC = fromvoigt(Tensor{2,3,Float64}, dXdY[10,:])
+
+        Δγ = x_res[10]
+        Fᵖ = fromvoigt(Tensor{2,3,Float64}, x_res)
+        ϵᵖ += Δγ
+
+        #Recompute
+        Cᵉ = symmetric(transpose(Fᵖ)⋅C⋅Fᵖ)
+        S̃, ∂S̃∂Cₑ = _constitutive_driver(mp.elastic_material, Cᵉ)
+
+        Mbar = Cᵉ⋅S̃
+        Mᵈᵉᵛ = dev(Mbar)
+    end
+
+    S = symmetric(Fᵖ ⋅ S̃ ⋅ transpose(Fᵖ))
+    ν = sqrt(3/2)*Mᵈᵉᵛ/(norm(Mᵈᵉᵛ))
+
+    ∂S∂Fᵖ = otimesu(I, (Fᵖ ⋅ S̃)) + otimesl((Fᵖ ⋅ S̃), I)
+    ∂S∂S̃ = otimesu(Fᵖ,Fᵖ)
+    ∂Cₑ∂C = otimesu(transpose(Fᵖ),transpose(Fᵖ))
+    ∂Cₑ∂Fᵖ = otimesl(I, transpose(Fᵖ) ⋅ C) + otimesu(transpose(Fᵖ) ⋅ C, I)
+    dSdC = ∂S∂Fᵖ ⊡ dFᵖdC + ∂S∂S̃ ⊡ ∂S̃∂Cₑ ⊡ (∂Cₑ∂C + ∂Cₑ∂Fᵖ ⊡ dFᵖdC)
+
+    return S, dSdC, ϵᵖ, ν, Fᵖ
+end
+
+function compute_residual(x, Cᵛ, H::Float64, τ₀::Float64, emat::HyperElasticMaterial, ⁿϵᵖ::Float64, ⁿFᵖ::Tensor)
+
+    #Extract
+    C = fromvoigt(Tensor{2,3}, Cᵛ)
+    Fᵖ = fromvoigt(Tensor{2,3}, x[1:9])
+    Δγ  = x[10]
+
+    #Mandel stress
+    Cᵉ = symmetric(transpose(Fᵖ)⋅C⋅Fᵖ)
+    S̃, ∂S̃∂Cₑ = _constitutive_driver(emat, Cᵉ)
+    Mbar = Cᵉ⋅S̃
+    Mᵈᵉᵛ = dev(Mbar)
+    ν = sqrt(3/2)*Mᵈᵉᵛ/(norm(Mᵈᵉᵛ))
+
+    #Residuals
+    R1 = Fᵖ - ⁿFᵖ + Δγ* ⁿFᵖ⋅ν
+    R2 = √(3/2)*norm(Mᵈᵉᵛ) - (τ₀ + H*(ⁿϵᵖ + Δγ))
+
+    return vcat(tovoigt(R1),R2)
 end
