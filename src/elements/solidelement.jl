@@ -240,12 +240,6 @@ function integrate_dissipation!(
     ge[] = 0.0
 end
 
-function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial
-    C = tdot(F)
-    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
-    return S, 2*∂S∂C, new_matstate
-end
-
 function solid_constitutive_driver(material::T, F, materialstate) where T <: HyperElasticMaterial
     C = tdot(F)
     S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)

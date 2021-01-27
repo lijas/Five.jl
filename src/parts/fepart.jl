@@ -330,7 +330,7 @@ function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOut
     
     for (ic, cellid) in enumerate(part.cellset)
         matstates = state.partstates[cellid].materialstates
-        data[ic, :] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect
+        data[ic, :] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
     end
 
     return data

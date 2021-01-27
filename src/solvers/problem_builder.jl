@@ -13,9 +13,10 @@ mutable struct ProblemData{dim,T}
     t0::T
     tend::T
     adaptive::Bool
+    plane_state::PLANE_STATE_2D
 end
 
-function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
+function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false, plane_state = PLANE_STRAIN)
     
     parts = Five.AbstractPart{dim}[]
     dbc   = JuAFEM.Dirichlet[]
@@ -26,7 +27,11 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     states = Dict{Int, Vector{Any}}()
     grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
+    if dim == 2
+        global PLANE_STATE = plane_state
+    end
+
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive, plane_state)
 end
 
 function build_problem(data::ProblemData)

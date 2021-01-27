@@ -9,10 +9,9 @@ data.grid = generate_grid(Quadrilateral, (10,1), Vec((0.0, 0.0)), Vec((10.0, 1.0
 
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
-material = MatLinearElastic(
-    rho = 1.0,
+material = MatNeoHook(
     E = 1e5,
-    nu = 0.3
+    ν = 0.3
 )
 
 #=@addmat MatLinearElastic, "Steel", 1 begin

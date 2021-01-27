@@ -36,6 +36,9 @@ abstract type AbstractPartState end
 
 abstract type AbstractSolver{T} end
 
+@enum PLANE_STATE_2D PLANE_STRESS PLANE_STRAIN
+global PLANE_STATE = PLANE_STRAIN
+
 export SystemArrays, StateVariables, GlobalData
 
 mutable struct SystemArrays{T}
