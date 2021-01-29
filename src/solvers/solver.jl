@@ -28,6 +28,9 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         else
             @timeit "post" post_stuff!(dh, state, globaldata)
             
+            @timeit "vtk export" vtk_add_state!(output, state, globaldata)
+            @timeit "output" outputs!(output, state, globaldata)
+
             #Currently dont have a system for adaptivity,
             # so hack the adaptivity stuff in here:
             if globaldata.adaptive
@@ -36,28 +39,25 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
 
                 if length(instructions) != 0
                     #Upgrade state and prev_state
-                    @timeit "Update dofhandler" update_dofhandler!(dh, state, prev_state, system_arrays, instructions)
+                    @timeit "Update dofhandler" update_dofhandler!(dh, state, instructions)
 
                     #Upgrade dirichlet conditions
                     resize!(globaldata.dbc.free_dofs, ndofs(dh)); 
                     globaldata.dbc.free_dofs .= 1:ndofs(dh)    
 
                     #Update q for dissipation solver
-                    fill!(system_arrays, 0.0)
-                    apply_external_forces!(dh, globaldata.efh, state, system_arrays, globaldata)
-                    JuAFEM.copy!!(prev_state.q, system_arrays.fᵉ)
+                    fill!(state.system_arrays, 0.0)
+                    apply_external_forces!(dh, globaldata.efh, state, globaldata)
+                    JuAFEM.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
 
                     #Recalculate fᴬ for fstar
-                    assemble_fstar!(globaldata.dh, state, system_arrays, globaldata)
+                    #assemble_fstar!(globaldata.dh, state, globaldata)
 
                     #Restart state
-                    state = deepcopy(prev_state)
-                    continue
+                    #state = deepcopy(prev_state)
+                    #continue
                 end
             end
-
-            @timeit "vtk export" vtk_add_state!(output, state, globaldata)
-            @timeit "output" outputs!(output, state, globaldata)
 
             #Update counter
             state.prev_partstates .= deepcopy(state.partstates)

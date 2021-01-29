@@ -203,7 +203,7 @@ function handle_input_interaction(output)
         file = open(joinpath(output.savepath, "interact.txt"), "r+") 
         input = readline(file)
         if input == "abort"
-            set_simulation_termination!(output, ABORTED)
+            set_simulation_termination!(output, ABORTED_SIMULATION)
         elseif input == "dump"
             save_outputs(output)
         end
@@ -211,7 +211,8 @@ function handle_input_interaction(output)
         #Remove everything in file and close
         truncate(file, 0)
         close(file)
-    catch
+    catch e
+        println(e)
         error("Could not open file interact.txt")
     end
 
