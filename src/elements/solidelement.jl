@@ -106,7 +106,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
         # strain and stress + tangent
         F = one(∇u) + ∇u
         E = symmetric(1/2 * (F' ⋅ F - one(F)))
-        #@show ∇v
+        
         S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate[qp])
         materialstate[qp] = new_matstate
         #S = det(F)*inv(F)⋅S⋅inv(F')
@@ -191,15 +191,12 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
 
         # strain and stress + tangent
         F = one(∇u) + ∇u
-        #C = tdot(F)
+        E = symmetric(1/2 * (F' ⋅ F - one(F)))
+
+        S, ∂S∂E, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+        materialstate[qp] = new_matstate
         #U = sqrt(C)
         #R = F⋅inv(U)
-        
-        E = symmetric(1/2 * (F' ⋅ F - one(F)))
-        #E = symmetric(R' ⋅ _E ⋅ R)
-
-        S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate[qp])
-        materialstate[qp] = new_matstate
 
         #∂S∂E = otimesu(R,R) ⊡ _∂S∂E ⊡ otimesu(R',R')
         #S = R ⋅ _S ⋅R'
@@ -241,4 +238,22 @@ function integrate_dissipation!(
     
     fe .= 0.0
     ge[] = 0.0
+end
+
+function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial
+    C = tdot(F)
+    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
+    return S, 2*∂S∂C, new_matstate
+end
+
+function solid_constitutive_driver(material::T, F, materialstate) where T <: HyperElasticMaterial
+    C = tdot(F)
+    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
+    return S, 2*∂S∂C, new_matstate
+end
+
+function solid_constitutive_driver(material::T, F, materialstate) where T <: AbstractMaterial
+    E = symmetric(1/2 * (F' ⋅ F - one(F)))
+    S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate)
+    return S, ∂S∂E, new_matstate
 end

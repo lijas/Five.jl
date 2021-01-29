@@ -2,6 +2,8 @@ module Five
 
 using Reexport
 using ForwardDiff
+using NLsolve
+
 using Parameters
 using TimerOutputs
 using StaticArrays

@@ -156,10 +156,10 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; o
         @timeit "disp" node_coords = get_vtk_displacements(dh, part, state)
         vtkfile["u"] = reshape_vtk_coords(node_coords)
 
-        @timeit "nodedata" for celloutput in output.vtkoutput.nodeoutputs
-            data = get_vtk_nodedata(part, celloutput, state, globaldata)
+        @timeit "nodedata" for nodeoutput in output.vtkoutput.nodeoutputs
+            data = get_vtk_nodedata(part, nodeoutput, state, globaldata)
             if data !== nothing
-                name = string(typeof(celloutput.type)) #string(celloutput.name)
+                name = string(typeof(nodeoutput.type)) #string(celloutput.name)
                 vtk_point_data(vtkfile, data, name)
             end
         end
@@ -203,7 +203,7 @@ function handle_input_interaction(output)
         file = open(joinpath(output.savepath, "interact.txt"), "r+") 
         input = readline(file)
         if input == "abort"
-            set_simulation_termination!(output, ABORTED)
+            set_simulation_termination!(output, ABORTED_SIMULATION)
         elseif input == "dump"
             save_outputs(output)
         end
@@ -211,7 +211,8 @@ function handle_input_interaction(output)
         #Remove everything in file and close
         truncate(file, 0)
         close(file)
-    catch
+    catch e
+        println(e)
         error("Could not open file interact.txt")
     end
 

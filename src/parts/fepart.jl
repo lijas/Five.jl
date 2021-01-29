@@ -215,7 +215,7 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
     
 end
 
-function  assemble_massmatrix!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where T
+function assemble_massmatrix!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where T
 
     assembler = start_assemble(state.system_arrays.M, fillzero=false)
     element = part.element
@@ -315,29 +315,10 @@ function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T,<
     return Vec{dim,T}[]
 end
 
-function get_vtk_part_point_data(part::Part{dim,T,<:CohesiveElement}, dh::MixedDofHandler{dim,T}, di) where {dim,T}
-    @assert(length(part.element.fields) == 1 && part.element.fields[1].name == :u)
-
-    node_coords = zeros(Vec{dim,T}, length(part.vtkexport.vtknodes))
-
-    for cell in CellIterator(dh, part.element, part.cellset)
-        ue = di[cell.celldofs]
-        ue_vec = reinterpret(Vec{dim,T}, ue)
-
-        coords = ue_vec
-
-        for (i,nodeid) in enumerate(cell.nodes)
-            local_id = part.vtkexport.nodeid_mapper[nodeid]
-            node_coords[local_id] = coords[i]
-        end
-    end
-    
-    return node_coords
-end
-
 function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T
 
-    first_state = first(first(state.partstates).materialstates)
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
     if !hasproperty(first_state, output.type.field) 
         return nothing
     end
@@ -349,14 +330,54 @@ function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOut
     
     for (ic, cellid) in enumerate(part.cellset)
         matstates = state.partstates[cellid].materialstates
-        data[ic, :] = getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> vec
+        data[ic, :] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect
     end
 
     return data
 end
 
-function get_vtk_nodedata(part::FEPart, output::VTKNodeOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T
-    error("TODO")
+function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where {dim,T}
+    
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
+    if !hasproperty(first_state, output.type.field) 
+        return nothing
+    end
+    first_field = getproperty(first_state, output.type.field)
+    
+    ncomp = length(first_field)
+    FieldDataType = typeof(first_field)
+    celltype = getcelltype(part.element)
+    geom_ip = JuAFEM.default_interpolation(celltype)
+    refshape = RefCube#getrefshape(geom_ip)
+    nqp = length(state.partstates[_cellid].materialstates)
+    qp_order = convert(Int, nqp^(1/dim))
+    qr = QuadratureRule{dim, refshape}(qp_order)
+    cellvalues = CellScalarValues(qr, geom_ip)
+    projector = L2Projector(cellvalues, geom_ip, globaldata.grid, part.cellset)
+
+    #Extract field to interpolate
+    data = Vector{FieldDataType==Float64 ? Vec{1,T} : FieldDataType}[]
+    for (ic, cellid) in enumerate(part.cellset)
+        matstates = state.partstates[cellid].materialstates
+        field_states = getproperty.(matstates, output.type.field)
+        if FieldDataType == Float64
+            push!(data, reinterpret(Vec{1,T}, field_states))
+        else
+            push!(data, field_states)
+        end
+    end
+
+    data_nodes = project(data, projector)
+    nvtknodes = length(part.vtkexport.nodeid_mapper)
+    vtk_node_data = Matrix{T}(undef, ncomp, nvtknodes)
+    for (ic,cellid) in enumerate(part.cellset)
+        for nodeid in globaldata.grid.cells[cellid].nodes
+            vtknodeid = part.vtkexport.nodeid_mapper[nodeid]
+            vtk_node_data[:,vtknodeid] .= reinterpret(T, data_nodes[nodeid])
+        end
+    end
+    return vtk_node_data
 end
 
 function get_vtk_celldata(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}

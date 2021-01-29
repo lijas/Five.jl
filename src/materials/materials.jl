@@ -35,7 +35,10 @@ getmaterialstate
 
 include("matelastic.jl")
 include("mattransvlinearelastic.jl")
-include("matyeoh.jl")
+#include("matyeoh.jl")
+include("mathyper.jl")
+include("matplast_largedef.jl")
+
 
 include("cohesive/cohesive.jl")
 include("cohesive/matczbilinear.jl")
@@ -100,6 +103,20 @@ PlaneStrainMaterial(mat) = Material2D(mat, PLANE_STRAIN)
 
 function getmaterialstate(m::Material2D)
     return getmaterialstate(m.material)
+end
+
+function constitutive_driver(m::Material2D{<:HyperElasticMaterial}, C::SymmetricTensor{2,2,T}, state::AbstractMaterialState) where T
+    @assert(m.plane_state == PLANE_STRAIN)
+
+    #Convert to 3d
+    C₃ = SymmetricTensor{2,3,T,6}((C[1,1], zero(T), C[1,2], one(T), zero(T), C[2,2]))
+    S₃, ∂S∂C₃, newstate₃ = constitutive_driver(m.material, C₃, state)
+
+    #Convert back to 3d
+    S = SymmetricTensor{2,2,T,3}((S₃[1,1],S₃[1,3],S₃[3,3]))
+    ∂S∂C = SymmetricTensor{4,2,T,9}((∂S∂C₃[1,1,1,1], ∂S∂C₃[3,1,1,1], ∂S∂C₃[3,3,1,1], ∂S∂C₃[1,1,3,1], ∂S∂C₃[3,1,3,1], ∂S∂C₃[3,3,3,1], ∂S∂C₃[1,1,3,3], ∂S∂C₃[3,1,3,3], ∂S∂C₃[3,3,3,3]))
+
+    return S, ∂S∂C, newstate₃
 end
 
 function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_state::AbstractMaterialState) where T
