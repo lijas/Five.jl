@@ -9,6 +9,7 @@ mutable struct ProblemData{dim,T}
     output::Base.RefValue{Output{T}}
     outputdata::Dict{String, Five.OutputData}
     materialstates::Dict{Int, Vector{Any}}
+    contact::Vector{AbstractContactSearchAlgorithm}
 
     t0::T
     tend::T
@@ -25,8 +26,9 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     cnstr = Five.AbstractExternalForce[]
     states = Dict{Int, Vector{Any}}()
     grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
+    contact = AbstractContactSearchAlgorithm[]
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, contact, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)

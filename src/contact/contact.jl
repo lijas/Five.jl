@@ -6,7 +6,7 @@ abstract type AbstractContactTreatment end
 #Maybe change name to abstract geometric entity?
 abstract type AbstractContactEntity end
 
-#=
+
 struct RigidContactEntity{T} <: AbstractContactEntity
     dofs::Vector{Int}
     segments::Vector{Tuple{Vec{2,T},Vec{2,T}}}
@@ -102,7 +102,7 @@ end
 function getAABB(a::NodeContactEntity{dim}, x::AbstractVector{T}) where {dim,T}
  pos = x[a.dofs]#Tuple([x[a.dofs[d]] for d in 1:dim])
  return AABB(pos, zero(Vec{dim,T}))
-end=#
+end
 
 
 mutable struct Contact_Node2Segment{dim,T} <: AbstractContactSearchAlgorithm
@@ -133,7 +133,7 @@ struct ContactOutput{S,M,dim,T}
     dir2::Vec{dim,T}
 end
 
-#=
+
 function Contact_Node2Segment(dim, T)#Matrix{Int}()
 	return Contact_Node2Segment{dim,T}(Vector{AbstractContactEntity}(), Vector{AbstractContactEntity}(), AABB{dim,T}[], AABB{dim,T}[], zeros(Int,3,3), Int[], Buckets(Int,AABB(zero(Vec{dim,T}),zero(Vec{dim,T})), ntuple(i->-1, dim)), Buckets(Int,AABB(zero(Vec{dim,T}),zero(Vec{dim,T})), ntuple(i->-1, dim)));
 end
@@ -713,4 +713,7 @@ function construct_polygon_from_2d_segment!(polygon, x1, x2, tt = 1)
     polygon[4] = (x1 - normal*tt)
 
 end
-=#
+
+
+include("buckets.jl")
+include("contact4.jl")
