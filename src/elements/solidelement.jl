@@ -228,8 +228,32 @@ function integrate_dissipation!(
     Δt            :: T
     ) where {dim_p,dim_s,CV,T}
     
-    fe .= 0.0
-    ge[] = 0.0
+
+    #if !is_dissipative(material)
+    #    return
+    #end
+
+    cv = element.cv
+    reinit!(cv, coords)
+    ndofs = JuAFEM.ndofs(element)
+
+    for qp in 1:getnquadpoints(cv)
+
+        dΩ = getdetJdV(cv, qp) * element.thickness
+
+        ∇u = function_gradient(cv, qp, ue)
+        F = one(∇u) + ∇u
+        C = tdot(F)
+        g, ∂g∂C = constitutive_driver_dissipation(material, C, materialstate[qp])
+
+        ge[] += g * dΩ
+
+        for i in 1:ndofs
+            δFi = shape_gradient(cv, qp, i)
+            δCi = δFi'⋅F + F'⋅δFi
+            fe[i] += (∂g∂C ⊡ δCi) * dΩ
+        end
+    end
 end
 
 function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial

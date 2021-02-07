@@ -45,8 +45,8 @@ function step!(solver::NewtonSolver, state, globaldata)
 
             fill!(state.system_arrays, 0.0)
 
-            #@timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
-            #Δg = state.system_arrays.G[]
+            @timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
+            Δg = state.system_arrays.G[]
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)

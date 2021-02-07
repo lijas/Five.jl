@@ -63,6 +63,8 @@ function _compute_2nd_PK(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,dim,T}
     
     phi, Mᵈᵉᵛ, Cᵉ, S̃, ∂S̃∂Cₑ = hyper_yield_function(C, state.Fᵖ, state.ϵᵖ, emat, τ₀, H)
     dFᵖdC = zero(Tensor{4,dim,T})
+    dgdC = zero(Tensor{2,dim,T})
+    g = 0.0
 
     if phi > 0 #Plastic step
         #Setup newton varibles
@@ -117,11 +119,15 @@ function _compute_2nd_PK(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,dim,T}
 
     ∂S∂Fᵖ = otimesu(I, (Fᵖ ⋅ S̃)) + otimesl((Fᵖ ⋅ S̃), I)
     ∂S∂S̃ = otimesu(Fᵖ,Fᵖ)
-    ∂Cₑ∂C = otimesu(transpose(Fᵖ),transpose(Fᵖ))
+    dCₑdC = otimesu(transpose(Fᵖ),transpose(Fᵖ))
     ∂Cₑ∂Fᵖ = otimesl(I, transpose(Fᵖ) ⋅ C) + otimesu(transpose(Fᵖ) ⋅ C, I)
-    dSdC = ∂S∂Fᵖ ⊡ dFᵖdC + ∂S∂S̃ ⊡ ∂S̃∂Cₑ ⊡ (∂Cₑ∂C + ∂Cₑ∂Fᵖ ⊡ dFᵖdC)
-    
-    return symmetric(S), dSdC, ϵᵖ, ν, Fᵖ
+    dSdC = ∂S∂Fᵖ ⊡ dFᵖdC + ∂S∂S̃ ⊡ ∂S̃∂Cₑ ⊡ (dCₑdC + ∂Cₑ∂Fᵖ ⊡ dFᵖdC)
+
+    if phi > 0.0
+        g, dgdC = _compute_dissipation(Cᵉ, S̃, ν, dγ, Mᵈᵉᵛ, dCₑdC, ∂S̃∂Cₑ, dΔγdC, ∂M∂Cₑ, ∂M∂S̃, Iᵈᵉᵛ, I)
+    end
+
+    return symmetric(S), dSdC, ϵᵖ, ν, Fᵖ, g, dgdC
 end
 
 #Yield function Hyperelastic
@@ -142,7 +148,7 @@ end
 function constitutive_driver(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,3}, state::MatHyperElasticPlasticState)
 
     #Is it possible to combine the computation for S and ∂S∂E (using auto diff?)
-    S, ∂S∂C, ϵᵖ, ν, Fᵖ = _compute_2nd_PK_2(mp, C, state)
+    S, ∂S∂C, ϵᵖ, ν, Fᵖ, g, dgdC = _compute_2nd_PK(mp, C, state)
     
     #Numerical diff:
     # func(C) = _compute_2nd_PK(mp, C, state)[1]
@@ -226,4 +232,31 @@ function compute_residual(x, Cᵛ, H::Float64, τ₀::Float64, emat::HyperElasti
     R2 = √(3/2)*norm(Mᵈᵉᵛ) - (τ₀ + H*(ⁿϵᵖ + Δγ))
 
     return vcat(tovoigt(R1),R2)
+end
+
+
+function constitutive_driver_dissipation(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,3}, state::MatHyperElasticPlasticState) 
+    
+    #Is it possible to combine the computation for S and ∂S∂E (using auto diff?)
+    _, _, _, _, _, g, dgdC = _compute_2nd_PK(mp, C, state)
+
+    return g, dgdC
+end
+
+
+function _compute_dissipation(Cₑ, S̃, ν, Δγ, Mᵈᵉᵛ, dCₑdC, ∂S̃∂Cₑ, dΔγdC, ∂M∂Cₑ, ∂M∂S̃, Iᵈᵉᵛ, I)
+
+    ∂g∂Cₑ = otimesu(I, S̃) ⊡ (Δγ*ν)
+    ∂g∂S̃ = otimesu(Cₑ, I) ⊡ (Δγ*ν)
+    ∂g∂Δγ = (Cₑ ⋅ S̃) ⊡ ν
+    ∂g∂ν = (Cₑ ⋅ S̃) * Δγ
+    
+    ∂ν∂Mᵈᵉᵛ = √(3/2) * (1/Mᵈᵉᵛ) * (Iᵈᵉᵛ - (Mᵈᵉᵛ ⊗ Mᵈᵉᵛ)/(norm(Mᵈᵉᵛ)^2) )
+    ∂Mᵈᵉᵛ∂M = Iᵈᵉᵛ
+    ∂M∂C = (∂M∂Cₑ + ∂M∂S̃ ⊡ ∂S̃∂Cₑ) ⊡ dCₑdC
+
+    g = (Cₑ ⋅ S̃) ⊡ ν*Δγ
+    dgdC = ∂g∂Cₑ ⊡ dCₑdC  +  ∂g∂S̃ ⊡ ∂S̃∂Cₑ ⊡ dCₑdC   +   ∂g∂Δγ ⊡ dΔγdC   +  ∂g∂ν ⊡ ∂ν∂Mᵈᵉᵛ ⊡ ∂Mᵈᵉᵛ∂M ⊡ ∂M∂C
+    
+    return g, dgdC
 end
