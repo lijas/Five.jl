@@ -5,7 +5,7 @@ data = ProblemData(
     tend = 1.0
 )
 
-data.grid = generate_grid(Quadrilateral, (10,1), Vec((0.0,0.0)), Vec((1000.0, 50.0)))
+data.grid = generate_grid(Quadrilateral, (20,3), Vec((0.0,0.0)), Vec((1000.0, 50.0)))
 
 addvertexset!(data.grid, "topright", (x) -> x[1] ≈ 1000.0 && x[2] ≈ 50.0)
 
@@ -97,8 +97,8 @@ force = PointForce(
 #push!(data.external_forces, force)
 
 solver = NewtonSolver(
-    Δt0 = 0.1,
-    Δt_max = 0.1,
+    Δt0 = 0.02,
+    Δt_max = 0.02,
     tol = 1e-5
 )
 

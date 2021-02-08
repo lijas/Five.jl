@@ -63,6 +63,7 @@ function _compute_2nd_PK(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,dim,T}
     
     phi, Mᵈᵉᵛ, Cᵉ, S̃, ∂S̃∂Cₑ = hyper_yield_function(C, state.Fᵖ, state.ϵᵖ, emat, τ₀, H)
     dFᵖdC = zero(Tensor{4,dim,T})
+    dΔγdC = zero(Tensor{2,dim,T})
     dgdC = zero(Tensor{2,dim,T})
     g = 0.0
 
@@ -148,7 +149,7 @@ end
 function constitutive_driver(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,3}, state::MatHyperElasticPlasticState)
 
     #Is it possible to combine the computation for S and ∂S∂E (using auto diff?)
-    S, ∂S∂C, ϵᵖ, ν, Fᵖ, g, dgdC = _compute_2nd_PK(mp, C, state)
+    S, ∂S∂C, ϵᵖ, ν, Fᵖ, _, _ = _compute_2nd_PK(mp, C, state)
     
     #Numerical diff:
     # func(C) = _compute_2nd_PK(mp, C, state)[1]
@@ -251,12 +252,12 @@ function _compute_dissipation(Cₑ, S̃, ν, Δγ, Mᵈᵉᵛ, dCₑdC, ∂S̃�
     ∂g∂Δγ = (Cₑ ⋅ S̃) ⊡ ν
     ∂g∂ν = (Cₑ ⋅ S̃) * Δγ
     
-    ∂ν∂Mᵈᵉᵛ = √(3/2) * (1/Mᵈᵉᵛ) * (Iᵈᵉᵛ - (Mᵈᵉᵛ ⊗ Mᵈᵉᵛ)/(norm(Mᵈᵉᵛ)^2) )
+    ∂ν∂Mᵈᵉᵛ = √(3/2) * (1/norm(Mᵈᵉᵛ)) * (Iᵈᵉᵛ - (Mᵈᵉᵛ ⊗ Mᵈᵉᵛ)/(norm(Mᵈᵉᵛ)^2) )
     ∂Mᵈᵉᵛ∂M = Iᵈᵉᵛ
     ∂M∂C = (∂M∂Cₑ + ∂M∂S̃ ⊡ ∂S̃∂Cₑ) ⊡ dCₑdC
 
     g = (Cₑ ⋅ S̃) ⊡ ν*Δγ
-    dgdC = ∂g∂Cₑ ⊡ dCₑdC  +  ∂g∂S̃ ⊡ ∂S̃∂Cₑ ⊡ dCₑdC   +   ∂g∂Δγ ⊡ dΔγdC   +  ∂g∂ν ⊡ ∂ν∂Mᵈᵉᵛ ⊡ ∂Mᵈᵉᵛ∂M ⊡ ∂M∂C
+    dgdC = ∂g∂Cₑ ⊡ dCₑdC  +  ∂g∂S̃ ⊡ ∂S̃∂Cₑ ⊡ dCₑdC   +   ∂g∂Δγ * dΔγdC   +  ∂g∂ν ⊡ ∂ν∂Mᵈᵉᵛ ⊡ ∂Mᵈᵉᵛ∂M ⊡ ∂M∂C
     
     return g, dgdC
 end
