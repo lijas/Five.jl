@@ -33,6 +33,11 @@ Construct a materialstate based in the input material
 """
 getmaterialstate
 
+"""
+    is_dissipative
+"""
+is_dissipative(::AbstractMaterial) = false
+
 include("matelastic.jl")
 include("mattransvlinearelastic.jl")
 #include("matyeoh.jl")
@@ -100,6 +105,8 @@ end
 
 PlaneStressMaterial(mat) = Material2D(mat, PLANE_STRESS)
 PlaneStrainMaterial(mat) = Material2D(mat, PLANE_STRAIN)
+
+is_dissipative(m::Material2D) = is_dissipative(m.material)
 
 function getmaterialstate(m::Material2D)
     return getmaterialstate(m.material)

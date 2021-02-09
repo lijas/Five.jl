@@ -19,6 +19,8 @@ struct MatHyperElasticPlasticState <: AbstractMaterialState
     ν::Tensor{2,3,Float64,9}	
 end
 
+is_dissipative(::MatHyperElasticPlastic) = true
+
 # # # # # # #
 # Constructors
 # # # # # # #
@@ -102,8 +104,9 @@ function _compute_2nd_PK(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,dim,T}
                 break
             end
 
-            if counter > 10
-                error("Could not find equilibrium in material")
+            if counter > 6
+                #@warn("Could not find equilibrium in material")
+                break
             end
         end
         

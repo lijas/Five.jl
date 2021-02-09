@@ -151,6 +151,10 @@ function assemble_dissipation!(dh::JuAFEM.AbstractDofHandler,
     part::FEPart,
     state::StateVariables)
 
+    if !(part.material |> is_dissipative)
+        return 
+    end
+
     _assemble_part!(dh, part, state, DISSI)
 
 end
@@ -321,10 +325,10 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     #celltype = getcelltype(part.element)
     celltype = typeof(globaldata.grid.cells[first(part.cellset)])
     geom_ip = JuAFEM.default_interpolation(celltype)
-    refshape = RefCube#getrefshape(geom_ip)
+    refshape = JuAFEM.getrefshape(geom_ip)# RefCube#getrefshape(geom_ip)
     nqp = length(state.partstates[_cellid].materialstates)
-    qp_order = convert(Int, nqp^(1/dim))
-    qr = QuadratureRule{dim, refshape}(qp_order)
+    #qp_order = convert(Int, nqp^(1/dim))
+    qr = QuadratureRule{dim, refshape}(2)#qp_order)
     cellvalues = CellScalarValues(qr, geom_ip)
     projector = L2Projector(cellvalues, geom_ip, globaldata.grid, part.cellset)
 
