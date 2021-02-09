@@ -20,5 +20,5 @@ struct ThroughThicknessStresses
 end
 
 function ThroughThicknessStresses() 
-    ThroughThicknessStresses(SymmetricTensor{2,3,Float64,6}[], SymmetricTensor{2,3,Float64,6}[], Vec{3,Float64}[], Vec{3,T}[])
+    ThroughThicknessStresses(SymmetricTensor{2,3,Float64,6}[], SymmetricTensor{2,3,Float64,6}[], Vec{3,Float64}[], Vec{3,Float64}[])
 end
