@@ -19,7 +19,7 @@ end
 
 data = ProblemData(
     dim = 2,
-    tend = 1.0
+    tend = .1
 )
 
 data.grid = generate_my_grid()
@@ -62,7 +62,7 @@ con1 = Dirichlet(
     field = :u,
     dofs = [1,2]
 )
-push!(data.dirichlet, con1)
+#push!(data.dirichlet, con1)
 
 part = Part{2,Float64}(
     element = Five.SolidElementTria(),
@@ -72,7 +72,7 @@ part = Part{2,Float64}(
 push!(data.parts, part)
 
 data.output[] = Output(
-    interval = 0.1,
+    interval = 0.0,
     runname = "ca3prob",
     savepath = "."
 )
@@ -103,13 +103,14 @@ vtkoutput = VTKNodeOutput(
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
 
-#=force = PointForce(
+addvertexset!(data.grid, "top", (x)-> x[2] ≈ 20.0)
+force = PointForce(
     field = :u,
-    comps = [2],
+    comps = [1],
     set = getvertexset(data.grid, "top"),
-    func = (X,t) -> 1.0/length(getvertexset(data.grid, "top"))
-)=#
-#push!(data.external_forces, force)
+    func = (X,t) -> 1.0
+)
+push!(data.external_forces, force)
 
 solver = NewtonSolver(
     Δt0 = 0.0001,
@@ -119,24 +120,24 @@ solver = NewtonSolver(
 )
 
 
-#=solver = LocalDissipationSolver(
-    Δλ0          = 0.1,
-    Δλ_max       = 0.3,
+solver = LocalDissipationSolver(
+    Δλ0          = 1.0,
+    Δλ_max       = 10.0,
     Δλ_min       = 0.05,
     ΔL0          = 0.1,
     ΔL_min       = 0.001,
-    ΔL_max       = 2.0,
-    sw2d         = 0.1,
+    ΔL_max       = 400.0,
+    sw2d         = 10.0,
     sw2i         = 1e-7,
     optitr       = 8,
     maxitr       = 13,
     maxitr_first_step = 50,
-    maxsteps     = 40,
-    λ_max        = 10.0,
+    maxsteps     = 100,
+    λ_max        = 1000.0,
     λ_min        = -10.0,
     tol          = 1e-5,
     max_residual = 1e5
-)=#
+)
 
 state, data = build_problem(data)
 
