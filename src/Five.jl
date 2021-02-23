@@ -182,7 +182,7 @@ include("solvers/problem_builder.jl")
 mutable struct GlobalData{dim,T,DH<:JuAFEM.AbstractDofHandler}
     dbc::ConstraintHandler{DH,T}
 
-    grid::Grid{dim}
+    grid::JuAFEM.AbstractGrid{dim}
     dh::DH
     
     constraints::Constraints
