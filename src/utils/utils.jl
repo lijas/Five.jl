@@ -166,6 +166,11 @@ function numdiff(f!::Function, ue_interface::AbstractVector{T}, nms::AbstractVec
 
 end
 
+export showm
+macro showm(M)
+    return esc(:(display("text/plain", $M)))
+end
+
 
 
 
