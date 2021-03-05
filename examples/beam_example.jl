@@ -2,10 +2,10 @@ using Five
 
 data = ProblemData(
     dim = 2,
-    tend = 1.0
+    tend = 2.0
 )
 
-data.grid = generate_grid(Quadrilateral, (10,1), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+data.grid = generate_grid(QuadraticQuadrilateral, (10,1), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
 
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
@@ -29,7 +29,10 @@ con1 = Dirichlet(
 push!(data.dirichlet, con1)
 
 part = Part{2,Float64}(
-    element = Five.SolidElementQuad(),
+    element = SolidElement{2,2,RefCube,Float64}(
+        celltype = JuAFEM.QuadraticQuadrilateral,
+        qr_order = 4
+    ),
     material = material,
     cellset = collect(1:getncells(data.grid))
 )

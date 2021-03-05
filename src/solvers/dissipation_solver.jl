@@ -66,7 +66,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             #Get internal force                                                                       
             assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
             apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)
-            
+
             #Normal stiffness matrix
             Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ

@@ -40,6 +40,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     for part in data.parts
         #Add fields to dofhandler
         fields = get_fields(part)
+        @show fields
         cells = get_cellset(part)
         push!(dh, FieldHandler(fields, Set(cells)))
 
