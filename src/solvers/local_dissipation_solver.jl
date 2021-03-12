@@ -209,7 +209,7 @@ function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariable
     end
 
     state.λ += state.Δλ
-    state.d += state.Δd
+    state.d += state.Δd 
     
     return ΔP
 end

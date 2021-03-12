@@ -63,7 +63,7 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String)
         botface = JuAFEM.faces(grid.cells[botface_index[1]])[botface_index[2]]
 
         cell_nodes = [topface[2], topface[1], botface[1], botface[2]]
-        new_cell = CohesiveCell{2,4,2}(Tuple(cell_nodes))
+        new_cell = Cell{2,4,1}(Tuple(cell_nodes))
         push!(grid.cells, new_cell)
     end
 
@@ -124,7 +124,7 @@ MatTransvLinearElastic(
 
 #
 part = Part{2,Float64}(
-    element  = SolidElementQuad(thickness = b, celltype = Quadrilateral),
+    element  = SolidElementQuad(thickness = b),
     material = material,
     cellset  = getcellset(data.grid, "solid_cells") |> collect
 )
@@ -132,10 +132,9 @@ push!(data.parts, part)
 
 #
 part = Part{2,Float64}(
-    element = CohesiveElement(
+    element = CohesiveElement{DIM}(
         order = 1,
-        thickness = b,
-        celltype = CohesiveCell{2,4,2}
+        thickness = b
     ),
     material = interfacematerial,
     cellset = getcellset(data.grid, "cz_cells") |> collect

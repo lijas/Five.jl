@@ -95,13 +95,13 @@ end
 
 
 function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
-
-    celltype = typeof(dh.grid.cells[first(part.cellset)])
+    celltype = JuAFEM.cell_to_vtkcell(getcelltype(part.element))
+    
+    #cls = MeshCell[]
+    #nodeid_mapper = Dict{Int,Int}()
+    #node_coords = Vec{dim,T}[]
     next_node_id = 1
-    for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
-        cell = dh.grid.cells[cellid]
-        vtk_celltype = JuAFEM.cell_to_vtkcell(celltype)
-
+    for cell in CellIterator2(dh, part.element, part.cellset)
         new_ids = Int[]
         for nodeid in cell.nodes
             if !haskey(part.vtkexport.nodeid_mapper, nodeid)
@@ -114,11 +114,11 @@ function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
                 push!(new_ids, _new_id)
             end
         end
-        push!(part.vtkexport.vtkcells, MeshCell(vtk_celltype, copy(new_ids[1:vtk_celltype.nodes])))
+        #@show cell.nodes
+        push!(part.vtkexport.vtkcells, MeshCell(celltype, copy(new_ids[1:celltype.nodes])))
     end
-
-
-    resize!(part.cache.coords, JuAFEM.nnodes(celltype))
+     #@show typeof(part.element)
+     #@show part.vtknode_coords
 end
 
 @enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI
@@ -178,9 +178,7 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
 
         fill!(fe, 0.0)
         (assemtype == STIFFMAT) && fill!(ke, 0.0)
-        #@show typeof(element)
-        #@show length(celldofs)
-        #@show ndofs_per_cell(dh,cellid)
+
         JuAFEM.cellcoords!(coords, dh, cellid)
         JuAFEM.celldofs!(celldofs, dh, cellid)
 
@@ -269,17 +267,15 @@ function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T},
 
     node_coords = zeros(Vec{dim,T}, length(part.vtkexport.vtknodes))
 
-    celldofs = part.cache.celldofs
-
-    for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
-        cell = dh.grid.cells[cellid]
-
-        celldofs!(celldofs, dh, cellid)
-        ue = state.d[celldofs]
+    for cell in CellIterator2(dh, part.element, part.cellset)
+        ue = state.d[cell.celldofs]
         ue_vec = reinterpret(Vec{dim,T}, ue)
+
+        coords = ue_vec
+
         for (i,nodeid) in enumerate(cell.nodes)
             local_id = part.vtkexport.nodeid_mapper[nodeid]
-            node_coords[local_id] = ue_vec[i]
+            node_coords[local_id] = coords[i]
         end
     end
     
@@ -334,7 +330,7 @@ function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOut
     
     for (ic, cellid) in enumerate(part.cellset)
         matstates = state.partstates[cellid].materialstates
-        data[ic, :] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
+        data[ic, :] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect
     end
 
     return data
@@ -351,8 +347,7 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     
     ncomp = length(first_field)
     FieldDataType = typeof(first_field)
-    #celltype = getcelltype(part.element)
-    celltype = typeof(globaldata.grid.cells[first(part.cellset)])
+    celltype = getcelltype(part.element)
     geom_ip = JuAFEM.default_interpolation(celltype)
     refshape = RefCube#getrefshape(geom_ip)
     nqp = length(state.partstates[_cellid].materialstates)

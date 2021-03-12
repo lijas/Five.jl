@@ -21,15 +21,23 @@ has_constant_massmatrix(::SolidElement) = true
 
 get_fields(e::SolidElement{dim,order,shape,T}) where {dim,order,shape,T} = return [e.field]
 
-function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
+function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
-    geom_ip = JuAFEM.default_interpolation(celltype)
-
     qr = QuadratureRule{dim, refshape}(qr_order)
+    nnodes = getnbasefunctions(ip)
+    nfaces = length(JuAFEM.faces(ip))
 
-    cv = CellVectorValues(qr, ip, geom_ip)
-    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
+    cv = CellVectorValues(qr, ip)
+    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, Cell{dim,nnodes,nfaces}, cv, Field(:u, ip, dim))
+end
+
+function SolidElement{dim,order,refshape,T}(cv::JuAFEM.Values{dim}, ip::Interpolation; thickness=1.0) where {dim, order, refshape, T}
+    
+    nnodes = JuAFEM.getngeobasefunctions(cv)
+    nfaces = length(JuAFEM.faces(ip))
+    
+    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, Cell{dim,nnodes,nfaces}, cv, Field(:u, ip, dim))
 end
 
 function calculate_minimum_timestep(element::SolidElement{2,1,RefCube,T,M}, material::AbstractMaterial, cell::CellIterator, ue::Vector, due::Vector) where {T,M}

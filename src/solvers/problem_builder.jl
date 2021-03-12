@@ -40,7 +40,6 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     for part in data.parts
         #Add fields to dofhandler
         fields = get_fields(part)
-        @show fields
         cells = get_cellset(part)
         push!(dh, FieldHandler(fields, Set(cells)))
 
@@ -83,7 +82,6 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     for d in data.constraints
         push!(ch.external_forces, d)
     end
-    close!(ch, dh)
 
     for (name, o) in data.outputdata
         push_output!(data.output[], name, o)

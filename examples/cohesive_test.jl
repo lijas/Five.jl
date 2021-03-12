@@ -57,7 +57,7 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String)
         botface = JuAFEM.faces(grid.cells[botface_index[1]])[botface_index[2]]
 
         cell_nodes = [topface[2], topface[1], botface[1], botface[2]]
-        new_cell = CohesiveCell{2,4,2}(Tuple(cell_nodes))
+        new_cell = Cell{2,4,1}(Tuple(cell_nodes))
         push!(grid.cells, new_cell)
     end
 
