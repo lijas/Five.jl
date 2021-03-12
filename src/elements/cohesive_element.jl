@@ -10,14 +10,13 @@ Any order, any shape, any dim,
 struct CohesiveElement{dim_s,CV} <: AbstractElement
     thickness2d::Float64
 
-    ndofs::Int
     field::Field
-    celltype::Type{<:Cell}
+    celltype::Type{<:CohesiveCell}
     cv::CV
 end
 
 JuAFEM.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
-JuAFEM.ndofs(e::CohesiveElement) = e.ndofs
+JuAFEM.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
 JuAFEM.getcelltype(e::CohesiveElement) = e.celltype
 
 has_constant_massmatrix(::CohesiveElement) = true
@@ -27,22 +26,21 @@ get_fields(e::CohesiveElement) = return [e.field]
 
 
 #TODO: Remove this constructor becuase it assumes CohesiveZone-type
-function CohesiveElement{dim_s}(;
+function CohesiveElement(;
     thickness::Float64 = 1.0, 
     order::Int, 
-    nqp::Int = order+1
+    nqp::Int = order+1,
+    celltype::Type{<:CohesiveCell{dim_s}}
     ) where {dim_s}
 
-    ip = Lagrange{dim_s-1,RefCube,order}()
+    ip = CohesiveZoneInterpolation(Lagrange{dim_s-1,RefCube,order}())
+    
+    geom_ip = JuAFEM.default_interpolation(celltype)
     mid_qr = QuadratureRule{dim_s-1,RefCube}(nqp)
 
-    cv = SurfaceVectorValues(mid_qr,ip)
+    cv = SurfaceVectorValues(mid_qr, ip, geom_ip)
 
-    nnodes = getnbasefunctions(ip)*2
-
-    ndofs = nnodes*dim_s
-
-    return CohesiveElement{dim_s,typeof(cv)}(thickness, ndofs, Field(:u, ip, dim_s), Cell{dim_s,nnodes,1},cv)
+    return CohesiveElement{dim_s,typeof(cv)}(thickness, Field(:u, ip, dim_s), celltype, cv)
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim_s,CV}, 
@@ -61,7 +59,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
     
     ndofs = JuAFEM.ndofs(element)
 
-    xe = cell + reinterpret(Vec{dim_s,T}, ue)
+    xe = cell + reinterpret(Vec{dim_s,T}, ue)#[1:length(cell)*dim_s])
 
     reinit!(cv, xe)
 
@@ -70,8 +68,8 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
         
         #Rotation matrix
         R = getR(cv,qp)
-        #@assert(det(R)==1.0)
-
+        @assert(det(R) ≈ 1.0)
+        
         dΓ = getdetJdA(cv, qp) * element.thickness2d
         A += dΓ
         
@@ -95,7 +93,6 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
             end
         end
     end
-
     return A
 end
 

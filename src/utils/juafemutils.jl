@@ -5,9 +5,6 @@ export gridmerge
 #Base.getindex(fi::FaceIndex, i::Int) = fi.idx[i]
 JuAFEM.getdim(::Type{Cell{dim,N,M}}) where {dim,N,M} = dim
 
-JuAFEM.vertices(c::Cell{2,4,1}) = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
-JuAFEM.faces(c::Cell{2,4,1}) = ((c.nodes[1], c.nodes[2]), (c.nodes[3], c.nodes[4])) #might be wrong def
-
 JuAFEM.vertices(::Lagrange{2,RefCube,1}) = (1,2,3,4)
 JuAFEM.vertices(::Lagrange{3,RefCube,1}) = (1,2,3,4,5,6,7,8)
 
@@ -37,6 +34,11 @@ JuAFEM.FaceIndex(array_or_set, b::Int) = [FaceIndex(a,b) for a in array_or_set]
 JuAFEM.cellid(f::Index) = f[1]
 
 JuAFEM.FieldHandler() = FieldHandler(Field[],Set([0])) 
+
+#For cohesive zones
+JuAFEM.vertices(::Lagrange{1,RefCube,1}) = (1,2)
+JuAFEM.vertices(::Lagrange{1,RefCube,2}) = (1,2)
+
 
 function JuAFEM.Dirichlet(;field::Symbol,set::IndexSets,func::Function,dofs::Vector{Int})
     return JuAFEM.Dirichlet(field, set, func, dofs)
@@ -298,226 +300,7 @@ function merge_quadrules(qrs::Vararg{QuadratureRule,N}) where N
 
 end
 
-#From Jim
-
-abstract type SurfaceInterpolation{dim,shape,order,dim_s} <:  JuAFEM.Interpolation{dim,shape,order} end
-
-struct CohesiveZone{dim,shape,order,dim_s} <: SurfaceInterpolation{dim,shape,order,dim_s} end
-
-JuAFEM.getnbasefunctions(::CohesiveZone{dim,shape,1,dim_s}) where {dim,shape,order,dim_s} = 4
-JuAFEM.nvertexdofs(::CohesiveZone) = 1
-
-"""
-Return the refeerence coordinates for the fictious mid-surface
-"""
-JuAFEM.reference_coordinates(::CohesiveZone{1,shape,order,dim_s})  where {dim,shape,order,dim_s} = reference_coordinates(Lagrange{1,RefCube,order}())
-
-"""
-Return the spatial dimension of a `SurfInterpolation`
-"""
-@inline getspacedim(ip::SurfaceInterpolation{dim,shape,order,dim_s}) where {dim,shape,order,dim_s} = dim_s
-
-
-function JuAFEM.value(ip::CohesiveZone{1,RefCube,1,dim_s}, i::Int, ξ::Vec{1}) where {dim_s}
-    """
-    Shape function values are defined such that ∑ Nᵢ(ξ) * aᵢ = j(ξ) (spatial jump)
-    Note: current node numbering is:
-    4__________3
-    |          |
-    |__________|
-    1          2
-    """
-    ξ_x = ξ[1]
-    i == 1 && return -(1 - ξ_x) * 0.5
-    i == 2 && return -(1 + ξ_x) * 0.5
-    i == 3 && return (1 + ξ_x) * 0.5
-    i == 4 && return (1 - ξ_x) * 0.5
-    throw(ArgumentError("no shape function $i for interpolation $ip"))
-end
-
-function mid_surf_value(ip::CohesiveZone{1,RefCube,1,dim_s}, i::Int, ξ::Vec{1}) where {dim_s}
-    """
-    Shape function values are defined such that ∑ Nᵢ(ξ) * xᵢ = x̄(ξ) (mid-surface)
-    Note: current node numbering is:
-    4__________3
-    |          |
-    |__________|
-    1          2
-    """
-    ξ_x = ξ[1]
-    i == 1 && return (1 - ξ_x) * 0.25
-    i == 2 && return (1 + ξ_x) * 0.25
-    i == 3 && return (1 + ξ_x) * 0.25
-    i == 4 && return (1 - ξ_x) * 0.25
-    throw(ArgumentError("no shape function $i for interpolation $ip"))
-end
-
-
-#Also from jim
-
-struct SurfaceVectorValues{dim_p,dim_s,T<:Real,M2,refshape<:JuAFEM.AbstractRefShape} <: JuAFEM.CellValues{dim_s,T,refshape}
-    N::Matrix{Vec{dim_s,T}}
-    dNdξ::Matrix{Tensor{2,dim_s,T,M2}}
-    dNdx::Matrix{Tensor{2,dim_s,T,M2}}
-    R::Vector{Tensor{2,dim_s,T,M2}}
-    detJdA::Vector{T}
-    M::Matrix{T}  # Shape values for geometric interp
-    dMdξ::Matrix{Vec{dim_p,T}}
-    qr_weights::Vector{T}
-    covar_base::Vector{Tensor{2,dim_s,T}}
-end
-
-
-function SurfaceVectorValues(quad_rule::QuadratureRule, func_interpol::Interpolation, geom_interpol::Interpolation=func_interpol)
-    SurfaceVectorValues(Float64, quad_rule, func_interpol, geom_interpol)
-end
-
-@inline getR(cv::SurfaceVectorValues, qp::Int) = cv.R[qp]
-
-getR(bcv::IGA.BezierValues{dim,T,<:Five.SurfaceVectorValues}, qp::Int64) where {dim,T} = getR(bcv.cv_bezier, qp)
-getdetJdA(bcv::IGA.BezierValues{dim,T,<:Five.SurfaceVectorValues}, qp::Int64) where {dim,T} = getdetJdA(bcv.cv_bezier, qp)
-
-function SurfaceVectorValues(::Type{T},
-    quad_rule::QuadratureRule{dim_p,RefCube},
-    func_interpol::Interpolation{dim_p},
-    geom_interpol::Interpolation{dim_p}=func_interpol) where {dim_p,T}
-
-    dim_s = dim_p+1
-    @assert JuAFEM.getdim(func_interpol) == JuAFEM.getdim(geom_interpol)
-    @assert JuAFEM.getrefshape(func_interpol) == JuAFEM.getrefshape(geom_interpol) == RefCube
-    n_qpoints = length(getweights(quad_rule))
-
-    # Function interpolation
-    n_func_basefuncs = getnbasefunctions(func_interpol) * dim_s * 2 #Note, multipy with two
-    N    = fill(zero(Vec{dim_s,T}) * T(NaN), n_func_basefuncs, n_qpoints)
-    dNdξ = fill(zero(Tensor{2,dim_s,T}) * T(NaN), n_func_basefuncs, n_qpoints)
-    dNdX = fill(zero(Tensor{2,dim_s,T}) * T(NaN), n_func_basefuncs, n_qpoints)
-
-    covar_base = fill(zero(Tensor{2,dim_s,T}) * T(NaN), n_qpoints)
-
-    # Geometry interpolation
-    n_geom_basefuncs = getnbasefunctions(geom_interpol) * 2
-    M    = fill(zero(T)          * T(NaN), n_geom_basefuncs, n_qpoints)
-    dMdξ = fill(zero(Vec{dim_p,T}) * T(NaN), n_geom_basefuncs, n_qpoints)
-
-    for (qp, ξ) in enumerate(quad_rule.points)
-        basefunc_count = 1
-        for basefunc in 1:getnbasefunctions(func_interpol)
-            dNdξ_temp, N_temp = JuAFEM.gradient(ξ -> JuAFEM.value(func_interpol, basefunc, ξ), ξ, :all)
-            for comp in 1:dim_s
-                N_comp = zeros(T, dim_s)
-                N_comp[comp] = N_temp
-
-                N[basefunc_count, qp] = -Vec{dim_s,T}((N_comp...,))
-                N[basefunc_count + n_func_basefuncs÷2, qp] = Vec{dim_s,T}((N_comp...,))
-
-                dN_comp = zeros(T, dim_s, dim_s)
-
-                dN_comp[comp, 1:dim_p] = dNdξ_temp
-                dNdξ[basefunc_count, qp] = -Tensor{2,dim_s,T}((dN_comp...,))
-                dNdξ[basefunc_count + n_func_basefuncs÷2, qp] = Tensor{2,dim_s,T}((dN_comp...,))
-                basefunc_count += 1
-            end
-        end
-        for i in 1:n_geom_basefuncs ÷ 2
-            dMdξ[i, qp], M[i, qp] = 0.5 .* JuAFEM.gradient(ξ -> JuAFEM.value(geom_interpol, i, ξ), ξ, :all)
-            dMdξ[i+n_geom_basefuncs÷2, qp] = dMdξ[i, qp]
-               M[i+n_geom_basefuncs÷2, qp] =    M[i, qp]
-        end
-    end
-
-    detJdA = fill(T(NaN), n_qpoints)
-    R = fill(zero(Tensor{2,dim_s,T}) *T(NaN), n_qpoints)
-    MM = Tensors.n_components(Tensors.get_base(eltype(R)))
-    SurfaceVectorValues{dim_p,dim_s,T,MM,RefCube}(N, dNdξ, dNdX, R, detJdA, M, dMdξ, quad_rule.weights, covar_base)
-end
-
-JuAFEM.getn_scalarbasefunctions(cv::SurfaceVectorValues{dim,dim_s}) where {dim,dim_s} = size(cv.N, 1) ÷ dim_s
-
-@inline getdetJdA(cv::SurfaceVectorValues, q_point::Int) = cv.detJdA[q_point]
-
-function JuAFEM.reinit!(cv::SurfaceVectorValues{dim_p,dim_s}, x::AbstractVector{Vec{dim_s,T}}) where {dim_p,dim_s,T}
-    n_geom_basefuncs = JuAFEM.getngeobasefunctions(cv)
-    n_func_basefuncs = JuAFEM.getn_scalarbasefunctions(cv)
-    @assert length(x) == n_geom_basefuncs
-    isa(cv, CellVectorValues) && (n_func_basefuncs *= dim_p)
-
-
-    @inbounds for i in 1:length(cv.qr_weights)
-        w = cv.qr_weights[i]
-
-        E = zeros(Vec{dim_s,T},dim_p)
-        for j in 1:n_geom_basefuncs
-            for d in 1:dim_p
-                E[d] += cv.dMdξ[j,i][d] * x[j]
-            end
-        end
-
-        D = cross(E...) #in 2d cross-product is defined as cross(a::Vec{2}) = [-a[2], a[1]]
-
-        #Rotation matrix and covariant vectors are similar becuase 
-        _R = hcat((E./norm.(E))..., D/norm(D))
-        _G = hcat(E...,D)
-
-        cv.R[i] = Tensor{2,dim_s,T}(_R)
-        cv.covar_base[i] = Tensor{2,dim_s,T}(_G)
-
-        detJ = norm(D)#sqrt(det(cv.covar_base[i]))
-        cv.detJdA[i] = detJ * w
-
-        #Update dNdX
-        #...not need at the moment
-
-    end
-
-end
-
-
-function JuAFEM.function_value(fe_v::SurfaceVectorValues{dim,dim_s}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T,dim_s}
-    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
-    n_base_funcs *= dim_s
-    
-    @assert length(u) == length(dof_range)
-    val = zero(Vec{dim_s,T})
-    for (i, j) in enumerate(dof_range)
-        val += shape_value(fe_v, q_point, j) * u[i]
-    end
-    return val
-end
-
-
-
-#
-# Interpolation for cohesive zones
-#
-
-struct CohesiveZoneInterpolation{dim_p,dim_s,I<:Interpolation} <: SurfaceInterpolation{dim_p,RefCube,-1,dim_s} 
-    interpolation::I
-    function CohesiveZoneInterpolation{dim_p,dim_s}(interpolation) where {dim_p,dim_s}
-        @assert(JuAFEM.getdim(interpolation) == dim_p)
-        new{dim_p,dim_s,typeof(interpolation)}(interpolation)
-    end
-end
-
-JuAFEM.getnbasefunctions(ip::CohesiveZoneInterpolation{dim_p,dim_s,I}) where {dim_p,dim_s,I} = getnbasefunctions(ip.interpolation)*2
-JuAFEM.nvertexdofs(::CohesiveZoneInterpolation) = 1
-
-function JuAFEM.value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) where {dim_p,I}
-    _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $i for interpolation $ip"))
-    sign = _i <= (getnbasefunctions(ip)÷2) ? -1 : 1
-    i = (_i-1)%(getnbasefunctions(ip)÷2) +1
-
-    return sign*JuAFEM.value(ip.interpolation, i, ξ)
-end
-
-function mid_surf_value(ip::CohesiveZoneInterpolation{dim_p,dim_s,I}, _i::Int, ξ::Vec{dim_p}) where {dim_s,dim_p,I}
-    _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
-    i = (_i-1)%(getnbasefunctions(ip)÷2) +1
-
-    return JuAFEM.value(ip.interpolation, i, ξ)*0.5
-end
-
-
+#TODO: Clean this
 ##Adding edge set to dbc
 ##
 ##
