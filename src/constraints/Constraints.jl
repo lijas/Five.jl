@@ -43,18 +43,12 @@ function add_lagrange_constraints!(c::Constraints, constraint::AbstractConstrain
     push!(c.lagrange_constraints, constraint)
 end
 
-function close_ch!(ch::Constraints)
 
-    push!(ch.constraint_dofs_offset,1)
-    for pc in ch.penalty_constraints
-
-        info, dofs = construct_contraint(pc,ch.dh)
-        
-        append!(ch.constraint_dofs, dofs)
-        push!(ch.constraint_dofs_offset, length(ch.constraint_dofs)+1)
-        push!(ch.constraint_infos, info)
+function JuAFEM.close!(ef::Constraints, dh::MixedDofHandler)
+    for (i, e) in enumerate(ef.external_forces)
+        ForceType = typeof(e)
+        ef.external_forces[i] = init_external_force!(e, dh)
     end
-
 end
 
 function constraintdofs(ch, i::Int)

@@ -49,7 +49,7 @@ function getmaterialstate(m::MatVanDenBosch{dim}, d::Float64=zero(Float64)) wher
         end
     end
 
-    return getmaterialstate{dim}(zero(Vec{dim,T}), zero(Vec{dim,T}), Vec{dim,T}(Tuple(Δ_max)), (d,d))
+    return MatVanDenBoschState{dim}(zero(Vec{dim,T}), zero(Vec{dim,T}), Vec{dim,T}(Tuple(Δ_max)), (d,d))
 end
 
 get_material_state_type(::MatVanDenBosch{dim}) where {dim} = MatVanDenBoschState
