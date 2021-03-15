@@ -118,7 +118,7 @@ function SurfaceVectorValues(::Type{T},
             end
         end
         for i in 1:n_geom_basefuncs 
-            dMdξ[i, qp], M[i, qp] = JuAFEM.gradient(ξ -> JuAFEM.value(geom_interpol, i, ξ), ξ, :all)
+            dMdξ[i, qp], M[i, qp] = JuAFEM.gradient(ξ -> mid_surf_value(geom_interpol, i, ξ), ξ, :all)
         end
     end
 
@@ -147,7 +147,7 @@ function JuAFEM.reinit!(cv::SurfaceVectorValues{dim_p,dim_s}, x::AbstractVector{
             end
         end
         D = cross(E...) #in 2d cross-product is defined as cross(a::Vec{2}) = [-a[2], a[1]]
-
+        
         #Rotation matrix and covariant vectors are similar becuase 
         _R = hcat((E./norm.(E))..., D/norm(D))
         _G = hcat(E...,D)
@@ -177,42 +177,4 @@ function JuAFEM.function_value(fe_v::SurfaceVectorValues{dim,dim_s}, q_point::In
     end
     return val
 end
-
-
-
-#Fe part
-
-#=
-function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::JuAFEM.AbstractDofHandler) where {dim,T}
-    return nothing
-    #=@assert(dim==2)
-    celltype = JuAFEM.VTKCellTypes.VTK_LINE
-    
-    next_node_id = 1
-    @show part.cellset
-    for cell in CellIterator(dh, part.cellset)
-        new_ids = Int[]
-        for nodeid in cell.nodes
-            if !haskey(part.vtkexport.nodeid_mapper, nodeid)
-                part.vtkexport.nodeid_mapper[nodeid] = next_node_id
-                push!(new_ids, next_node_id)
-                next_node_id += 1
-                push!(part.vtkexport.vtknodes, dh.grid.nodes[nodeid].x)
-            else
-                _new_id = part.vtkexport.nodeid_mapper[nodeid]
-                push!(new_ids, _new_id)
-            end
-        end
-        #@show cell.nodes
-        push!(part.vtkexport.vtkcells, MeshCell(celltype, new_ids[1:2]))
-        push!(part.vtkexport.vtkcells, MeshCell(celltype, new_ids[2:3]))
-        push!(part.vtkexport.vtkcells, MeshCell(celltype, new_ids[3:4]))
-        push!(part.vtkexport.vtkcells, MeshCell(celltype, new_ids[[4,1]]))
-        
-    end=#
-end
-
-function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables) where {dim,T}
-    return Vec{dim,T}[]
-end=#
 
