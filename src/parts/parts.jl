@@ -21,6 +21,7 @@ init_part!
 
 include("fepart.jl")
 include("igapart.jl")
+include("cohesive_part.jl")
 #include("rigidbody/rigidpart.jl")
 
 #init!
