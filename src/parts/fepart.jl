@@ -121,7 +121,7 @@ function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
     resize!(part.cache.coords, JuAFEM.nnodes(celltype))
 end
 
-@enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI
+@enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI ELASTIC
 
 function assemble_stiffnessmatrix_and_forcevector!(dh::JuAFEM.AbstractDofHandler, 
     part::FEPart,
@@ -152,6 +152,14 @@ function assemble_dissipation!(dh::JuAFEM.AbstractDofHandler,
     state::StateVariables)
 
     _assemble_part!(dh, part, state, DISSI)
+
+end
+
+function assemble_elastic!(dh::JuAFEM.AbstractDofHandler, 
+    part::FEPart,
+    state::StateVariables)
+
+    _assemble_part!(dh, part, state, ELASTIC)
 
 end
 
@@ -209,6 +217,11 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
         elseif assemtype == DISSI
             ge = Base.RefValue(zero(T))
             integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            state.system_arrays.fᴬ[celldofs] += fe
+            state.system_arrays.G[] += ge[]
+        elseif assemtype == ELASTIC
+            ge = Base.RefValue(zero(T))
+            integrate_elastic!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
             state.system_arrays.fᴬ[celldofs] += fe
             state.system_arrays.G[] += ge[]
         end

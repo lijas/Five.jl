@@ -29,6 +29,9 @@ struct MatCZBilinearState{T} <: AbstractMaterialState
     #Dissipation
     g::T
     dgdJ::Vec{3,T}
+
+    g2::T
+    dgdJ2::Vec{3,T}
 end
 
 function MatCZBilinear(; K::T, Gᴵ::NTuple{3,T}, τᴹᵃˣ::NTuple{3,T}, η::T) where {T}
@@ -45,7 +48,7 @@ function getmaterialstate(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
     δ⁰ₘ = mp.δ⁰[1]
     δᴹᵃˣₘ = _delta_max(d, δᶠₘ, δ⁰ₘ)
     δᴹᵃˣₘ += δᴹᵃˣₘ*0.01
-    return MatCZBilinearState(δᴹᵃˣₘ, d,t,J, 0.0, zero(Vec{3,T}))
+    return MatCZBilinearState(δᴹᵃˣₘ, d,t,J, 0.0, zero(Vec{3,T}), 0.0, zero(Vec{3,T}))
 end
 
 get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
@@ -58,7 +61,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatC
     dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
     
 
-    return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
+    return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ, 0.0, zero(Vec{3,T}))
 end
 
 function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
@@ -83,9 +86,15 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
     t2d = Vec{2,T}((t[1], t[3]))
     dt2d = Tensor{2,2,T,4}((dt[1,1], dt[3,1], dt[1,3], dt[3,3]))
 
-    dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
+    #Dissipation
+    #dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
 
-    return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
+    J_dual = Tensors._load(J)
+    _, _, _, g_res, g2_res = _constitutive_driver(mp, J_dual, prev_state)
+    g, dg   =  Tensors._extract_value(g_res),  Tensors._extract_gradient(g_res, J)
+    g2, dg2 =  Tensors._extract_value(g2_res), Tensors._extract_gradient(g2_res, J)
+
+    return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dg, g2, dg2)
 end
 
 function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
@@ -99,6 +108,19 @@ function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J2d::Vec{2,T}, pr
     g, dg =  Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
 
     return g, Vec{2,T}((dg[1], dg[3]))
+end
+
+function constitutive_driver_elastic(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
+    
+    #Pad with zero
+    J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
+
+    J_dual = Tensors._load(J)
+    _, _, _, _, g2_res = _constitutive_driver(mp, J_dual, prev_state)
+
+    g2, dg2 =  Tensors._extract_value(g2_res), Tensors._extract_gradient(g2_res, J)
+
+    return g2, Vec{2,T}((dg2[1], dg2[3]))
 end
 
 #
@@ -132,7 +154,7 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
         else
             D = zero(Tensor{2,dim,T1})
         end
-        return D⋅δ, prev_state.δᴹᵃˣₘ, prev_state.d, 0.0
+        return D⋅δ, prev_state.δᴹᵃˣₘ, prev_state.d, 0.0, 0.0
     end
     δˢʰᵉᵃʳ = dim==3 ? sqrt(δ[1]^2 + δ[2]^2) : δ[1]
     δₘ = sqrt((δˢʰᵉᵃʳ)^2 + macl(δ[dim])^2)
@@ -173,8 +195,11 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
 
     Δd = d - prev_state.d
     g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
+    
+    ΔJ = (δ - prev_state.J)
+    g2 = (1-d) *  δ ⋅ (K*δᵢⱼ) ⋅ ΔJ
 
-    return D⋅δ, δᴹᵃˣₘ, d, g
+    return D⋅δ, δᴹᵃˣₘ, d, g, g2
 end
 
 _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ::NTuple{3,T}, K::T, β, η::T, G::NTuple{3,T}) where {T} = _cohesive_bk_criterion(δ₃, δ⁰ₘ, δᶠ[1], δᶠ[2], K, β, η, G[3], G[1])

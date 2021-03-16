@@ -232,6 +232,24 @@ function integrate_dissipation!(
     ge[] = 0.0
 end
 
+function integrate_elastic!(
+    element       :: SolidElement{dim_p,dim_s,CV},
+    elementstate  :: AbstractElementState,
+    material      :: AbstractMaterial,
+    materialstate :: AbstractArray{<:AbstractMaterialState},
+    fe            :: Vector{T},
+    ge            :: Base.RefValue{T},
+    coords, 
+    Δue           :: Vector,
+    ue            :: Vector,
+    due           :: Vector,
+    Δt            :: T
+    ) where {dim_p,dim_s,CV,T}
+    
+    fe .= 0.0
+    ge[] = 0.0
+end
+
 function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial
     C = tdot(F)
     S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)

@@ -191,7 +191,7 @@ data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
-solver = DissipationSolver(
+solver = LocalDissipationSolver(
     Δλ0          = 5.0,
     Δλ_max       = 10.0,
     Δλ_min       = 1e-7,

@@ -87,6 +87,15 @@ function assemble_dissipation!(dh::MixedDofHandler, state::StateVariables, globa
 end
 
 
+function assemble_elastic!(dh::MixedDofHandler, state::StateVariables, globaldata)
+    for (partid, part) in enumerate(globaldata.parts)
+
+        assemble_elastic!(dh, 
+                                part, 
+                                state)
+    end
+end
+
 function post_stuff!(dh, state, globaldata)
     for (partid, part) in enumerate(globaldata.parts)
         post_part!(dh, part, state)
