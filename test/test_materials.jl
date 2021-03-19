@@ -1,6 +1,6 @@
 
 # to test vtk-files
-OVERWRITE_CHECKSUMS = true
+OVERWRITE_CHECKSUMS = false
 checksums_file = joinpath(dirname(@__FILE__), "checksums.sha1")
 checksum_list = read(checksums_file, String)
 if OVERWRITE_CHECKSUMS
@@ -23,7 +23,7 @@ function get_MatLinearElastic_loading()
 end
 
 function get_MatVanDenBosch_loading()
-    mat = MatVanDenBosch{3}(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₙ*5, length=100))
     jump2 = collect(range(mat.δₙ*5, stop = 0.0, length=100))
@@ -36,7 +36,7 @@ function get_MatVanDenBosch_loading()
 end
 
 function get_MatVanDenBosch_loading2()
-    mat = MatVanDenBosch{3}(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -49,7 +49,7 @@ function get_MatVanDenBosch_loading2()
 end
 
 function get_MatVanDenBosch_loading3()
-    mat = MatVanDenBosch{2}(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -87,7 +87,6 @@ end
     for (material, loading) in material_list
         state = Five.getmaterialstate(material)
         stresses = []; tangents = [];
-        @show material
         for load in loading
             stress, tangent, state = Five.constitutive_driver(material, load, state)
             push!(stresses, stress)
@@ -96,7 +95,6 @@ end
 
         checkhash1 = string(hash(stresses))
         checkhash2 = string(hash(tangents))
-        @show tangents
         if OVERWRITE_CHECKSUMS
             write(csio, checkhash1, "\n")
             write(csio, checkhash2, "\n")

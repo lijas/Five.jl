@@ -88,7 +88,7 @@ function _vandenbosch_law_with_damage(Δ::Vec{3,T}, ms::MatVanDenBoschState, m::
          1.0 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_cn)* Δd_t
 
     #return traction tensor
-    return Vec{3,T}(((Tₜ[1], Tₜ[2], Tₙ))), d_n, d_t, d_cn, d_ct, ΔD
+    return Vec{3,T}(((Tₜ[1], Tₜ[2], Tₙ))), d_n, d_t, d_cn, d_ct, Vec{3,T}(((Δₜ_max[1], Δₜ_max[2], Δₙ_max))), ΔD
 end
 
 function _vandenbosch_law_without_damage(Δ::Vec{3}, m::MatVanDenBosch)
@@ -121,19 +121,15 @@ end
 function _constitutive_driver_with_damage(m::MatVanDenBosch, J::Vec{3}, ms::MatVanDenBoschState)
 
     J_dual = Tensors._load(J)
-    _T, _d_n, _d_t, _d_cn, _d_ct, _ = _vandenbosch_law_with_damage(J_dual, ms, m)
+    _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _vandenbosch_law_with_damage(J_dual, ms, m)
 
     d_n =  Tensors._extract_value(_d_n)
     d_t =  Tensors._extract_value(_d_t)
     d_cn =  Tensors._extract_value(_d_cn)
     d_ct =  Tensors._extract_value(_d_ct)
+    J_max_temp = Tensors._extract_value(_J_max_temp)
 
     T, dTdΔ = Tensors._extract_value(_T), Tensors._extract_gradient(_T, J)
-    
-    #
-    J_max_temp = Vector{Float64}(undef, 3)
-    Δₜ_max = J_max_temp[1:2] = [(norm(J[i]) > ms.Δ_max[i]) ? norm(J[i]) : ms.Δ_max[i] for i=1:2]
-    Δₙ_max = J_max_temp[3] = (J[3] > ms.Δ_max[3]) ? J[3] : ms.Δ_max[3]
 
     return T, dTdΔ, MatVanDenBoschState(J, T, Vec{3,Float64}(Tuple(J_max_temp)), (d_n,d_t), (d_cn, d_ct))
 end
@@ -145,7 +141,7 @@ function _constitutive_driver_with_damage(m::MatVanDenBosch, _J::Vec{2}, ms::Mat
 
     #Remove third direction
     T = Vec{2,Float64}((_T[1], _T[3]))
-    dTdΔ = SymmetricTensor{2,2,Float64,3}((_dTdΔ[1,1], _dTdΔ[3,1], _dTdΔ[3,3]))
+    dTdΔ = Tensor{2,2,Float64,4}((_dTdΔ[1,1], _dTdΔ[3,1], _dTdΔ[1,3], _dTdΔ[3,3]))
     
     return T, dTdΔ, new_state
 end
@@ -154,7 +150,7 @@ function constitutive_driver_dissipation(mp::MatVanDenBosch, J::Vec{3}, prev_sta
     @assert(mp.with_damage == true)
 
     J_dual = Tensors._load(J)
-    _, _, _, _, _, _ΔD = _vandenbosch_law_with_damage(J_dual, prev_state, mp)
+    _, _, _, _, _, _, _ΔD = _vandenbosch_law_with_damage(J_dual, prev_state, mp)
 
     ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
 
