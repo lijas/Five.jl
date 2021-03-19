@@ -61,6 +61,19 @@ function get_MatVanDenBosch_loading3()
     return (mat => jump)
 end
 
+function get_MatVanDenBosch_loading3()
+    mat = MatVanDenBosch{2}(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    
+    jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
+    jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
+    jump3 = collect(range(0.0,      stop = mat.δₜ*10, length=100))  
+
+    _jump = [jump1..., jump2..., jump3...]
+    jump = [Vec{2}((x/2, x/2)) for x in _jump]
+
+    return (mat => jump)
+end
+
 @testset "Material behaviour" begin
 
 
