@@ -62,7 +62,7 @@ function get_MatVanDenBosch_loading3()
 end
 
 function get_MatVanDenBosch_loading3()
-    mat = MatVanDenBosch{2}(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
