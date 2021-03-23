@@ -59,13 +59,13 @@ function _vandenbosch_law_with_damage(Δ::Vec{3,T}, ms::MatVanDenBoschState, m::
 
     # compute max separations
     Δₜ_max = [max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])]
-    Δₙ_max = max(Δ[end], ms.Δ_max[end])
+    Δₙ_max = max(Δ[3], ms.Δ_max[3])
     
     # compute damage variables
     d_n =  (Δₙ_max ==Inf) ? T(1.0) : 1 - exp(-Δₙ_max/m.δₙ)
     d_cn = (Δₙ_max ==Inf) ? T(1.0) : 1 - exp(-Δₙ_max/m.δₙ)*(1 + Δₙ_max/m.δₙ)
-    d_ct = (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/2m.δₜ^2)
-    d_t =  (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/2m.δₜ^2)
+    d_ct = (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2))
+    d_t =  (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2))
 
     #@show d_n d_ct d_t d_cn
 
@@ -77,15 +77,15 @@ function _vandenbosch_law_with_damage(Δ::Vec{3,T}, ms::MatVanDenBoschState, m::
     Tₙ  = m.Φₙ/m.δₙ^2 * (1-d_n*H(Δₙ)) * (1-d_ct*H(Δₙ)) * Δₙ
     
     #Dissipaiton from magrnus, (d_cn -> d_tn     d_ct -> d_nt)
-    Δd_cn = d_cn - ms.d_c[1] 
-    Δd_ct = d_ct - ms.d_c[2]
-    Δd_n  = d_n - ms.d[1] 
-    Δd_t  = d_t - ms.d[2] 
+    Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
+    Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
+    Δd_t  = 1/m.δₜ^2 * exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2)) * Δₜ_max' * (Δₜ_max - ms.Δ_max[1:2])
+    Δd_ct = Δd_t
 
     ΔD = 0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_ct) * Δd_n + 
          0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_n)  * Δd_ct + 
-         1.0 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_t)*(1 - d_cn) * Δd_cn + 
-         1.0 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_cn)* Δd_t
+         0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_t) * Δd_cn + 
+         0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_cn)* Δd_t
 
     #return traction tensor
     return Vec{3,T}(((Tₜ[1], Tₜ[2], Tₙ))), d_n, d_t, d_cn, d_ct, Vec{3,T}(((Δₜ_max[1], Δₜ_max[2], Δₙ_max))), ΔD

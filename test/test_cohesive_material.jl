@@ -93,4 +93,29 @@ end=#
 
 end
 
+function testg()
+    G1 = 2.0
+    σₘₐₓ = 10.0
+    mat = MatVanDenBosch(σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Φₙ = G1, Φₜ = G1, with_damage = true)
+    state = Five.getmaterialstate(mat, 0.0)
+
+    δvec = []
+    append!(δvec, range(0.0, stop=mat.δₙ*20, length=100))
+    #append!(δvec, range(mat.δₙ*3, stop=0.0, length=100))
+    #append!(δvec, range(0.0, stop=mat.δₙ*20, length=100))
+    
+    traction = Float64[]
+    g = 0.0
+    for δ in δvec
+        deltag, dg = Five.constitutive_driver_dissipation(mat, Vec((0.0, δ, 0.0)), state)
+        τ, dτ, state = Five.constitutive_driver(mat, Vec((0.0, δ, 0.0)), state)
+        #@show state
+        push!(traction, τ[2])
+        g += deltag
+    end
+
+    @show g
+    return δvec, traction
+end
+
 
