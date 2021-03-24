@@ -93,7 +93,7 @@ data = ProblemData(
 #grid
 data.grid = generate_enf_grid(NELX, NELY, L, h, a0)
 
-#interfacematerial = IGAShell.MatCohesive{dim}(λ_0,λ_f,τ,K)
+
 interfacematerial = 
 MatCZBilinear(
     K    = 1.0e5,
@@ -102,15 +102,12 @@ MatCZBilinear(
     η    = 1.0
 ) 
 
-#interfacematerial = MatMixedCohesive(1.0e5, (0.5, 0.5), (50.0,50.0), 1.0) 
-
-#=
-interfacematerial = 
-MatCZBilinear2(
-    K    = 1.0e5,
-    Gᴵ   = (0.5, 0.5, 0.5),
-    τᴹᵃˣ = (50.0, 50.0, 50.0),
-    η    = 1.0
+#=interfacematerial = 
+MatCZKolluri(
+    σₘₐₓ = 50.0, 
+    τₘₐₓ = 50.0, 
+    Φₙ = 0.5, 
+    Φₜ = 0.5
 ) =#
 
 material = 
@@ -200,7 +197,7 @@ solver = DissipationSolver(
     Δλ_min       = 1e-7,
     ΔL0          = 2.5,
     ΔL_min       = 1e-2,
-    ΔL_max       = 5.0,
+    ΔL_max       = 7.0,
     sw2d         = 0.2,
     sw2i         = 1e-7,
     optitr       = 8,
@@ -209,7 +206,7 @@ solver = DissipationSolver(
     maxsteps     = 200,
     λ_max        = 400.0,
     λ_min        = -100.0,
-    tol          = 1e-3,
+    tol          = 1e-4,
     max_residual = 1e5
 )
 

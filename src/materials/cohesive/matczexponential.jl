@@ -4,7 +4,7 @@
 # const MatCZVanDenBosch{dim} = MatCZExponentialLaw{dim,true}
 # const MatCZOtherName{dim} = MatCZExponentialLaw{dim,false}
 
-struct MatVanDenBosch{dim} <: AbstractCohesiveMaterial
+struct MatCZKolluri <: AbstractCohesiveMaterial
     #constant, not updated for every element
     σₘₐₓ::Float64
     τₘₐₓ::Float64
@@ -12,66 +12,59 @@ struct MatVanDenBosch{dim} <: AbstractCohesiveMaterial
     δₜ::Float64
     Φₙ::Float64
     Φₜ::Float64
-    with_damage::Bool
 end
 
-function MatVanDenBosch{dim}( ; σₘₐₓ::Float64, τₘₐₓ::Float64, Φₙ::Float64, Φₜ::Float64, with_damage::Bool = true) where {dim}
+function MatCZKolluri( ; σₘₐₓ::Float64, τₘₐₓ::Float64, Φₙ::Float64, Φₜ::Float64)
     δₙ = Φₙ/(σₘₐₓ*exp(1))
     δₜ = with_damage ? Φₜ/(τₘₐₓ*exp(1/2)) : Φₜ/(τₘₐₓ*sqrt(0.5 * exp(1))) 
-    return MatVanDenBosch{dim}(σₘₐₓ, τₘₐₓ, δₙ, δₜ, Φₙ, Φₜ, with_damage)
+    return MatCZKolluri(σₘₐₓ, τₘₐₓ, δₙ, δₜ, Φₙ, Φₜ)
 end
 
-struct MatVanDenBoschState{dim} <: AbstractMaterialState
-    Δ::Tensor{1, dim, Float64, dim}
-    T::Tensor{1, dim, Float64, dim}    
-    Δ_max::Tensor{1, dim, Float64, dim}
+struct MatCZKolluriState <: AbstractMaterialState
+    Δ::Tensor{1, 3, Float64, 3}
+    T::Tensor{1, 3, Float64, 3}    
+    Δ_max::Tensor{1, 3, Float64, 3}
     d::NTuple{2,Float64}
+    d_c::NTuple{2,Float64} #Coupling damage factors
 end
 
-function getmaterialstate(m::MatVanDenBosch{dim}, d::Float64=zero(Float64)) where {dim}
+function getmaterialstate(m::MatCZKolluri, d::Float64=zero(Float64))
     @assert( 0.0 <= d <= 1.0)
 
     T = Float64
-    Δ_max = Vector{T}(undef, dim)
+    Δ_max = Vector{T}(undef, 3)
 
     #Normal direction
     Δ_max[end] = -m.δₙ*log(1-d)
 
     #Shear directions
-    for i in 1:dim-1
+    for i in 1:2
         Δ_max[i] = sqrt(-2m.δₙ*log(1-d))
     end
 
-    #To avoid numerical issues change Δ_max from Inf to something big
-    for i in 1:dim
-        if Δ_max[i] == Inf
-            Δ_max[i] = m.δₙ*100
-        end
-    end
-
-    return MatVanDenBoschState{dim}(zero(Vec{dim,T}), zero(Vec{dim,T}), Vec{dim,T}(Tuple(Δ_max)), (d,d))
+    return MatCZKolluriState(zero(Vec{3,T}), zero(Vec{3,T}), Vec{3,T}(Tuple(Δ_max)), (d,d), (d,d))
 end
 
-get_material_state_type(::MatVanDenBosch{dim}) where {dim} = MatVanDenBoschState
-interface_damage(m::MatVanDenBoschState, d::Int) = m.d[d]
-onset_displacement(mat::MatVanDenBosch{dim}, d::Int) where dim = (dim==d) ? mat.δₙ : mat.δₜ
-max_traction_force(mat::MatVanDenBosch{dim}, d::Int) where dim = (dim==d) ? mat.σₘₐₓ : mat.τₘₐₓ
+get_material_state_type(::MatCZKolluri) = MatCZKolluriState
+interface_damage(m::MatCZKolluriState, d::Int) = m.d[d]
+onset_displacement(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.δₙ : mat.δₜ
+max_traction_force(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.σₘₐₓ : mat.τₘₐₓ
 
-function _vandenbosch_law_with_damage(Δ::Vec{dim,T}, ms::MatVanDenBoschState, m::MatVanDenBosch) where dim where T <: Real
+function _vandenbosch_law_with_damage(Δ::Vec{3,T}, ms::MatCZKolluriState, m::MatCZKolluri) where T <: Real
 
     # unpack tangential and normal directions from separation tensor
-    Δₜ = Δ[1:(dim-1)]
-    Δₙ = Δ[dim]
+    Δₜ = Δ[1:2]
+    Δₙ = Δ[3]
 
     # compute max separations
-    Δₜ_max = [max(norm(Δ[i]), ms.Δ_max[i]) for i=1:(dim-1)]
-    Δₙ_max = max(Δ[end], ms.Δ_max[end])
+    Δₜ_max = [max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])]
+    Δₙ_max = max(Δ[3], ms.Δ_max[3])
     
     # compute damage variables
-    d_n = 1 - exp(-Δₙ_max/m.δₙ)
-    d_ct = 1 - exp(-Δₜ_max'*Δₜ_max/2m.δₜ^2)
-    d_t = 1 - exp(-Δₜ_max'*Δₜ_max/2m.δₜ^2)
-    d_cn = 1 - exp(-Δₙ_max/m.δₙ)*(1 + Δₙ_max/m.δₙ)
+    d_n =  (Δₙ_max ==Inf) ? T(1.0) : 1 - exp(-Δₙ_max/m.δₙ)
+    d_cn = (Δₙ_max ==Inf) ? T(1.0) : 1 - exp(-Δₙ_max/m.δₙ)*(1 + Δₙ_max/m.δₙ)
+    d_ct = (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2))
+    d_t =  (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2))
 
     #define Heavyside function
     H(Δ) = Δ < 0 ? 0.0 : 1.0
@@ -80,50 +73,70 @@ function _vandenbosch_law_with_damage(Δ::Vec{dim,T}, ms::MatVanDenBoschState, m
     Tₜ = m.Φₜ/m.δₜ^2 * (1-d_t) * (1-d_cn) * Δₜ
     Tₙ  = m.Φₙ/m.δₙ^2 * (1-d_n*H(Δₙ)) * (1-d_ct*H(Δₙ)) * Δₙ
     
-    #return traction tensor
-    return Vec{dim,T}(Tuple(vcat(Tₜ, Tₙ)))
-end
-
-function _vandenbosch_law_without_damage(Δ::Vec{dim}, m::MatVanDenBosch) where dim
-    # Δ follows the convention that the first one or two entries correspond to the
-    # tangential direction(s) and th last entry corresponds to the normal direction
-    Δₜ = Δ[1:end-1]
-    Δₙ = Δ[end]
-    Tₜ(Δₜ, Δₙ) = 2*m.Φₜ / m.δₜ^2 * Δₜ * (1 + Δₙ/m.δₙ) * exp(-Δₙ/m.δₙ) * exp(-Δₜ'*Δₜ/m.δₜ^2)
-    Tₙ(Δₜ, Δₙ) = m.Φₙ / m.δₙ^2 * Δₙ * exp(-Δₙ/m.δₙ) * exp(-Δₜ'*Δₜ/m.δₜ^2)
-    T = Tensor{1,dim}(vcat(Tₜ(Δₜ, Δₙ), Tₙ(Δₜ, Δₙ)))
-    return T
-end
-
-function constitutive_driver(m::MatVanDenBosch, J::Vec, ms::MatVanDenBoschState)
-    if m.with_damage
-        return _constitutive_driver_with_damage(m, J, ms)
+    
+    if Δₙ_max == Inf || Δₜ_max == Inf
+        ΔD = 0.0
     else
-        return _constitutive_driver_without_damage(m, J, ms)
+        #Dissipaiton from magrnus, (d_cn -> d_tn     d_ct -> d_nt)
+        Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
+        Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
+        Δd_t  = 1/m.δₜ^2 * exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2)) * Δₜ_max' * (Δₜ_max - ms.Δ_max[1:2])
+        Δd_ct = Δd_t
+
+        ΔD = 0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_ct) * Δd_n + 
+             0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_n)  * Δd_ct + 
+             0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_t) * Δd_cn + 
+             0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_cn)* Δd_t
     end
+        
+
+    #return traction tensor
+    return Vec{3,T}(((Tₜ[1], Tₜ[2], Tₙ))), d_n, d_t, d_cn, d_ct, Vec{3,T}(((Δₜ_max[1], Δₜ_max[2], Δₙ_max))), ΔD
 end
 
-function _constitutive_driver_without_damage(m::MatVanDenBosch, J::Vec{dim}, ms::MatVanDenBoschState{dim}) where dim
-    #Compute tractions and gradient of tractions
-    dTdΔ, T = gradient(J -> _vandenbosch_law_without_damage(J, m), J, :all)
-    d_n, d_t = (0.0, 0.0)
 
-    return T, dTdΔ, MatVanDenBoschState{dim}(J, T, Vec{dim,Float64}(ntuple(i-> 0.0, dim)), (d_n,d_t))
+function constitutive_driver(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
+    J_dual = Tensors._load(J)
+    _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _vandenbosch_law_with_damage(J_dual, ms, m)
+
+    d_n =  Tensors._extract_value(_d_n)
+    d_t =  Tensors._extract_value(_d_t)
+    d_cn =  Tensors._extract_value(_d_cn)
+    d_ct =  Tensors._extract_value(_d_ct)
+    J_max_temp = Tensors._extract_value(_J_max_temp)
+
+    T, dTdΔ = Tensors._extract_value(_T), Tensors._extract_gradient(_T, J)
+
+    return T, dTdΔ, MatCZKolluriState(J, T, Vec{3,Float64}(Tuple(J_max_temp)), (d_n,d_t), (d_cn, d_ct))
 end
 
-function _constitutive_driver_with_damage(m::MatVanDenBosch, J::Vec{dim}, ms::MatVanDenBoschState{dim}) where dim
-    
-    # update material state
-    # TO DO: it is ugly to compute this twice (here and in the ts_law function)
-    J_max_temp = Vector{Float64}(undef, dim)
-    Δₜ_max = J_max_temp[1:end-1] = [(norm(J[i]) > ms.Δ_max[i]) ? norm(J[i]) : ms.Δ_max[i] for i=1:(dim-1)]
-    Δₙ_max = J_max_temp[end] = (J[end] > ms.Δ_max[end]) ? J[end] : ms.Δ_max[end]
-    #@show Δₙ_max
-    d_n = 1 - exp(-Δₙ_max/m.δₙ)
-    d_t = 1 - exp(-Δₜ_max'*Δₜ_max/2m.δₜ^2)
 
-    #compute tractions and gradient of tractions
-    dTdΔ, T = gradient(J->_vandenbosch_law_with_damage(J, ms, m), J, :all)
+function constitutive_driver(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState) 
+
+    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
+    _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = _constitutive_driver_with_damage(m, J, ms)
+
+    #Remove third direction
+    T = Vec{2,Float64}((_T[1], _T[3]))
+    dTdΔ = Tensor{2,2,Float64,4}((_dTdΔ[1,1], _dTdΔ[3,1], _dTdΔ[1,3], _dTdΔ[3,3]))
     
-    return T, dTdΔ, MatVanDenBoschState{dim}(J, T, Vec{dim,Float64}(Tuple(J_max_temp)), (d_n,d_t))
+    return T, dTdΔ, new_state
+end
+
+function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
+    @assert(mp.with_damage == true)
+
+    J_dual = Tensors._load(J)
+    _, _, _, _, _, _, _ΔD = _vandenbosch_law_with_damage(J_dual, prev_state, mp)
+
+    ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
+
+    return  ΔD, dΔDdJ
+end
+
+function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_state::MatCZKolluriState)
+    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
+    _ΔD, _dΔDdJ::Vec{3,Float64} = constitutive_driver_dissipation(mp, J, prev_state)
+
+    return _ΔD, Vec{2,Float64}((_dΔDdJ[1], _dΔDdJ[3]))
 end
