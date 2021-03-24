@@ -81,7 +81,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
 
     #Remove third direction
     t2d = Vec{2,T}((t[1], t[3]))
-    dt2d = SymmetricTensor{2,2,T,3}((dt[1,1], dt[3,1], dt[3,3]))
+    dt2d = Tensor{2,2,T,4}((dt[1,1], dt[3,1], dt[1,3], dt[3,3]))
 
     dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
 

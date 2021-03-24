@@ -22,8 +22,8 @@ function get_MatLinearElastic_loading()
     return (mat => strain)
 end
 
-function get_MatVanDenBosch_loading()
-    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+function get_MatCZKolluri_loading()
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₙ*5, length=100))
     jump2 = collect(range(mat.δₙ*5, stop = 0.0, length=100))
@@ -35,8 +35,8 @@ function get_MatVanDenBosch_loading()
     return (mat => jump)
 end
 
-function get_MatVanDenBosch_loading2()
-    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+function get_MatCZKolluri_loading2()
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -48,8 +48,8 @@ function get_MatVanDenBosch_loading2()
     return (mat => jump)
 end
 
-function get_MatVanDenBosch_loading3()
-    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+function get_MatCZKolluri_loading3()
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -61,8 +61,8 @@ function get_MatVanDenBosch_loading3()
     return (mat => jump)
 end
 
-function get_MatVanDenBosch_loading3()
-    mat = MatVanDenBosch(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+function get_MatCZKolluri_loading3()
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -79,9 +79,9 @@ end
 
     material_list = [
         get_MatLinearElastic_loading(),
-        get_MatVanDenBosch_loading(),
-        get_MatVanDenBosch_loading2(),
-        get_MatVanDenBosch_loading3()
+        get_MatCZKolluri_loading(),
+        get_MatCZKolluri_loading2(),
+        get_MatCZKolluri_loading3()
     ]
         
     for (material, loading) in material_list

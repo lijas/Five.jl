@@ -1,4 +1,4 @@
-export MatVanDenBosch, MatVanDenBoschState
+export MatCZKolluri, MatCZKolluriState
 export max_traction_force, interface_damage, onset_displacement
 
 abstract type AbstractCohesiveMaterial <: AbstractMaterial end 

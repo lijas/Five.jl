@@ -93,22 +93,22 @@ data = ProblemData(
 #grid
 data.grid = generate_enf_grid(NELX, NELY, L, h, a0)
 
-#=
+
 interfacematerial = 
 MatCZBilinear(
     K    = 1.0e5,
     Gᴵ   = (0.5, 0.5, 0.5),
     τᴹᵃˣ = (50.0, 50.0, 50.0),
     η    = 1.0
-) =#
+) 
 
-interfacematerial = 
-MatVanDenBosch(
+#=interfacematerial = 
+MatCZKolluri(
     σₘₐₓ = 50.0, 
     τₘₐₓ = 50.0, 
     Φₙ = 0.5, 
     Φₜ = 0.5
-) 
+) =#
 
 material = 
 MatTransvLinearElastic(
@@ -191,13 +191,13 @@ data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
-solver = LocalDissipationSolver(
+solver = DissipationSolver(
     Δλ0          = 5.0,
     Δλ_max       = 10.0,
     Δλ_min       = 1e-7,
     ΔL0          = 2.5,
     ΔL_min       = 1e-2,
-    ΔL_max       = 20.0,
+    ΔL_max       = 7.0,
     sw2d         = 0.2,
     sw2i         = 1e-7,
     optitr       = 8,

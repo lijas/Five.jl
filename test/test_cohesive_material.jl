@@ -62,7 +62,7 @@ end=#
     δₙ=0.00001
     G1 = 1.0
     σₘₐₓ = 10.0
-    mat = MatVanDenBosch{3}(σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Φₙ = G1, Φₜ = G1, with_damage = true)
+    mat = MatCZKolluri{3}(σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Φₙ = G1, Φₜ = G1, with_damage = true)
     state = Five.getmaterialstate(mat, 0.0)
 
     δvec = []
@@ -96,8 +96,8 @@ end
 function testg()
     G1 = 2.0
     σₘₐₓ = 10.0
-    mat = MatVanDenBosch(σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Φₙ = G1, Φₜ = G1, with_damage = true)
-    state = Five.getmaterialstate(mat, 0.0)
+    mat = MatCZKolluri(σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Φₙ = G1, Φₜ = G1, with_damage = true)
+    state = Five.getmaterialstate(mat, 1.0)
 
     δvec = []
     append!(δvec, range(0.0, stop=mat.δₙ*20, length=100))
