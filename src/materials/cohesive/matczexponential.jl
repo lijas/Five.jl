@@ -16,7 +16,7 @@ end
 
 function MatCZKolluri( ; σₘₐₓ::Float64, τₘₐₓ::Float64, Φₙ::Float64, Φₜ::Float64)
     δₙ = Φₙ/(σₘₐₓ*exp(1))
-    δₜ = with_damage ? Φₜ/(τₘₐₓ*exp(1/2)) : Φₜ/(τₘₐₓ*sqrt(0.5 * exp(1))) 
+    δₜ = Φₜ/(τₘₐₓ*exp(1/2)) 
     return MatCZKolluri(σₘₐₓ, τₘₐₓ, δₙ, δₜ, Φₙ, Φₜ)
 end
 
@@ -50,7 +50,7 @@ interface_damage(m::MatCZKolluriState, d::Int) = m.d[d]
 onset_displacement(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.δₙ : mat.δₜ
 max_traction_force(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.σₘₐₓ : mat.τₘₐₓ
 
-function _vandenbosch_law_with_damage(Δ::Vec{3,T}, ms::MatCZKolluriState, m::MatCZKolluri) where T <: Real
+function _MatCZKolluri_law_with_damage(m::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZKolluriState) where T <: Real
 
     # unpack tangential and normal directions from separation tensor
     Δₜ = Δ[1:2]
@@ -97,7 +97,7 @@ end
 
 function constitutive_driver(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
     J_dual = Tensors._load(J)
-    _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _vandenbosch_law_with_damage(J_dual, ms, m)
+    _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _MatCZKolluri_law_with_damage(m, J_dual, ms)
 
     d_n =  Tensors._extract_value(_d_n)
     d_t =  Tensors._extract_value(_d_t)
@@ -114,7 +114,7 @@ end
 function constitutive_driver(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState) 
 
     J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
-    _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = _constitutive_driver_with_damage(m, J, ms)
+    _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = constitutive_driver(m, J, ms)
 
     #Remove third direction
     T = Vec{2,Float64}((_T[1], _T[3]))
@@ -124,10 +124,9 @@ function constitutive_driver(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState)
 end
 
 function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
-    @assert(mp.with_damage == true)
 
     J_dual = Tensors._load(J)
-    _, _, _, _, _, _, _ΔD = _vandenbosch_law_with_damage(J_dual, prev_state, mp)
+    _, _, _, _, _, _, _ΔD = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
 
     ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
 
