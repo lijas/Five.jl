@@ -30,6 +30,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
             
             @timeit "vtk export" vtk_add_state!(output, state, globaldata)
             @timeit "output" outputs!(output, state, globaldata)
+            @timeit "output" output_solverstat!(output, state, solver, globaldata)
 
             #Currently dont have a system for adaptivity,
             # so hack the adaptivity stuff in here:
@@ -76,7 +77,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
     close(LOG.stream)
 
     totaltime = time() - starttime
-
+    
     print_timer(linechars = :ascii)
 
     save_outputs(output)

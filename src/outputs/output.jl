@@ -5,6 +5,11 @@ export push_output!
 abstract type AbstractOutput end
 abstract type StateOutput <:AbstractOutput end
 
+"""
+    OutputData  
+
+
+"""
 struct OutputData{output <: AbstractOutput}
     type::output
     set#::JuAFEM.IndexSets
@@ -22,6 +27,12 @@ function build_outputdata(output::OutputData{OutputType}, dh) where OutputType
     return OutputData(o, output.set, output.data, output.interval, output.last_output)
 end
 
+"""
+    VTKNodeOutput
+
+Defines the data that should be added to the nodes of the VTK outputfile
+"""
+
 struct VTKNodeOutput{output <: AbstractOutput}
     type::output
     func::Function
@@ -31,6 +42,11 @@ function VTKNodeOutput(; type, func = mean)
     return VTKNodeOutput(type, func)
 end
 
+"""
+VTKCellOutput
+
+Defines the data that should be added to the cells of the VTK outputfile
+"""
 struct VTKCellOutput{output <: AbstractOutput}
     type::output
     func::Function
@@ -56,14 +72,39 @@ function VTKOutput(interval::Float64, savepath::String, filename::String)
     return VTKOutput(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf))
 end
 
+"""
+    SolverStepStatistic
+
+Holds some data relevant for the solvers.
+"""
+struct SolverStepStatistic
+    Δλ::Float64
+    ΔL::Float64
+    Δt::Float64
+    ntries::Int
+    n_newton_itr::Int
+    success::Bool
+end
+
+mutable struct SolverStatisticsOutput
+    #solvertype::Type
+    step_stats::Vector{SolverStepStatistic}
+    nsteps::Int
+    totaltime::Float64
+end
+
+SolverStatisticsOutput() = SolverStatisticsOutput(SolverStepStatistic[], 0, -1.0)
+
+
 mutable struct Output{T}
     savepath::String
     runname::String
     termination::SimulationTermination
     
     vtkoutput::VTKOutput
+    solverdata::SolverStatisticsOutput
 
-    #List of stuff that should be oututed
+    #List of stuff that should be outputed
     outputdata::Dict{String, OutputData}
 end
 
@@ -83,7 +124,7 @@ function Output(; savepath=raw".", runname::String, interval::T) where {T}
         error("Error, could not create file interact.txt")
     end
 
-    return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, Dict{String, OutputData}())
+    return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, SolverStatisticsOutput(), Dict{String, OutputData}())
 end
 
 function JuAFEM.close!(output::Output, dh::MixedDofHandler)
@@ -196,6 +237,14 @@ function outputs!(output::Output{T}, state::StateVariables, globaldata) where {T
     end
 
 end
+
+function output_solverstat!(output::Output{T}, state::StateVariables, solver::AbstractSolver, globaldata) where {T}
+    #Store some solver statistics
+    stats = SolverStepStatistic(state.Δλ, state.ΔL, state.Δt, state.step_tries, state.newton_itr, state.converged)
+    push!(output.solverdata.step_stats, stats)
+    output.solverdata.nsteps += 1
+end
+
 
 function handle_input_interaction(output)
     #Checkinput
