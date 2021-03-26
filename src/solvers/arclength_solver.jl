@@ -17,6 +17,7 @@ export ArcLengthSolver
     max_residual::T = 1e12
     optitr::Int = 5
     maxitr::Int = 10
+    maxitr_first_step::Int = maxitr
 end
 
 function Base.isdone(solver::ArcLengthSolver, state::StateVariables, globaldata)
@@ -33,18 +34,18 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
 
     state0 = deepcopy(state)
     converged = false
-    ntries = 0
+    state.step_tries = 0
     ΔL = (state.step == 1) ? solver.ΔL0 : state.ΔL
 
     δuₜ = zeros(ndofs(globaldata.dh))
 
     while !converged
-        ΔL = set_initial_guess!(solver, state, globaldata, ΔL, ntries)
+        ΔL = set_initial_guess!(solver, state, globaldata, ΔL, state.step_tries)
         
         state.newton_itr = 0
-        ntries += 1
+        state.step_tries += 1
         
-        println("Mode: ntries: $(ntries), λ = $(state.λ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
+        println("Solver: ntries: $(state.step_tries), λ = $(state.λ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
         while true
             state.newton_itr += 1
 
@@ -99,7 +100,11 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
             state.λ  += δλ
 
             #Check convergance
-            state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
+            if norm(state.λ*q) <= 1e-10
+                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
+            else
+                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+            end
             println("------>Normg: $(state.norm_residual), Δλ = $(state.Δλ)")
             
             #Check convergence
@@ -108,7 +113,8 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
                 break
             end
 
-            if state.newton_itr >= solver.maxitr
+            maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
+            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
                 converged = false
                 break
             end
