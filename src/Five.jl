@@ -21,7 +21,7 @@ using InteractiveUtils
 import FileIO: save
 using JLD2
 #import IGA #https://github.com/lijas/IGA.jl.git
-
+using Printf: @printf
 
 @reexport using Ferrite
 @reexport using Tensors
