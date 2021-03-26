@@ -23,7 +23,7 @@ function get_MatLinearElastic_loading()
 end
 
 function get_MatCZKolluri_loading()
-    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0)
     
     jump1 = collect(range(0.0,      stop = mat.δₙ*5, length=100))
     jump2 = collect(range(mat.δₙ*5, stop = 0.0, length=100))
@@ -36,7 +36,7 @@ function get_MatCZKolluri_loading()
 end
 
 function get_MatCZKolluri_loading2()
-    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -49,7 +49,7 @@ function get_MatCZKolluri_loading2()
 end
 
 function get_MatCZKolluri_loading3()
-    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))
@@ -62,7 +62,7 @@ function get_MatCZKolluri_loading3()
 end
 
 function get_MatCZKolluri_loading3()
-    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0, with_damage = true)
+    mat = MatCZKolluri(σₘₐₓ = 10.0, τₘₐₓ = 10.0, Φₙ = 1.0, Φₜ = 1.0)
     
     jump1 = collect(range(0.0,      stop = mat.δₜ*5, length=100))
     jump2 = collect(range(mat.δₜ*5, stop = 0.0, length=100))

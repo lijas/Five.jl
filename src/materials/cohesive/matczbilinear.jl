@@ -63,7 +63,7 @@ end
 
 function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
     
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
 
     return Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
@@ -93,7 +93,7 @@ function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J2d::Vec{2,T}, pr
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
 
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
 
     g, dg =  Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)

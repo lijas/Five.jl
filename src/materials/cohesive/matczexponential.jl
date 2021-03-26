@@ -96,7 +96,7 @@ end
 
 
 function constitutive_driver(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _MatCZKolluri_law_with_damage(m, J_dual, ms)
 
     d_n =  Tensors._extract_value(_d_n)
@@ -125,7 +125,7 @@ end
 
 function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
 
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _, _, _, _, _, _, _ΔD = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
 
     ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)

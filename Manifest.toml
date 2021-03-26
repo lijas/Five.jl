@@ -4,10 +4,10 @@
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 
 [[ArrayInterface]]
-deps = ["IfElse", "LinearAlgebra", "Requires", "SparseArrays"]
-git-tree-sha1 = "ee07ae00e3cc277dcfa5507ce25be522313ecc3e"
+deps = ["IfElse", "LinearAlgebra", "Requires", "SparseArrays", "Static"]
+git-tree-sha1 = "ce17bad65d0842b34a15fffc8879a9f68f08a67f"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "3.1.1"
+version = "3.1.6"
 
 [[Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -17,9 +17,9 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "de4f08843c332d355852721adb1592bce7924da3"
+git-tree-sha1 = "a8a75576d509f1996fe3046ce62e5685b0a8bd3a"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "0.9.29"
+version = "0.9.31"
 
 [[CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
@@ -90,19 +90,19 @@ deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[FileIO]]
-deps = ["Pkg"]
-git-tree-sha1 = "fee8955b9dfa7bec67117ef48085fb2b559b9c22"
+deps = ["Pkg", "Requires", "UUIDs"]
+git-tree-sha1 = "b4fdad5fe06e0226348301b5163925ac1ae8b64b"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.4.5"
+version = "1.6.5"
 
 [[FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
-git-tree-sha1 = "bed538ad14d132aa8240bb2e8ab82fcd2fd2f548"
+git-tree-sha1 = "31939159aeb8ffad1d4d8ee44d07f8558273120a"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "0.11.3"
+version = "0.11.7"
 
 [[FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
@@ -112,13 +112,13 @@ version = "2.8.0"
 
 [[ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "NaNMath", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "d48a40c0f54f29a5c8748cfb3225719accc72b77"
+git-tree-sha1 = "c68fb7481b71519d313114dca639b35262ff105f"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.16"
+version = "0.10.17"
 
 [[IGA]]
 deps = ["JuAFEM", "LinearAlgebra", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "0cbdaa89c5e502d28229d43f7f0dc23f1ec57139"
+git-tree-sha1 = "e2d0971e468da63d7c66e090186b82c4e0c11d24"
 repo-rev = "master"
 repo-url = "https://github.com/lijas/IGA.jl.git"
 uuid = "e7b8d123-e02a-40ba-ad18-d3943ed54f1c"
@@ -135,9 +135,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "MacroTools", "Mmap", "Pkg", "Printf", "Requires", "UUIDs"]
-git-tree-sha1 = "bb9a457481adf060ab5898823a49d4f854ff4ddd"
+git-tree-sha1 = "9f2f2f24e60305feb6ae293a617ddf06f429efc3"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.0"
+version = "0.4.3"
 
 [[JLLWrappers]]
 git-tree-sha1 = "a431f5f2ca3f4feef3bd7a5e94b8b8d4f2f647a0"
@@ -154,9 +154,9 @@ version = "0.2.0"
 
 [[JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "fe18234f046a772069abdc8d29f073d8c0f092a5"
+git-tree-sha1 = "ccc489088d6bc4b5265e043e3fbb1baad5025cf7"
 uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.8.8"
+version = "0.8.11"
 
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -204,9 +204,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[LoweredCodeUtils]]
 deps = ["JuliaInterpreter"]
-git-tree-sha1 = "f008f15264cc11de6de8cbdda3d4712dd152f0c3"
+git-tree-sha1 = "8c96709706ce27471655247ad9a931447d16dd62"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "1.2.7"
+version = "1.2.9"
 
 [[MacroTools]]
 deps = ["Markdown", "Random"]
@@ -230,9 +230,9 @@ uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 
 [[NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
-git-tree-sha1 = "39d6bc45e99c96e6995cbddac02877f9b61a1dd1"
+git-tree-sha1 = "50608f411a1e178e0129eab4110bd56efd08816f"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
-version = "7.7.1"
+version = "7.8.0"
 
 [[NLsolve]]
 deps = ["Distances", "LineSearches", "LinearAlgebra", "NLSolversBase", "Printf", "Reexport"]
@@ -294,23 +294,23 @@ version = "1.0.0"
 
 [[Requires]]
 deps = ["UUIDs"]
-git-tree-sha1 = "cfbac6c1ed70c002ec6361e7fd334f02820d6419"
+git-tree-sha1 = "4036a3bd08ac7e968e27c203d45f5fff15020621"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
-version = "1.1.2"
+version = "1.1.3"
 
 [[Revise]]
 deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Pkg", "REPL", "Requires", "UUIDs", "Unicode"]
-git-tree-sha1 = "4697c220e6448fb5e9c55404ae1a13271d533b52"
+git-tree-sha1 = "b72fa706920b1421d581525de9f4e442b95ba254"
 uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.1.12"
+version = "3.1.14"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [[SIMD]]
-git-tree-sha1 = "b2202f63f62d8c1214ed16c18319f72fa74adc4d"
+git-tree-sha1 = "2318299b4c8e8fe06f6f9114fb4404bd1461ae48"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
-version = "3.2.1"
+version = "3.3.0"
 
 [[Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -332,6 +332,12 @@ git-tree-sha1 = "5919936c0e92cff40e57d0ddf0ceb667d42e5902"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "1.3.0"
 
+[[Static]]
+deps = ["IfElse"]
+git-tree-sha1 = "ddec5466a1d2d7e58adf9a427ba69763661aacf6"
+uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
+version = "0.2.4"
+
 [[StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
 git-tree-sha1 = "9da72ed50e94dbff92036da395275ed114e04d49"
@@ -352,9 +358,9 @@ uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 
 [[Tensors]]
 deps = ["ForwardDiff", "LinearAlgebra", "SIMD", "Statistics"]
-git-tree-sha1 = "b2ac703de1090ac4fa92e9a469b063fee285bda1"
+git-tree-sha1 = "778b3ee366af2cd6082e2c072b7e3766e2735f8e"
 uuid = "48a634ad-e948-5137-8d70-aa71f2a747f4"
-version = "1.4.3"
+version = "1.4.4"
 
 [[Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
@@ -362,9 +368,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[TimerOutputs]]
 deps = ["Printf"]
-git-tree-sha1 = "3318281dd4121ecf9713ce1383b9ace7d7476fdd"
+git-tree-sha1 = "32cdbe6cd2d214c25a0b88f985c9e0092877c236"
 uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-version = "0.5.7"
+version = "0.5.8"
 
 [[TranscodingStreams]]
 deps = ["Random", "Test"]
@@ -386,9 +392,9 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[WriteVTK]]
 deps = ["Base64", "CodecZlib", "FillArrays", "LightXML", "Random", "TranscodingStreams"]
-git-tree-sha1 = "f85ba11c5106809d95e44a7b0c1d279d79b9343d"
+git-tree-sha1 = "37eef911a9c5211e0ae4362dc0477cfe6c537ffa"
 uuid = "64499a7a-5c06-52f2-abe2-ccb03c286192"
-version = "1.9.0"
+version = "1.9.1"
 
 [[XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
