@@ -89,7 +89,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
     #Dissipation
     #dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
 
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _, _, _, g_res, g2_res = _constitutive_driver(mp, J_dual, prev_state)
     g, dg   =  Tensors._extract_value(g_res),  Tensors._extract_gradient(g_res, J)
     g2, dg2 =  Tensors._extract_value(g2_res), Tensors._extract_gradient(g2_res, J)
@@ -115,7 +115,7 @@ function constitutive_driver_elastic(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_s
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
 
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _, _, _, _, g2_res = _constitutive_driver(mp, J_dual, prev_state)
 
     g2, dg2 =  Tensors._extract_value(g2_res), Tensors._extract_gradient(g2_res, J)
