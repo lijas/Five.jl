@@ -19,7 +19,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         state.step += 1
 
         println("**Step $(state.step)**")
-        success = step!(solver, state, globaldata)
+        @timeit "Stepping" success = step!(solver, state, globaldata)
         
         if !success
             @warn("NO SUCCESS")

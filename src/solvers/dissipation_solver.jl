@@ -43,11 +43,6 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
     λ0     = state.λ
     q      = state.system_arrays.q
     state0 = deepcopy(state)
-
-    #ΔP represents either ΔL or Δλ depending 
-    # on the solver mode (INCREMENT or DISSIPATION).
-    # Set ΔP to the privious time steps solution
-    ΔP0 = ΔP = state.ΔL
     
     #
     if state.step == 1
@@ -57,8 +52,16 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
 
     converged_failed = true
     ntries = 0
-    Δg = 0.0
     
+    Δg = state.Δt # Time variable is borrowed to store the dissipation for this solver.
+    determine_solvermode!(solver, state, Δg)
+
+    #ΔP represents either ΔL or Δλ depending 
+    # on the solver mode (INCREMENT or DISSIPATION).
+    # Set ΔP to the privious time steps solution
+    ΔP0 = ΔP = state.ΔL
+    
+
     while converged_failed 
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
         
@@ -136,8 +139,8 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
     #Update the dissipation increaments for this timestep
     state.ΔL = state.system_arrays.G[]
     state.L += state.system_arrays.G[]
-
-    determine_solvermode!(solver, state, Δg)
+    state.Δt = Δg #Borrow time variable for dissipation
+    state.t += Δg
 
     #Recalculate f-start for this timestep
     assemble_fstar!(globaldata.dh, state, globaldata) #Stores in fᴬ
@@ -163,8 +166,19 @@ function _solve_dissipation_system(solver::DissipationSolver, Kₜ, rₜ, q, h, 
     KK = vcat(hcat(Kₜ, -q), hcat(h', w))
     ff = vcat(rₜ, -(Δg - ΔL))
 
-    aa = KK\ff
-    ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
+    try
+        aa = KK\ff
+        ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
+    catch
+        ΔΔd = Inf*ones(Float64, length(ff)-1)
+        ΔΔλ = Inf
+    end
+
+    #d1 = Kₜ\rₜ
+    #d2 = Kₜ\-q
+
+    #ΔΔd = d1 - 1/(dot(h,d2) - w) * (dot(h,d1) + (Δg - ΔL))*d2
+    #ΔΔλ = -(Δg - ΔL) - 1/(dot(h,d2) - w) * (-dot(h, d1) - (Δg - ΔL)*(1 + dot(h,d2) - w))
 
     return ΔΔd, ΔΔλ
 end
@@ -212,23 +226,18 @@ end
 
 function determine_solvermode!(solver::DissipationSolver, state::StateVariables, Δg)
 
-    #Note: first step ΔL/abs(Δλ) == NaN, and will choose Incremenet
-    #=if state.ΔL/abs(state.Δλ) < 1e-4
-        return solver.solver_mode[] = INCREMENT
-    else
-        return solver.solver_mode[] = DISSIPATION
-    end=#
-
 
     if state.solvermode == ELASTIC
         if Δg >= solver.sw2d
             state.solvermode = DISSIPATION
-            state.newton_itr = solver.optitr
+            #state.newton_itr = solver.optitr
+            state.ΔL = Δg
         end
     elseif state.solvermode == DISSIPATION
-        if Δg/abs(state.Δλ) < solver.sw2i
-            state.solvermode = ELASTIC_LOCAL
-        end
+        #error("No switching back")
+        #if Δg/abs(state.Δλ) < solver.sw2i
+        #    state.solvermode = ELASTIC_LOCAL
+        #end
     end
 
 
