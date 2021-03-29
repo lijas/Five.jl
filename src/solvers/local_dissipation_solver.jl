@@ -44,11 +44,6 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     q      = state.system_arrays.q
     state0 = deepcopy(state)
 
-    #ΔP prepresents either ΔL or Δλ depending 
-    # on the solver mode (ELASTIC_LOCAL or DISSIPATION_LOCAL).
-    # Set ΔP to the privious time steps solution
-    ΔP0 = ΔP = state.ΔL
-    
     #
     if state.step == 1
         success = do_first_newton_step!(solver, state, globaldata)
@@ -57,7 +52,15 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
 
     converged_failed = true
     ntries = 0
-    Δg = 0.0
+    
+    Δg = state.Δt # Time variable is borrowed to store the dissipation for this solver.
+    determine_solvermode!(solver, state, Δg)
+
+    #ΔP represents either ΔL or Δλ depending 
+    # on the solver mode (INCREMENT or DISSIPATION).
+    # Set ΔP to the privious time steps solution
+    ΔP0 = ΔP = state.ΔL
+
 
     while converged_failed 
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
@@ -110,7 +113,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             end
 
             maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
-            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual || (abs(state.Δλ)/(solver.λ_max - solver.λ_min)) > 0.2 
+            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual || (abs(state.Δλ)/(solver.λ_max - solver.λ_min)) > 2.0 
                 converged_failed = true
                 break
             end
@@ -134,10 +137,8 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     #Update the dissipation increaments for this timestep
     state.ΔL = state.system_arrays.G[]
     state.L += state.system_arrays.G[]
-    state.Δt = state.system_arrays.G[]
-    state.t += state.system_arrays.G[]
-
-    determine_solvermode!(solver, state, Δg)
+    state.Δt = Δg
+    state.t += Δg
 
     return true
 end
@@ -209,25 +210,20 @@ function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariable
     return ΔP
 end
 
-function determine_solvermode!(solver::LocalDissipationSolver, state::StateVariables, Δg::Float64)
-
-    #Note: first step ΔL/abs(Δλ) == NaN, and will choose Incremenet
-    #=if state.ΔL/abs(state.Δλ) < 1e-4
-        return solver.solver_mode[] = ELASTIC_LOCAL
-    else
-        return solver.solver_mode[] = DISSIPATION_LOCAL
-    end=#
+function determine_solvermode!(solver::LocalDissipationSolver, state::StateVariables, Δg)
 
 
     if state.solvermode == ELASTIC_LOCAL
         if Δg >= solver.sw2d
-            state.solvermode = DISSIPATION_LOCAL
-            state.newton_itr = solver.optitr
+            state.solvermode = DISSIPATION
+            #state.newton_itr = solver.optitr
+            state.ΔL = Δg
         end
     elseif state.solvermode == DISSIPATION_LOCAL
-        if Δg/abs(state.Δλ) < solver.sw2i
-            state.solvermode = ELASTIC_LOCAL
-        end
+        #error("No switching back")
+        #if Δg/abs(state.Δλ) < solver.sw2i
+        #    state.solvermode = ELASTIC_LOCAL
+        #end
     end
 
 
