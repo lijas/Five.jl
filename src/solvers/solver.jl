@@ -9,7 +9,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
 
     #Output initial state
     vtk_add_state!(output, state, globaldata)
-    outputs!(output, state, globaldata)
+    outputs!(output, state, globaldata, force=true)
 
     #Some solvers want the store the initial external force vector
     init_system_arrays!(solver, state, globaldata)
@@ -30,7 +30,6 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
             
             @timeit "vtk export" vtk_add_state!(output, state, globaldata)
             @timeit "output" outputs!(output, state, globaldata)
-            @timeit "output" output_solverstat!(output, state, solver, globaldata)
 
             #Currently dont have a system for adaptivity,
             # so hack the adaptivity stuff in here:

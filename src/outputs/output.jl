@@ -10,22 +10,31 @@ abstract type StateOutput <:AbstractOutput end
 
 
 """
-struct OutputData{output <: AbstractOutput}
+struct OutputData{output <: AbstractOutput} <: AbstractOutput
     type::output
     set#::JuAFEM.IndexSets
     data::Vector{Any} #Stores the data for each timestep.
     interval::Float64 
-    last_output::Base.RefValue{Float64}
+    output_times::Vector{Float64}
 end
 
 function OutputData(; type, set, interval)
-    return OutputData(type, set, Any[], interval, Ref(-Inf))
+    return OutputData(type, set, Any[], interval, Float64[])
 end
 
 function build_outputdata(output::OutputData{OutputType}, dh) where OutputType
     o = build_outputdata(output.type, output.set, dh)
-    return OutputData(o, output.set, output.data, output.interval, output.last_output)
+    return OutputData(o, output.set, output.data, output.interval, output.output_times)
 end
+
+#Pass-through function
+function collect_output!(output::OutputData, state::StateVariables, globaldata)
+    data = collect_output!(output.type, state, output.set, globaldata)
+    push!(output.data, data)
+end
+
+should_output(o::OutputData, t) =  o.interval <= (t-last(o.output_times))
+set_last_output!(o::OutputData, t) = push!(o.output_times, t)
 
 """
     VTKNodeOutput
@@ -72,40 +81,15 @@ function VTKOutput(interval::Float64, savepath::String, filename::String)
     return VTKOutput(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf))
 end
 
-"""
-    SolverStepStatistic
-
-Holds some data relevant for the solvers.
-"""
-struct SolverStepStatistic
-    Δλ::Float64
-    ΔL::Float64
-    Δt::Float64
-    ntries::Int
-    n_newton_itr::Int
-    success::Bool
-end
-
-mutable struct SolverStatisticsOutput
-    #solvertype::Type
-    step_stats::Vector{SolverStepStatistic}
-    nsteps::Int
-    totaltime::Float64
-end
-
-SolverStatisticsOutput() = SolverStatisticsOutput(SolverStepStatistic[], 0, -1.0)
-
-
 mutable struct Output{T}
     savepath::String
     runname::String
     termination::SimulationTermination
     
     vtkoutput::VTKOutput
-    solverdata::SolverStatisticsOutput
 
     #List of stuff that should be outputed
-    outputdata::Dict{String, OutputData}
+    outputdata::Dict{String, AbstractOutput}
 end
 
 function Output(; savepath=raw".", runname::String, interval::T) where {T}
@@ -124,7 +108,7 @@ function Output(; savepath=raw".", runname::String, interval::T) where {T}
         error("Error, could not create file interact.txt")
     end
 
-    return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, SolverStatisticsOutput(), Dict{String, OutputData}())
+    return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, Dict{String, OutputData}())
 end
 
 function JuAFEM.close!(output::Output, dh::MixedDofHandler)
@@ -141,7 +125,7 @@ function _check_output(oh::Output, name::String, output)
     haskey(oh.outputdata, name) && throw(ArgumentError("there already exists a output with the name: $name"))
 end
 
-function push_output!(output::Output, name::String, o::OutputData)
+function push_output!(output::Output, name::String, o::AbstractOutput)
     _check_output(output, name, o)
     output.outputdata[name] = o
 end
@@ -163,7 +147,7 @@ function save_outputs(output::Output)
     save(joinpath(output.savepath, filename), output.outputdata)
 end
 
-function should_output(output::Union{OutputData, VTKOutput}, t::T) where T
+function should_output(output::Union{VTKOutput}, t::T) where T
     return output.interval <= (t-output.last_output[])
 end
 
@@ -226,23 +210,15 @@ function reshape_vtk_coords(coords::AbstractVector{Vec{dim,T}}) where {dim,T}
     return out
 end
 
-function outputs!(output::Output{T}, state::StateVariables, globaldata) where {T}
+function outputs!(output::Output{T}, state::StateVariables, globaldata; force = false) where {T}
 
     for (name, outp) in output.outputdata
-        if should_output(outp, state.t)
-            outp.last_output[] = state.t
-            data = collect_output!(outp.type, state, outp.set, globaldata)
-            push!(outp.data, data)
+        if force || should_output(outp, state.t)
+            set_last_output!(outp, state.t)
+            collect_output!(outp, state, globaldata)
         end
     end
 
-end
-
-function output_solverstat!(output::Output{T}, state::StateVariables, solver::AbstractSolver, globaldata) where {T}
-    #Store some solver statistics
-    stats = SolverStepStatistic(state.Δλ, state.ΔL, state.Δt, state.step_tries, state.newton_itr, state.converged)
-    push!(output.solverdata.step_stats, stats)
-    output.solverdata.nsteps += 1
 end
 
 

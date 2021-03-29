@@ -7,7 +7,7 @@ mutable struct ProblemData{dim,T}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints::Vector{Five.AbstractExternalForce}
     output::Base.RefValue{Output{T}}
-    outputdata::Dict{String, Five.OutputData}
+    outputdata::Dict{String, Five.AbstractOutput}
     materialstates::Dict{Int, Vector{Any}}
 
     t0::T

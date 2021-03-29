@@ -157,6 +157,7 @@ include("contact/contact.jl") #Needs reviving
 include("outputs/output.jl")
 include("outputs/dof_value.jl")
 include("outputs/material_output.jl")
+include("outputs/solverstats_output.jl")
 
 include("solvers/solver.jl")
 include("solvers/dissipation_solver.jl")
