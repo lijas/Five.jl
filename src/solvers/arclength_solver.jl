@@ -5,9 +5,8 @@ export ArcLengthSolver
     λ_max::T
     λ_min::T
 
-    ΔL0::T
-    ΔL_min::T = ΔL0/10
-    ΔL_max::T = ΔL0*10
+    ΔL_min::T
+    ΔL_max::T
     
     ψ::T = 0.0
     maxsteps::Int = 100
@@ -36,7 +35,7 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
     state0 = deepcopy(state)
     converged = false
     state.step_tries = 0
-    ΔL = (state.step == 1) ? solver.ΔL0 : state.ΔL
+    ΔL = state.ΔL
 
     δuₜ = zeros(ndofs(globaldata.dh))
 
@@ -151,7 +150,7 @@ function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, glob
 
     if state.step == 1
         prev_newton_itr = solver.optitr
-        ⁿΔL = ΔL = solver.ΔL0
+        
         Δλ0 = solver.Δλ0
 
         Kₜ = copy(state.system_arrays.Kⁱ - state.system_arrays.Kᵉ)
@@ -160,13 +159,15 @@ function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, glob
         apply_zero!(Kₜ, _q, globaldata.dbc)
         δuₜ .= Kₜ\_q
 
+        ⁿΔL = 0.0
+        ΔL = Δλ0*sqrt(dot(δuₜ,δuₜ))
         detK = detK0 = det(Kₜ)
-    end
-
-    if ntries == 0 
-        ΔL *= (0.5^(0.25*(prev_newton_itr-solver.optitr)))
     else
-        ΔL /= 2
+        if ntries == 0 
+            ΔL *= (0.5^(0.25*(prev_newton_itr-solver.optitr)))
+        else
+            ΔL /= 2
+        end
     end
 
     _sign = (sign(detK0) == sign(detK)) ? sign(Δλ0) : -sign(Δλ0)
