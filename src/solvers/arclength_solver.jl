@@ -18,10 +18,11 @@ export ArcLengthSolver
     optitr::Int = 5
     maxitr::Int = 10
     maxitr_first_step::Int = maxitr
+    finish_criterion::Function = finish_criterion
 end
 
 function Base.isdone(solver::ArcLengthSolver, state::StateVariables, globaldata)
-    return state.λ > solver.λ_max || state.λ < solver.λ_min || state.step > solver.maxsteps
+    return solver.finish_criterion(solver, state)
 end
 
 function should_abort(solver::ArcLengthSolver, ΔL, solvermode)

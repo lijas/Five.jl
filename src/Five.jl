@@ -159,6 +159,7 @@ include("outputs/dof_value.jl")
 include("outputs/material_output.jl")
 include("outputs/solverstats_output.jl")
 
+include("solvers/solver_utils.jl")
 include("solvers/solver.jl")
 include("solvers/dissipation_solver.jl")
 include("solvers/local_dissipation_solver.jl")
