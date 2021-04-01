@@ -124,3 +124,49 @@ function _compute_external_traction_force!(fv::JuAFEM.Values{dim,T}, cellcoords,
    
     return dA
 end
+
+
+"""
+Point force
+"""
+struct SimpleConstraint <: AbstractExternalForce
+    field::Symbol
+    comp::Int
+    vertex1::VertexIndex
+    vertex2::VertexIndex 
+    penalty::Float64
+    
+    dofs::Tuple{Int,Int}
+    fieldhandler::FieldHandler
+end
+
+function SimpleConstraint(; field::Symbol, comp::Int, vertex1::VertexIndex, vertex2::VertexIndex, penalty::Float64)
+
+    return SimpleConstraint(field, comp, vertex1, vertex2, penalty, (0,0), FieldHandler())
+end
+
+function init_external_force!(c::SimpleConstraint, dh::MixedDofHandler)
+
+    fh = getfieldhandler(dh, cellid(c.vertex1))
+    _fh = getfieldhandler(dh, cellid(c.vertex2)) 
+    @assert(fh == _fh)
+
+    d1 = indexdofs(dh, fh, c.vertex1, c.field, [c.comp])
+    d2 = indexdofs(dh, fh, c.vertex2, c.field, [c.comp])
+
+    dofs = (first(d1), first(d2))
+
+    return SimpleConstraint(c.field, c.comp, c.vertex1, c.vertex2, c.penalty, dofs, fh)
+end
+
+function apply_external_force!(c::SimpleConstraint, state::StateVariables, globaldata)
+    dof1, dof2 = c.dofs
+
+    g = state.d[dof1] - state.d[dof2]
+    ge = [1, -1]
+
+    state.system_arrays.fᵉ[[dof1,dof2]] += c.penalty * g*ge
+    state.system_arrays.Kᵉ[[dof1,dof2], [dof1,dof2]] .+= c.penalty * ge*ge'
+end
+
+

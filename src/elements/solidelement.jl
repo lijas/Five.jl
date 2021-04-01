@@ -215,7 +215,7 @@ end
 
 
 function integrate_dissipation!(
-    element       :: SolidElement{dim_p,dim_s,CV},
+    element       :: SolidElement{dim, order, shape, T},
     elementstate  :: AbstractElementState,
     material      :: AbstractMaterial,
     materialstate :: AbstractArray{<:AbstractMaterialState},
@@ -226,14 +226,14 @@ function integrate_dissipation!(
     ue            :: Vector,
     due           :: Vector,
     Δt            :: T
-    ) where {dim_p,dim_s,CV,T}
+    ) where {dim, order, shape, T}
     
     fe .= 0.0
     ge[] = 0.0
 end
 
 function integrate_elastic!(
-    element       :: SolidElement{dim_p,dim_s,CV},
+    element       :: SolidElement{dim, order, shape, T},
     elementstate  :: AbstractElementState,
     material      :: AbstractMaterial,
     materialstate :: AbstractArray{<:AbstractMaterialState},
@@ -244,10 +244,34 @@ function integrate_elastic!(
     ue            :: Vector,
     due           :: Vector,
     Δt            :: T
-    ) where {dim_p,dim_s,CV,T}
-    
-    fe .= 0.0
-    ge[] = 0.0
+    ) where {dim, order, shape, T}
+
+    cv = element.cv
+    reinit!(cv, coords)
+    ndofs = JuAFEM.ndofs(element)
+
+    δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
+
+    for qp in 1:getnquadpoints(cv)
+        ∇u = function_gradient(cv, qp, ue)
+        dΩ = getdetJdV(cv, qp) * element.thickness
+
+        # strain and stress + tangent
+        F = one(∇u) + ∇u
+        E = symmetric(1/2 * (F' ⋅ F - one(F)))
+
+        g, ∂g∂E = constitutive_driver_elastic(material, E, materialstate[qp])
+
+        for i in 1:ndofs
+            δFi = shape_gradient(cv, qp, i)
+            δE[i] = symmetric(1/2*(δFi'⋅F + F'⋅δFi))
+        end
+
+        ge[] += g * dΩ 
+        for i in 1:ndofs
+            fe[i] += ∂g∂E ⊡ δE[i] * dΩ 
+        end
+    end
 end
 
 function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial
