@@ -46,7 +46,13 @@ function getmaterialstate(m::MatCZKolluri, d::Float64=zero(Float64))
 end
 
 get_material_state_type(::MatCZKolluri) = MatCZKolluriState
-interface_damage(m::MatCZKolluriState, d::Int) = m.d[d]
+n_damage_parameters(m::MatCZKolluri) = 4
+function interface_damage(m::MatCZKolluriState, d::Int)
+    d == 1 && return m.d[1]
+    d == 2 && return m.d[2]
+    d == 3 && return m.d_c[1]
+    d == 4 && return m.d_c[2]
+end
 onset_displacement(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.δₙ : mat.δₜ
 max_traction_force(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.σₘₐₓ : mat.τₘₐₓ
 

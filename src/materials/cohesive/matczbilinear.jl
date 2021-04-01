@@ -104,6 +104,7 @@ end
 #
 _damage(δ, δᶠₘ, δ⁰ₘ) = (δ<=δ⁰ₘ) ? 0.0 : (δᶠₘ*(δ - δ⁰ₘ))/(δ*(δᶠₘ-δ⁰ₘ))
 _delta_max(d, δᶠₘ, δ⁰ₘ) = (d==0.0) ? 0.0 : (-δᶠₘ*δ⁰ₘ)/(d*(δᶠₘ-δ⁰ₘ)-δᶠₘ)
+n_damage_parameters(state::MatCZBilinear) = 1
 interface_damage(state::MatCZBilinearState, ::Int = 1) = state.d
 initial_stiffness(mat::MatCZBilinear) = mat.K
 

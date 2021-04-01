@@ -108,10 +108,6 @@ Tensors.cross(v::Vec{2}) = Vec{2}((-v[2], v[1]))
 ##
 #CellValues
 
-macro showm(M)
-    return esc(:(display("text/plain", $M)))
-end
-
 function JuAFEM.reference_coordinates(::Serendipity{dim,RefCube,0}) where dim
     return [zero(Vec{dim, Float64})]
 end
