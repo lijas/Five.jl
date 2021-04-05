@@ -76,28 +76,34 @@ function _MatCZKolluri_law_with_damage(m::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZK
     
     if Δₙ_max == Inf || Δₜ_max == Inf
         ΔD = 0.0
+        ΔE = 0.0
     else
         #Dissipaiton from magrnus, (d_cn -> d_tn     d_ct -> d_nt)
-        Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
-        Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
-        Δd_t  = 1/m.δₜ^2 * exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2)) * Δₜ_max' * (Δₜ_max - ms.Δ_max[1:2])
+        ΔΔₙ = (Δₙ_max - ms.Δ_max[3])
+        ΔΔₜ = (Δₜ_max - ms.Δ_max[1:2])
+
+        Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * ΔΔₙ
+        Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * ΔΔₙ
+        Δd_t  = 1/m.δₜ^2 * exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2)) * Δₜ_max' * ΔΔₜ
         Δd_ct = Δd_t
 
         ΔD = 0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_ct) * Δd_n + 
              0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_n)  * Δd_ct + 
              0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_t) * Δd_cn + 
              0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_cn)* Δd_t
+
+        ΔE = Tₙ * ΔΔₙ + Tₜ ⋅ ΔΔₜ
     end
         
 
     #return traction tensor
-    return Vec{3,T}(((Tₜ[1], Tₜ[2], Tₙ))), d_n, d_t, d_cn, d_ct, Vec{3,T}(((Δₜ_max[1], Δₜ_max[2], Δₙ_max))), ΔD
+    return Vec{3,T}(((Tₜ[1], Tₜ[2], Tₙ))), d_n, d_t, d_cn, d_ct, Vec{3,T}(((Δₜ_max[1], Δₜ_max[2], Δₙ_max))), ΔD, ΔE
 end
 
 
 function constitutive_driver(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
     J_dual = Tensors._load(J, nothing)
-    _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _MatCZKolluri_law_with_damage(m, J_dual, ms)
+    _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _, _= _MatCZKolluri_law_with_damage(m, J_dual, ms)
 
     d_n =  Tensors._extract_value(_d_n)
     d_t =  Tensors._extract_value(_d_t)
@@ -126,7 +132,7 @@ end
 function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
 
     J_dual = Tensors._load(J, nothing)
-    _, _, _, _, _, _, _ΔD = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
+    _, _, _, _, _, _, _ΔD, _ = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
 
     ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
 
@@ -138,4 +144,18 @@ function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_stat
     _ΔD, _dΔDdJ::Vec{3,Float64} = constitutive_driver_dissipation(mp, J, prev_state)
 
     return _ΔD, Vec{2,Float64}((_dΔDdJ[1], _dΔDdJ[3]))
+end
+
+
+function constitutive_driver_elastic(mp::MatCZKolluri, J2d::Vec{2,T}, prev_state::MatCZKolluriState) where {T}
+    
+    #Pad with zero
+    J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
+
+    J_dual = Tensors._load(J, nothing)
+    _, _, _, _, _, _, _, _ΔE = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
+
+    ΔE, dΔE =  Tensors._extract_value(_ΔE), Tensors._extract_gradient(_ΔE, J)
+
+    return ΔE, Vec{2,T}((dΔE[1], dΔE[3]))
 end
