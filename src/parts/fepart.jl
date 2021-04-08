@@ -264,26 +264,63 @@ function commit_part!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateV
     return nothing
 end
 
+#=
 function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
-    @assert(length(get_fields(part.element)) == 1 && get_fields(part.element)[1].name == :u)
+    fh = FieldHandler(get_fields(part), Set([1]))
+    fieldidx = JuAFEM.find_field(fh, :u)
+    @assert(fieldidx !== nothing)
 
-    node_coords = zeros(Vec{dim,T}, length(part.vtkexport.vtknodes))
+    offset = JuAFEM.field_offset(fh, :u)
+    fdim   = dim
+    data = _get_vtk_field(dh, part, state, offset, fdim)
+
+    datavec = [col |> Tuple |> Vec{dim,T} for col in eachcol(data)]
+    return datavec
+end
+=#
+
+function get_vtk_field(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
+    fh = FieldHandler(get_fields(part), Set([1]))
+    fieldidx = JuAFEM.find_field(fh, field_name)
+    @assert(fieldidx !== nothing)
+
+    offset = JuAFEM.field_offset(fh, field_name)
+    fdim   = fh.fields[fieldidx].dim 
+
+    n_vtk_nodes = length(part.vtkexport.vtknodes)
+
+    #Special case displacement (it needs 3 datapoints)
+    if field_name == :u
+        data = zeros(T, (dim == 2 ? 3 : dim), n_vtk_nodes)
+    else
+        data = zeros(T, fdim, n_vtk_nodes)
+    end
+
+    _get_vtk_field!(data, dh, part, state, offset, fdim)
+
+    return data
+end
+
+function _get_vtk_field!(data::Matrix, dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
 
     celldofs = part.cache.celldofs
 
-    for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
+    for cellid in part.cellset
         cell = dh.grid.cells[cellid]
-
+        
         celldofs!(celldofs, dh, cellid)
         ue = state.d[celldofs]
-        ue_vec = reinterpret(Vec{dim,T}, ue)
+        counter = 1
+
         for (i,nodeid) in enumerate(cell.nodes)
             local_id = part.vtkexport.nodeid_mapper[nodeid]
-            node_coords[local_id] = ue_vec[i]
+            for d in 1:nvars
+                data[d, local_id] = ue[counter + offset]
+                counter += 1
+            end
         end
     end
     
-    return node_coords
 end
 
 function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T

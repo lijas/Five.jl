@@ -66,9 +66,19 @@ struct TractionForce{FV<:JuAFEM.Values} <: AbstractExternalForce
     facevalues::FV
 end
 
-#=function TractionForce{dim,T}(faces, traction::Function, facevalues::FV, beo::Vector{IGA.BezierExtractionOperator{T}}=[Vector{SparseArrays.SparseVector{T,Int}}(undef,0) for _ in 1:2]) where {dim,T,FV<:JuAFEM.Values{dim,T}}
+function TractionForce{dim}(;
+    set, 
+    traction::Function) where {dim}
+
     return TractionForce{dim,T,FV}(collect(faces), traction, facevalues, beo)
-end=#
+end
+
+function init_external_force!(force::TractionForce, dh::MixedDofHandler)
+    
+    id = cellid(first(force.set))
+
+    return TractionForce(force.field, force.comps, force.set, force.func, fh)
+end
 
 function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:JuAFEM.Values}
     

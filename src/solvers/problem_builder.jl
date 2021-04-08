@@ -9,6 +9,7 @@ mutable struct ProblemData{dim,T}
     output::Base.RefValue{Output{T}}
     outputdata::Dict{String, Five.AbstractOutput}
     materialstates::Dict{Int, Vector{Any}}
+    elementstates::Dict{Int, Any}
 
     t0::T
     tend::T
@@ -23,10 +24,11 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     output = Base.RefValue{Output{T}}()
     outputdata = Dict{String, Five.OutputData}()
     cnstr = Five.AbstractExternalForce[]
-    states = Dict{Int, Vector{Any}}()
+    materialstates = Dict{Int, Vector{Any}}()
+    elementstates = Dict{Int, Any}()
     grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, materialstates, elementstates, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)
@@ -53,6 +55,10 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         partstates[cellid].materialstates .= data.materialstates[cellid]
     end
     
+    for cellid in keys(data.elementstates)
+        partstates[cellid].elementstate.H .= data.elementstates[cellid].H
+    end
+
     #
     dch = ConstraintHandler(dh)
     for d in data.dirichlet

@@ -223,7 +223,7 @@ function determine_solvermode!(solver::LocalDissipationSolver, state::StateVaria
     else
         return solver.solver_mode[] = DISSIPATION_LOCAL
     end=#
-
+    state.step == 1 && return
 
     if state.solvermode == INCREMENT_LOCAL
         if state.ΔL >= solver.sw2d

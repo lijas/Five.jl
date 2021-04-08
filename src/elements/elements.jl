@@ -49,6 +49,7 @@ include("solidelement.jl")
 include("bar_element.jl")
 include("blt_shell_element.jl")
 include("linearsolidelement.jl")
+include("phase_element.jl")
 
 #Cohesive
 include("../utils/cohesive_element_utils.jl")
