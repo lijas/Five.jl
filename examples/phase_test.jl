@@ -1,15 +1,15 @@
 using Five
 
 
-NELX = 51
-NELY = 51
+#NELX = 51
+#NELY = 51
 
 L = 1.0
 b = 0.1
 a0 = L/2
 E = 210.0e3
 nu = 0.3
-elsize = L/NELY
+#elsize = L/NELY
 
 data = ProblemData(
     dim = 2,
@@ -17,9 +17,11 @@ data = ProblemData(
 )
 
 #grid
-data.grid = generate_grid(Quadrilateral, (NELX,NELY), Vec((0.0,0.0)),Vec((L,L)))
+include(joinpath(@__DIR__, "phase_grid.jl"))
+
+data.grid = read_grid()#generate_grid(Quadrilateral, (NELX,NELY), Vec((0.0,0.0)),Vec((L,L)))
 addvertexset!(data.grid, "top", x -> x[2] ≈ L)
-addcellset!(data.grid, "precracked", x -> x[1] < a0 && (L/2 - elsize*1.5 < x[2] < L/2 + elsize*1.5))
+#addcellset!(data.grid, "precracked", x -> x[1] < a0 && (L/2 - elsize*1.5 < x[2] < L/2 + elsize*1.5))
 
 material = 
 MatLinearElastic(
@@ -32,7 +34,7 @@ MatLinearElastic(
 element = PhaseFieldElement{2,1,RefCube,Float64}(
     thickness = 1.0,     
     Gc = 2.7e-3,
-    lc = elsize*2,
+    lc = (0.003731)*2,
     μ = E / (2(1+nu)),
     λ = (E*nu) / ((1+nu) * (1 - 2nu)),
     qr_order = 2, 
@@ -43,15 +45,15 @@ element = PhaseFieldElement{2,1,RefCube,Float64}(
 part = Part{2,Float64}(
     element = element,
     material = material,
-    cellset  = 1:(NELX*NELY) |> collect
+    cellset  = 1:getncells(data.grid) |> collect
 )
 push!(data.parts, part)
 
 
 #Change initial states
-for cellid in getcellset(data.grid, "precracked")
-    data.elementstates[cellid] = Five.PhaseFieldElementState(element, 1000.0)
-end
+#for cellid in getcellset(data.grid, "precracked")
+#    data.elementstates[cellid] = Five.PhaseFieldElementState(element, 1000.0)
+#end
 
 #
 dbc1 = JuAFEM.Dirichlet(
@@ -87,7 +89,7 @@ output = OutputData(
         dofs = [1,2]
     ),
     interval = -1.0,
-    set = getfaceset(data.grid, "top")
+    set = getvertexset(data.grid, "top")
 )
 data.outputdata["reactionforce"] = output
 
