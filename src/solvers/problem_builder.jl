@@ -9,6 +9,7 @@ mutable struct ProblemData{dim,T}
     output::Base.RefValue{Output{T}}
     outputdata::Dict{String, Five.AbstractOutput}
     materialstates::Dict{Int, Vector{Any}}
+    contact::Base.RefValue{StaticPlaneContact{dim}}
 
     t0::T
     tend::T
@@ -25,8 +26,9 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     cnstr = Five.AbstractExternalForce[]
     states = Dict{Int, Vector{Any}}()
     grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
+    contact = Base.RefValue{StaticPlaneContact{3}}()
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, contact, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)
@@ -91,7 +93,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     
     func!(dh, data.parts, dch)
 
-    contact = Contact_Node2Segment{dim,T}()# not used
+    contact = data.contact[]
 
     globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
 
