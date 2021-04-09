@@ -1,13 +1,13 @@
 using Five
 
 
-NELX = 101
-NELY = 101
+NELX = 51
+NELY = 51
 
 L = 1.0
 b = 0.1
 a0 = L/2
-E = 210e9
+E = 210.0e3
 nu = 0.3
 elsize = L/NELY
 
@@ -99,7 +99,7 @@ solver = NewtonSolver(
 )
 
 solver = LocalDissipationSolver(
-    Δλ0          = 10.0,
+    Δλ0          = 0.001,
     Δλ_max       = 200.0,
     Δλ_min       = 1e-11,
     ΔL0          = 2.5,
