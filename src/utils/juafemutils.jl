@@ -26,8 +26,8 @@ convert_index(T::Type{FaceIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set
 convert_index(T::Type{VertexIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
 convert_index(T::Type{EdgeIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
 
-JuAFEM.getdim(::MixedDofHandler{dim,C,T}) where {dim,C,T} = dim
-getT(::MixedDofHandler{dim,C,T}) where {dim,C,T} = T
+JuAFEM.getdim(::MixedDofHandler{dim,T,G}) where {dim,T,G} = dim
+getT(::MixedDofHandler{dim,T,G}) where {dim,T,G} = T
 
 JuAFEM.FaceIndex(array_or_set, b::Int) = [FaceIndex(a,b) for a in array_or_set]
 

@@ -153,6 +153,7 @@ include("materials/materials.jl")
 include("elements/elements.jl")
 
 include("contact/contact.jl") #Needs reviving
+include("contact/staticplanecontact.jl")
 
 include("outputs/output.jl")
 include("outputs/dof_value.jl")
@@ -198,6 +199,7 @@ mutable struct GlobalData{dim,T,DH<:JuAFEM.AbstractDofHandler}
     t0::T
     tend::T
 
+    x0::Vector{T}
     adaptive::Bool
 end
 

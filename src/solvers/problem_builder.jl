@@ -26,7 +26,7 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     cnstr = Five.AbstractExternalForce[]
     states = Dict{Int, Vector{Any}}()
     grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
-    contact = Base.RefValue{StaticPlaneContact{3}}()
+    contact = Base.RefValue{StaticPlaneContact{dim}}()
 
     return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, contact, t0, tend, adaptive)
 end
@@ -94,8 +94,11 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     func!(dh, data.parts, dch)
 
     contact = data.contact[]
+    init_contact!(contact, dh)
 
-    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
+    x0 = get_x0(dh)
+
+    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, x0, data.adaptive)
 
     #State
     state = StateVariables(T, ndofs(dh))

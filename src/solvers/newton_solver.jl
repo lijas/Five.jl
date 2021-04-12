@@ -54,6 +54,8 @@ function step!(solver::NewtonSolver, state, globaldata)
             @timeit "ExternalForces" apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
             @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
 
+            contact!(globaldata.contact, state, globaldata.x0 + state.d)
+
             r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
             K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 

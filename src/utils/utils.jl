@@ -9,12 +9,17 @@ Given a nodeset, convert it to a vertexset
 function nodeset_to_vertexset(grid::JuAFEM.AbstractGrid, nodeset::Set{Int}) 
     vertexset = Set{VertexIndex}()
     for nodeid in nodeset
+        node_found = false
         for (cellid, cell) in enumerate(grid.cells)
-            for (i, nodeid2) in enumerate(cell.nodes)
+            for (i, nodeid2) in enumerate(JuAFEM.vertices(cell))
                 if nodeid == nodeid2
+                    node_found = true
                     push!(vertexset, VertexIndex(cellid,i))
                     break
                 end    
+            end
+            if node_found
+                break
             end
         end
     end
@@ -53,6 +58,16 @@ function _dofs_on_something(dh::JuAFEM.AbstractDofHandler, fh::FieldHandler, fac
     return _celldofs[local_face_dofs] # TODO: for-loop over r and simply push! to ch.prescribed_dofs
 
 end
+
+
+function vertexcoords(dh::JuAFEM.AbstractDofHandler, vertexindex::VertexIndex)
+
+    cellid, vertid = vertexindex
+    nodeid = getindex(JuAFEM.vertices(dh.grid.cells[cellid]), vertid)
+    return dh.grid.nodes[nodeid].x
+
+end
+
 
 function get_node_dofs(dh::DofHandler{dim}, field_name = :u, ncomps = 2) where dim
 

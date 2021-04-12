@@ -93,12 +93,13 @@ struct StaticPlaneContactEntity <: AbstractContactEntity
     origin::Vec{2,Float64}
     normal::Vec{2,Float64} #dim,T
 end
-
+=#
 struct NodeContactEntity{dim} <: AbstractContactEntity
-    #dofs::NTuple{dim,Int}
     dofs::Vec{dim,Int}
+    X::Vec{dim,Float64}
 end
 
+#=
 function getAABB(a::NodeContactEntity{dim}, x::AbstractVector{T}) where {dim,T}
  pos = x[a.dofs]#Tuple([x[a.dofs[d]] for d in 1:dim])
  return AABB(pos, zero(Vec{dim,T}))
