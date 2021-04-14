@@ -116,7 +116,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::PhaseFieldElement{d
         #ΔH = ψ⁺ - H
         #∂H∂ε = ΔH >= 0.0 ? σ⁺ : zero(σ⁺)
 
-        ψ     = (1-d)^2 * (0.5*λ*tr(ε)^2 + μ*ε⊡ε)
+        ψ    = (1-d)^2 * (0.5*λ*tr(ε)^2 + μ*ε⊡ε)
         σ    = (1-d)^2 * (λ*tr(ε)*I + 2*μ*ε)
         ∂σ∂ε = (1-d)^2 * (λ*I1 + μ*I2  )
         σ⁺ = σ
@@ -129,42 +129,40 @@ function integrate_forcevector_and_stiffnessmatrix!(element::PhaseFieldElement{d
 
         # Hoist computations of δE
         for i in 1:ndofs_u
-            δui = shape_value(cv_u, qp, i)
-            ∇δui = shape_symmetric_gradient(cv_u, qp, i)
+            ∇Ni = shape_symmetric_gradient(cv_u, qp, i)
 
-            fe[i] += (σ ⊡ ∇δui) * dΩ
+            fe[i] += (σ ⊡ ∇Ni) * dΩ
 
             for j in 1:ndofs_u
-                ∇δuj = shape_symmetric_gradient(cv_u, qp, j)
+                ∇Nj = shape_symmetric_gradient(cv_u, qp, j)
 
-                ke[i,j] += (∇δui ⊡ ∂σ∂ε ⊡ ∇δuj) *dΩ 
+                ke[i,j] += (∇Ni ⊡ ∂σ∂ε ⊡ ∇Nj) *dΩ 
             end
 
             for j in 1:ndofs_d
-                δdj = shape_value(cv_d, qp, j)
+                Nj = shape_value(cv_d, qp, j)
                 
-
-                ke[i,j+ndofs_u] += (2*(d-1)*δdj*(∇δui ⊡ σ⁺)) *dΩ 
+                ke[i,j+ndofs_u] += (2*(d-1)*Nj*(∇Ni ⊡ σ⁺)) *dΩ 
             end
         end
 
         for i in 1:ndofs_d
-            δdi = shape_value(cv_d, qp, i)
-            ∇δdi = shape_gradient(cv_d, qp, i)
+            Ni = shape_value(cv_d, qp, i)
+            ∇Ni = shape_gradient(cv_d, qp, i)
 
-            fe[i+ndofs_u] += (((Gc/lc + 2*H)*d - 2*H)*δdi + Gc*lc*∇d⋅∇δdi) * dΩ
+            fe[i+ndofs_u] += (((Gc/lc + 2*H)*d - 2*H)*Ni + Gc*lc*∇d⋅∇Ni) * dΩ
 
             for j in 1:ndofs_u
-                ∇δuj = shape_symmetric_gradient(cv_u, qp, j)
+                ∇Nj = shape_symmetric_gradient(cv_u, qp, j)
 
-                ke[i + ndofs_u,j] += (2*(d-1)*δdi*(∇δuj ⊡ ∂H∂ε)) *dΩ 
+                ke[i + ndofs_u,j] += (2*(d-1)*Ni*(∇Nj ⊡ ∂H∂ε)) *dΩ 
             end
 
             for j in 1:ndofs_d
-                δdj = shape_value(cv_d, qp, j)
-                ∇δdj = shape_gradient(cv_d, qp, j)
+                Nj = shape_value(cv_d, qp, j)
+                ∇Nj = shape_gradient(cv_d, qp, j)
 
-                ke[i + ndofs_u, j + ndofs_u] += ((Gc/lc + 2*H)*δdi*δdj + Gc*lc*∇δdi⋅∇δdj) *dΩ 
+                ke[i + ndofs_u, j + ndofs_u] += ((Gc/lc + 2*H)*Ni*Nj + Gc*lc*∇Ni⋅∇Nj) *dΩ 
             end
 
         end

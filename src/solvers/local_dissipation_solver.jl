@@ -57,13 +57,19 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
         
         println("Mode: $(state.solvermode), ntries: $(ntries), prev_state.λ = $(state.λ-state.Δλ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
-        
+
         state.newton_itr = 0
         ntries += 1
         while true
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
             
+            update!(globaldata.dbc, state.λ) 
+            apply!(state.d, globaldata.dbc)
+
+            update!(globaldata.dbc, state.Δλ) 
+            apply!(state.Δd, globaldata.dbc)
+
             @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
             Δg = state.system_arrays.G[]
             
@@ -74,11 +80,16 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             #Normal stiffness matrix
             Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
-            
+
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
+            ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.â, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
             
+            if !_success
+                converged_failed = true
+                break
+            end
+
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
             state.d  += ΔΔd
@@ -144,16 +155,23 @@ function newton_done(solver::LocalDissipationSolver, residual, Δg, ΔL, solverm
     return false
 end
 
-function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
+function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q, â, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
     local ΔΔd, ΔΔλ
     if solvermode == DISSIPATION_LOCAL
         w = 0.0
         h = fᴬ
 
-        KK = vcat(hcat(Kₜ, -q), hcat(h', w))
+        #@show sum(-q + Kₜ*â), sum(h'), dot(h, â)
+
+        KK = vcat(hcat(Kₜ, -q + Kₜ*â), hcat(h', dot(h, â) + w))
         ff = vcat(rₜ, -(Δg - ΔL))
 
-        aa = KK\ff
+        local aa
+        try
+            aa = KK\ff
+        catch
+            return copy(h), 0.0, false
+        end
         ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
     elseif solvermode == INCREMENT_LOCAL
         ΔΔd  = Kₜ\rₜ
@@ -162,7 +180,7 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
         error("No mode")
     end
 
-    return ΔΔd, ΔΔλ
+    return ΔΔd, ΔΔλ, true
 end
 
 function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariables, ΔP, ⁿΔP, ntries)

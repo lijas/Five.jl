@@ -93,6 +93,14 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
     assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
     apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)
     
+    #Used by arc-length solvers
     state.system_arrays.q .= state.system_arrays.fᵉ
     #state.prev_detK = state.detK = det(state.system_arrays.Kⁱ - state.system_arrays.Kᵉ)
+
+    #Used by arc-length solvers with displacement control
+    #Assume that all boundary condition are constant in time, except for the one which are controlled..
+    update!(globaldata.dbc, 1.0)
+    apply!(state.system_arrays.â, globaldata.dbc)
+    update!(globaldata.dbc, 0.0)
+    
 end
