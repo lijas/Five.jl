@@ -51,6 +51,7 @@ mutable struct SystemArrays{T}
     #For arc-solvers
     q::Vector{T}
     â::Vector{T}
+    C::SparseArrays.SparseMatrixCSC{T,Int}
 
     #For dissipation solver:
     fᴬ::Vector{T}
@@ -61,7 +62,7 @@ end
 function SystemArrays(T::Type, ndofs::Int)
     Mᵈⁱᵃᵍ = spzeros(T,ndofs,ndofs)
     M = spzeros(T,ndofs,ndofs)
-    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
+    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
 mutable struct StateVariables{T}

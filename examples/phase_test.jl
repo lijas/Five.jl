@@ -35,7 +35,7 @@ MatLinearElastic(
 #
 element = PhaseFieldElement{2,1,RefCube,Float64}(
     thickness = 1.0,     
-    Gc = 2.7e10,
+    Gc = 2.7,
     lc = (0.015), # 0.003731
     μ = E / (2(1+nu)),
     λ = (E*nu) / ((1+nu) * (1 - 2nu)),
@@ -131,13 +131,13 @@ solver = LocalDissipationSolver(
     ΔL0          = 2.5,
     ΔL_min       = 1e-7,
     ΔL_max       = 10.0,
-    sw2d         = 6e-4,
+    sw2d         = 6e-5,
     sw2i         = -Inf,
     optitr       = 5,
     maxitr       = 12,
     maxitr_first_step = 50,
     maxsteps     = 300,
-    λ_max        = +0.008,
+    λ_max        = 0.108,
     λ_min        = -2000.0,
     tol          = 1e-4,
     max_residual = 1e5,
