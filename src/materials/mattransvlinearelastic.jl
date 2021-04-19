@@ -63,9 +63,15 @@ function _constitutive_driver(mp::MatTransvLinearElastic, ε)
     return symmetric(σ)
 end
 
-function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = MatTransvLinearElasticState()) where {dim,T,M}
+function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = getmaterialstate(mp)) where {dim,T,M}
     σ = _constitutive_driver(mp, ε) 
     dσ::SymmetricTensor{4,3,Float64,36}, σ::SymmetricTensor{2,3,Float64,6} = JuAFEM.gradient(e -> _constitutive_driver(mp, e), ε, :all)
     
     return σ, dσ, MatTransvLinearElasticState(σ)
+end
+
+function constitutive_driver_elastic(::MatTransvLinearElastic, ::SymmetricTensor{2,3}, ::MatTransvLinearElasticState = getmaterialstate(mp))
+
+    return 0.0, zero(SymmetricTensor{2,3})
+
 end
