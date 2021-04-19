@@ -102,13 +102,13 @@ MatCZBilinear(
     η    = 1.0
 ) 
 
-#=interfacematerial = 
+interfacematerial = 
 MatCZKolluri(
     σₘₐₓ = 50.0, 
     τₘₐₓ = 50.0, 
     Φₙ = 0.5, 
     Φₜ = 0.5
-) =#
+) 
 
 material = 
 MatTransvLinearElastic(

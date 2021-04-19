@@ -78,3 +78,9 @@ function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,d
     
     return σ, dσ, MatTransvLinearElasticState(σ)
 end
+
+function constitutive_driver_elastic(::MatTransvLinearElastic, ::SymmetricTensor{2,3}, ::MatTransvLinearElasticState = getmaterialstate(mp))
+
+    return 0.0, zero(SymmetricTensor{2,3})
+
+end

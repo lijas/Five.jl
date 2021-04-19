@@ -193,3 +193,11 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
 end
 
 get_material_state_type(m::Material2D) = get_material_state_type(m.material)
+
+function constitutive_driver_elastic(m::Material2D{M}, ε_2d::SymmetricTensor{2,2,T}, state::AbstractMaterialState) where {T,M}
+    
+    ε = SymmetricTensor{2,3,T,6}((ε_2d[1,1], zero(T), ε_2d[1,2], one(T), zero(T), ε_2d[2,2]))
+    E, dE = constitutive_driver_elastic(m.material, ε, state)
+
+    return E, SymmetricTensor{2,2,T}((dE[1,1], dE[1,3], dE[3,3]))
+end
