@@ -13,7 +13,7 @@ nu = 0.3
 
 data = ProblemData(
     dim = 2,
-    tend = 0.01,
+    tend = 0.010,
 )
 
 #grid
@@ -120,14 +120,18 @@ data.outputdata["reactionforce"] = output
 state, globaldata = build_problem(data)
 
 solver = NewtonSolver(
-    Δt0 = 0.01,
-    Δt_max = 100.0,
+    Δt0 = 0.0001,
+    Δt_max = 0.001,
+    tol          = 1e-4,
 )
 
 solver = LocalDissipationSolver(
     Δλ0          = 0.0001,
     Δλ_max       = 10.0,
     Δλ_min       = 1e-11,
+    #Δλ0          = 1.0,
+    #Δλ_max       = 10.0,
+    #Δλ_min       = 1e-11,
     ΔL0          = 2.5,
     ΔL_min       = 1e-7,
     ΔL_max       = 10.0,
@@ -138,6 +142,7 @@ solver = LocalDissipationSolver(
     maxitr_first_step = 50,
     maxsteps     = 300,
     λ_max        = 0.108,
+    #λ_max        = 100.0,
     λ_min        = -2000.0,
     tol          = 1e-4,
     max_residual = 1e5,
@@ -149,6 +154,6 @@ output = solvethis(solver, state, globaldata)
 d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
 f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
 
-fig = plot(xlabel = "Displacement", ylabel = "Force")
-plot!(fig, d, f, label = "Elastic energy", mark = :o)
+fig = plot(xlabel = "Displacement", ylabel = "Force", legend = false)
+plot!(fig, d, f, mark = :o)
 #plot!(fig, d1, f1, label = "Elastic energy", mark = :o)

@@ -168,10 +168,16 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
         #@show sum(-q + Kₜ*â), sum(h'), dot(h, â)
         opt = 2
         if opt == 1
+            apply_zero!(Kₜ, rₜ, dbc)
             KK = vcat(hcat(Kₜ, -q + Kₜ*â), hcat(h', dot(h, â) + w))
             ff = vcat(rₜ, -(Δg - ΔL))
 
-            AA = KK\ff
+            local AA
+            try
+                AA = KK\ff
+            catch
+                return copy(h), 0.0, false
+            end
             ΔΔd, ΔΔλ = (AA[1:end-1], AA[end])
         else
             kk1 = C'*Kₜ*C
