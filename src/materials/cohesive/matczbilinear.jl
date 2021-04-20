@@ -79,7 +79,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
 
     #Call 3d routine
-    t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
+    t, δᴹᵃˣₘ, d, _, _ = _constitutive_driver(mp, J, prev_state)
     dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
 
     #Remove third direction
@@ -103,7 +103,7 @@ function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J2d::Vec{2,T}, pr
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
 
     J_dual = Tensors._load(J, nothing)
-    _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
+    _, _, _, g_res, _ = _constitutive_driver(mp, J_dual, prev_state)
 
     g, dg =  Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
 
@@ -165,12 +165,13 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
 
     δ⁰ₘ = _onset_softening(δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β)
     δᶠₘ = _cohesive_bk_criterion(δ[dim], δ⁰ₘ, mp.δᶠ, K, β, mp.η, mp.Gᴵ)
-    local D, d, Dg
+    local D, d, Dg, ΔJmax
     if δᴹᵃˣₘ <= δ⁰ₘ
         D  = K*δᵢⱼ
         Dg = K*δᵢⱼ
 
         d=0.0
+        #Δd = 0.0
     elseif δ⁰ₘ < δᴹᵃˣₘ < δᶠₘ
         d = (δᶠₘ*(δᴹᵃˣₘ - δ⁰ₘ))/(δᴹᵃˣₘ*(δᶠₘ-δ⁰ₘ))
         D = δᵢⱼ * (1-d)*K
@@ -180,6 +181,8 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
             Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
         end
 
+        #ΔJmax = δᴹᵃˣₘ - prev_state.δᴹᵃˣₘ
+        #Δd = ΔJmax * δᶠₘ*δ⁰ₘ/(δᴹᵃˣₘ^2*(δᶠₘ-δ⁰ₘ))
     elseif δᴹᵃˣₘ >= δᶠₘ
         D = zero(δᵢⱼ)
         Dg = K*δᵢⱼ
@@ -188,11 +191,14 @@ function _constitutive_driver(mp::MatCZBilinear{T1}, δ::Vec{dim,T2}, prev_state
             Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
         end
         d=1.0
+        #ΔJmax=0.0
+        #Δd=0.0
     else
         @show δᴹᵃˣₘ, δ⁰ₘ, δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β, δᶠₘ
         error("Wrong D")
     end
 
+    
     Δd = d - prev_state.d
     g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
     
