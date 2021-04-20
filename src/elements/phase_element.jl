@@ -312,9 +312,6 @@ function integrate_dissipation!(
     de = a[(1:ndofs_d) .+ ndofs_u]
     Δde = Δa[(1:ndofs_d) .+ ndofs_u]
 
-    I = one(SymmetricTensor{2,dim,T})
-    λ = element.λ
-    μ = element.μ
     lc = element.lc
     Gc = element.Gc
 
