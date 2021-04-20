@@ -51,7 +51,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
                     JuAFEM.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
 
                     #Recalculate fᴬ for fstar
-                    #assemble_fstar!(globaldata.dh, state, globaldata)
+                    assemble_fstar!(globaldata.dh, state, globaldata)
 
                     #Restart state
                     #state = deepcopy(prev_state)

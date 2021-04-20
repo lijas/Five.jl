@@ -100,7 +100,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             end
 
             maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
-            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
+            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual || (abs(state.Δλ)/(solver.λ_max - solver.λ_min)) > 0.2 
                 converged_failed = true
                 break
             end
