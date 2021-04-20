@@ -140,35 +140,42 @@ function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_stat
     J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
     ΔD, dΔDdJ = constitutive_driver_dissipation(mp, J, prev_state)
 
-    return ΔD, Tensor{2,2,Float64,4}((dΔDdJ[1,1], dΔDdJ[3,1], dΔDdJ[1,3], dΔDdJ[3,3]))
+    return ΔD, Vec{2,Float64}((dΔDdJ[1], dΔDdJ[3]))
 end
 
 function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
 
     J_dual = Tensors._load(J, nothing)
-    ΔD = _constitutive_driver_dissipation_fe(mp, J_dual, prev_state)
+    _ΔD = _constitutive_driver_dissipation_fe(mp, J_dual, prev_state)
 
     ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
 
-    return  ΔD, dΔDdJ
+    return ΔD, dΔDdJ
 end
 
 function _constitutive_driver_dissipation_fe(m::MatCZKolluri, Δ::Vec{3}, ms::MatCZKolluriState)
-    
+
     Δₜ_max = [max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])]
     Δₙ_max = max(Δ[3], ms.Δ_max[3])
 
-    ΔΔₙ = (Δₙ_max - ms.Δ_max[3])
-    ΔΔₜ = (Δₜ_max - ms.Δ_max[1:2])
+    
+    (norm(Δₜ_max) == Inf) && return 0.0
+    (Δₙ_max == Inf) && return 0.0
+
+    Δₜ = [ms.Δ[1], ms.Δ[2]]
+    Δₙ = ms.Δ[3]
+
+    ΔΔₙ =  (Δₙ_max - ms.Δ_max[3])
+    ΔΔₜ =  (Δₜ_max - ms.Δ_max[1:2])
 
     d_cn = ms.d_c[1]
     d_ct = ms.d_c[2]
     d_n = ms.d[1]
     d_t = ms.d[2]
 
-    Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * ΔΔₙ
-    Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * ΔΔₙ
-    Δd_t  = 1/m.δₜ^2 * exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2)) * Δₜ_max' * ΔΔₜ
+    Δd_n = 1/m.δₙ * exp(-ms.Δ_max[3]/m.δₙ) * ΔΔₙ
+    Δd_cn  = ms.Δ_max[3]/m.δₙ^2 * exp(-ms.Δ_max[3]/m.δₙ) * ΔΔₙ
+    Δd_t  = 1/m.δₜ^2 * exp(-ms.Δ_max[1:2]'*ms.Δ_max[1:2]/(2m.δₜ^2)) * ms.Δ_max[1:2]' * ΔΔₜ
     Δd_ct = Δd_t
 
     ΔD = 0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_ct) * Δd_n + 
@@ -184,7 +191,6 @@ function constitutive_driver_elastic(mp::MatCZKolluri, J2d::Vec{2,T}, prev_state
     
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
-
     J_dual = Tensors._load(J, nothing)
     _ΔE = _constitutive_driver_elastic_fe(mp, J_dual, prev_state)
 
@@ -194,17 +200,14 @@ function constitutive_driver_elastic(mp::MatCZKolluri, J2d::Vec{2,T}, prev_state
 end
 
 function _constitutive_driver_elastic_fe(mp::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZKolluriState) where {T}
-  
-    Δₜ_max = [max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])]
-    Δₙ_max = max(Δ[3], ms.Δ_max[3])
 
     Tₜ = ms.T[1:2]
     Tₙ = ms.T[3]
 
-    ΔΔₙ = (Δₙ_max - ms.Δ_max[3])
-    ΔΔₜ = (Δₜ_max - ms.Δ_max[1:2])
+    ΔΔₙ = (Δ[3] - ms.Δ[3])
+    ΔΔₜ = (Δ[1:2] - ms.Δ[1:2])
 
-    ΔE = Tₙ * ΔΔₙ + Tₜ'*ΔΔₜ
+    ΔE = Tₙ * ΔΔₙ + Tₜ ⋅ ΔΔₜ
 
     return ΔE
 end

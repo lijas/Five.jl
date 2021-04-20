@@ -213,13 +213,19 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
             integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
             state.system_arrays.fᴬ[celldofs] += fe
         elseif assemtype == DISSI
+            prev_partstate = state.prev_partstates[cellid]
+            prev_materialstate = prev_partstate.materialstates
+
             ge = Base.RefValue(zero(T))
-            integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            integrate_dissipation!(element, cellstate, part.material, prev_materialstate, fe, ge, coords, Δue, ue, due, Δt)
             state.system_arrays.fᴬ[celldofs] += fe
             state.system_arrays.G[] += ge[]
         elseif assemtype == ELASTIC
+            prev_partstate = state.prev_partstates[cellid]
+            prev_materialstate = prev_partstate.materialstates
+
             ge = Base.RefValue(zero(T))
-            integrate_elastic!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            integrate_elastic!(element, cellstate, part.material, prev_materialstate, fe, ge, coords, Δue, ue, due, Δt)
             state.system_arrays.fᴬ[celldofs] += fe
             state.system_arrays.G[] += ge[]
         end

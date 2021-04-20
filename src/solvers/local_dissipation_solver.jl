@@ -257,8 +257,6 @@ function do_first_newton_step!(solver, state, globaldata)
 
         fill!(state.system_arrays, 0.0)
 
-        assemble_elastic!(globaldata.dh, state, globaldata)
-
         #Get internal force                                                                       
         @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
         
@@ -292,6 +290,9 @@ function do_first_newton_step!(solver, state, globaldata)
         state.partstates .= deepcopy(state0.partstates)
     end
 
+    assemble_elastic!(globaldata.dh, state, globaldata)
+    state.system_arrays.G[] = 1e-6
+    
     state.newton_itr = solver.optitr
 
     state.ΔL = state.system_arrays.G[]
