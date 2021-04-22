@@ -2,10 +2,10 @@ using Five
 
 data = ProblemData(
     dim = 2,
-    tend = 2.0
+    tend = 1.0
 )
 
-data.grid = generate_grid(QuadraticQuadrilateral, (10,1), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
 
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
@@ -14,6 +14,16 @@ material = MatLinearElastic(
     E = 1e5,
     nu = 0.3
 )
+
+
+material = MatHyperElasticPlastic(
+    elastic_material = MatNeoHook(
+        E = 1.0e5,
+        ν = 0.3
+    ),
+    τ₀ = 400.0,
+    H = 1.0e5/20
+) |> PlaneStrainMaterial
 
 #=@addmat MatLinearElastic, "Steel", 1 begin
     E = 1e5,
@@ -30,7 +40,7 @@ push!(data.dirichlet, con1)
 
 part = Part{2,Float64}(
     element = SolidElement{2,2,RefCube,Float64}(
-        celltype = JuAFEM.QuadraticQuadrilateral,
+        celltype = JuAFEM.Quadrilateral,
         qr_order = 4
     ),
     material = material,
@@ -39,7 +49,7 @@ part = Part{2,Float64}(
 push!(data.parts, part)
 
 data.output[] = Output(
-    interval = 0.1,
+    interval = -0.1,
     runname = "Beamexample",
     savepath = "."
 )
@@ -56,7 +66,15 @@ data.outputdata["reactionforce"] = output
 
 vtkoutput = VTKCellOutput(
     type = MaterialStateOutput(
-        field = :σ
+        field = :ϵᵖ
+    ),
+    func = mean,
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
+vtkoutput = VTKNodeOutput(
+    type = MaterialStateOutput(
+        field = :ϵᵖ
     ),
     func = mean,
 )
