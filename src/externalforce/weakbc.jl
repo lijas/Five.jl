@@ -6,10 +6,9 @@ struct WeakBoundaryCondition{dim,T,FV<:JuAFEM.Values} <: AbstractExternalForce
     prescribed_displacement::Function
     local_dofs::Vector{Int}
     facevalues::FV
-    bezier_operators::Vector{IGA.BezierExtractionOperator{T}}
 end
 
-function WeakBoundaryCondition{dim,T}(dh::JuAFEM.AbstractDofHandler, faces, prescribed_displacement::Function, components, facevalues::FV, beo::Vector{IGA.BezierExtractionOperator{T}}=[Vector{SparseArrays.SparseVector{T,Int}}(undef,0) for _ in 1:2]) where {dim,T,FV<:JuAFEM.Values{dim,T}}
+function WeakBoundaryCondition{dim,T}(dh::JuAFEM.AbstractDofHandler, faces, prescribed_displacement::Function, components, facevalues::FV) where {dim,T,FV<:JuAFEM.Values{dim,T}}
    # @assert(length(prescribed_displacement(0.0,0.0))==length(components))
 
     celltype = typeof(dh.grid.cells[first(faces)[1]])
@@ -29,7 +28,7 @@ function WeakBoundaryCondition{dim,T}(dh::JuAFEM.AbstractDofHandler, faces, pres
         end
     end
 
-    return WeakBoundaryCondition{dim,T,FV}(faces, prescribed_displacement, local_dofs, facevalues, beo)
+    return WeakBoundaryCondition{dim,T,FV}(faces, prescribed_displacement, local_dofs, facevalues)
 end
 
 function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:JuAFEM.Values}
@@ -59,13 +58,6 @@ function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCo
         cellcoords!(coords, dh, cellid)
         JuAFEM.celldofs!(celldofs, dh, cellid)
         lcd = celldofs[local_dofs]
-
-        #Special case isogeomtric parts
-        if FV <: IGA.BezierValues
-            Ce = ef.bezier_operators[i]
-            IGA.set_bezier_operator!(fv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
         
         A += _compute_weak_boundary_condition!(fv, coords, faceid, g, ke, fe, state.d[celldofs])
 

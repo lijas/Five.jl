@@ -1,5 +1,5 @@
 export Part
-export IGAPart, PartState
+export PartState
 
 struct PartCache{dim,T}
     ue::Vector{T}
@@ -41,14 +41,15 @@ function Part{dim,T}(;
    return Part{dim,T}(material, collect(cellset), element)
 end
 
+#Not implemented:
 struct IGAPart{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim}
  
     material::M
     cellset::Vector{Int}
     element::E
 
-    Cb::Vector{IGA.BezierExtractionOperator{T}}
-    cv_plot::CellScalarValues 
+    #Cb::Vector{IGA.BezierExtractionOperator{T}}
+    #cv_plot::CellScalarValues 
 end
 
 const FEPart{dim} = Union{IGAPart{dim}, Part{dim}}# where dim
@@ -65,7 +66,6 @@ end
 getmaterialstate(partstate::PartState, field::Symbol) =  getproperty.(partstate.materialstates, field)
 
 get_partstate_type(part::Part{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
-get_partstate_type(part::IGAPart{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
 
 get_fields(part::FEPart) = get_fields(part.element)
 get_cellset(part::FEPart) = part.cellset
@@ -151,6 +151,10 @@ function assemble_dissipation!(dh::JuAFEM.AbstractDofHandler,
     part::FEPart,
     state::StateVariables)
 
+    if !(part.material |> is_dissipative)
+        return 
+    end
+
     _assemble_part!(dh, part, state, DISSI)
 
 end
@@ -187,12 +191,6 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
         Δue .= state.Δd[celldofs]
         ue .= state.d[celldofs]
         due .= state.v[celldofs]
-
-        if typeof(part) <: IGAPart
-            Ce = get_bezier_operator(part, localid)
-            IGA.set_bezier_operator!(part.element.cv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
         
         if assemtype == STIFFMAT
             integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, ke, fe, coords, Δue, ue, due, Δt)
@@ -238,12 +236,6 @@ function assemble_massmatrix!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state
 
         JuAFEM.cellcoords!(coords, dh, cellid(celldata))
         JuAFEM.celldofs!(celldofs, dh, cellid(celldata))
-
-        if typeof(part) <: IGAPart
-            Ce = get_bezier_operator(part, localid)
-            IGA.set_bezier_operator!(part.element.cv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
 
         integrate_massmatrix!(element, get_elementstate_type(element)(), part.material, coords, me, ue, due)
 
@@ -321,10 +313,10 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     #celltype = getcelltype(part.element)
     celltype = typeof(globaldata.grid.cells[first(part.cellset)])
     geom_ip = JuAFEM.default_interpolation(celltype)
-    refshape = RefCube#getrefshape(geom_ip)
+    refshape = JuAFEM.getrefshape(geom_ip)# RefCube#getrefshape(geom_ip)
     nqp = length(state.partstates[_cellid].materialstates)
-    qp_order = convert(Int, nqp^(1/dim))
-    qr = QuadratureRule{dim, refshape}(qp_order)
+    #qp_order = convert(Int, nqp^(1/dim))
+    qr = QuadratureRule{dim, refshape}(2)#qp_order)
     cellvalues = CellScalarValues(qr, geom_ip)
     projector = L2Projector(cellvalues, geom_ip, globaldata.grid, part.cellset)
 

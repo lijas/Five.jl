@@ -77,7 +77,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
+            @timeit "Solve system" ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
             
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
