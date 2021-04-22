@@ -367,9 +367,9 @@ function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3
 
     penatration = dot(xs-x1, normal)
 
-    N1 = JuAFEM.value(master.faceinterpolation, 1, xi)
-    N2 = JuAFEM.value(master.faceinterpolation, 2, xi)
-    N3 = JuAFEM.value(master.faceinterpolation, 3, xi)
+    N1 = Ferrite.value(master.faceinterpolation, 1, xi)
+    N2 = Ferrite.value(master.faceinterpolation, 2, xi)
+    N3 = Ferrite.value(master.faceinterpolation, 3, xi)
 
     (N1 >=0 && N1 <= 1) || return nothing
     (N2 >=0 && N2 <= 1) || return nothing
@@ -408,9 +408,9 @@ function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3
 
         @timeit "basefunks" begin
         for i in 1:nbasefunks
-            N[i] = JuAFEM.value(master.faceinterpolation, i, ξ) 
-            #dN[i] = gradient(ξ -> JuAFEM.value(master.faceinterpolation, i, ξ), ξ)
-            #ddN[i] = hessian(ξ -> JuAFEM.value(master.faceinterpolation, i, ξ), ξ)
+            N[i] = Ferrite.value(master.faceinterpolation, i, ξ) 
+            #dN[i] = gradient(ξ -> Ferrite.value(master.faceinterpolation, i, ξ), ξ)
+            #ddN[i] = hessian(ξ -> Ferrite.value(master.faceinterpolation, i, ξ), ξ)
         end
 
         dN[1] = 0.25*Vec(-(1-ξ[2]), -(1-ξ[1]))
@@ -595,9 +595,9 @@ function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,T,Lagrange{2,Re
     n = co.normal
     penatration = co.penatration
 
-    N1 = JuAFEM.value(co.master.faceinterpolation, 1, xi)
-    N2 = JuAFEM.value(co.master.faceinterpolation, 2, xi)
-    N3 = JuAFEM.value(co.master.faceinterpolation, 3, xi)
+    N1 = Ferrite.value(co.master.faceinterpolation, 1, xi)
+    N2 = Ferrite.value(co.master.faceinterpolation, 2, xi)
+    N3 = Ferrite.value(co.master.faceinterpolation, 3, xi)
 
     #println("Slave contact master, pen: $penatration, slavedof: $(co.slave.dofs)")
 
@@ -613,7 +613,7 @@ function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,T,Lagrange{2,Re
     penatration = co.penatration
 
     #The basefunction values should be stored in ContactOutput
-    N = JuAFEM.value(co.master.faceinterpolation, co.xi)
+    N = Ferrite.value(co.master.faceinterpolation, co.xi)
 
     f[co.slave.dofs]       -= ct.penalty*penatration*n
     for i in 1:getnbasefunctions(co.master.faceinterpolation)

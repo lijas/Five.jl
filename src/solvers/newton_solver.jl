@@ -58,7 +58,7 @@ function step!(solver::NewtonSolver, state, globaldata)
             r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
             K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 
-            state.norm_residual = norm(r[JuAFEM.free_dofs(globaldata.dbc)])
+            state.norm_residual = norm(r[Ferrite.free_dofs(globaldata.dbc)])
 
             #Solve 
             apply_zero!(K, r, globaldata.dbc)

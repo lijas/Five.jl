@@ -53,9 +53,9 @@ get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
 function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
     
     t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
     
-    dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
+    dgdJ::Vec{3,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
     
 
     return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
@@ -77,13 +77,13 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
 
     #Call 3d routine
     t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
 
     #Remove third direction
     t2d = Vec{2,T}((t[1], t[3]))
     dt2d = Tensor{2,2,T,4}((dt[1,1], dt[3,1], dt[1,3], dt[3,3]))
 
-    dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
+    dgdJ::Vec{3,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
 
     return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
 end

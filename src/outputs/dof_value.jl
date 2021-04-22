@@ -12,16 +12,16 @@ struct DofValueOutput <: AbstractOutput
         return new(field, dofs, fieldhandler)
     end
 
-    fieldhandler::JuAFEM.FieldHandler
+    fieldhandler::Ferrite.FieldHandler
 end
 
-function build_outputdata(output::DofValueOutput, set::Set{<:Index}, dh::MixedDofHandler)
-    JuAFEM._check_same_celltype(dh.grid, cellid.(set))
+function build_outputdata(output::DofValueOutput, set::Set{<:Ferrite.BoundaryIndex}, dh::MixedDofHandler)
+    Ferrite._check_same_celltype(dh.grid, cellid.(set))
     fh = getfieldhandler(dh, cellid(first(set)))
     return DofValueOutput(output.field, output.dofs, fh)
 end
 
-function collect_output!(output::DofValueOutput, state::StateVariables, set::Set{<:Index}, globaldata)
+function collect_output!(output::DofValueOutput, state::StateVariables, set::Set{<:Ferrite.BoundaryIndex}, globaldata)
 
     dofs = Int[]
     for index in set
@@ -41,7 +41,7 @@ function collect_output!(output::DofValueOutput, state::StateVariables, set::Set
     )
 end
 
-function collect_output!(output::DofValueOutput, state::StateVariables, set::Index, globaldata) 
+function collect_output!(output::DofValueOutput, state::StateVariables, set::Ferrite.BoundaryIndex, globaldata) 
 
     dof = first(dofs_on_vertex(dh, output.fieldhandler, output.vertexindex, output.field, [output.component]))
 

@@ -1,5 +1,5 @@
 
-JuAFEM.getdim(p::P) where P<:AbstractPart{dim} where dim = dim
+Ferrite.getdim(p::P) where P<:AbstractPart{dim} where dim = dim
 
 """
     get_field(::AbstractPart)

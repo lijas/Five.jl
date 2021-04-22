@@ -48,7 +48,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
                     #Update q for dissipation solver
                     fill!(state.system_arrays, 0.0)
                     apply_external_forces!(dh, globaldata.efh, state, globaldata)
-                    JuAFEM.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
+                    Ferrite.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
 
                     #Recalculate fᴬ for fstar
                     assemble_fstar!(globaldata.dh, state, globaldata)

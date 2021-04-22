@@ -61,7 +61,7 @@ function _update!(dh::MixedDofHandler, state::StateVariables, instr::FieldDimUpg
         celloffset = dh.cell_dofs.offset[instr.cellid]
 
         #Get the new dofs, and insert them
-        nextdof, dofs = JuAFEM.get_or_create_dofs!(nextdof, Δ, dict=vertexdict, key=instr.nodeids[i])
+        nextdof, dofs = Ferrite.get_or_create_dofs!(nextdof, Δ, dict=vertexdict, key=instr.nodeids[i])
         for j in 0:Δ-1
             insert!(dh.cell_dofs.values, celloffset-1 + instr.local_dof_idx[i] + j, dofs[j+1])
         end

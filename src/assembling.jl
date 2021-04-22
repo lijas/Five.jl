@@ -29,7 +29,7 @@ function update_massmatrix!(dh, state, globaldata)
         material = materials[part.materialid]
         elementinfo = elementinfos[part.elementinfo_id]
 
-        ndofs = JuAFEM.ndofs(part.element)
+        ndofs = Ferrite.ndofs(part.element)
         me = zeros(ndofs,ndofs)
 
         for cell in CellIterator(dh, part.element, part.cellset)

@@ -65,7 +65,7 @@ con1 = Dirichlet(
 #push!(data.dirichlet, con1)
 
 part = Part{2,Float64}(
-    element = Five.SolidElementTria(celltype = JuAFEM.Triangle),
+    element = Five.SolidElementTria(celltype = Ferrite.Triangle),
     material = material,
     cellset = collect(1:getncells(data.grid))
 )

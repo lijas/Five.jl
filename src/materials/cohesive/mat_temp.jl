@@ -124,10 +124,10 @@ end
 function constitutive_driver(mp::MatMixedCohesive{dim,T}, J, prev_state::MatMixedCohesiveState) where {dim,T}
     
     t, δᴹᵃˣₘ, d, g = _constitutive_driver(mp, J, prev_state)
-    #dt::Tensor{2,dim,T,M2},     t::Vec{dim,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    #dt::Tensor{2,dim,T,M2},     t::Vec{dim,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
     
-    dgdJ::Vec{dim,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
+    dgdJ::Vec{dim,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
     
     return t, dt, MatMixedCohesiveState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
 end
