@@ -20,7 +20,7 @@ using InteractiveUtils
 #import JLD2
 import FileIO: save
 using JLD2
-import IGA #https://github.com/lijas/IGA.jl.git
+#import IGA #https://github.com/lijas/IGA.jl.git
 
 
 @reexport using JuAFEM

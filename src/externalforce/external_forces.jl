@@ -66,10 +66,6 @@ struct TractionForce{FV<:JuAFEM.Values} <: AbstractExternalForce
     facevalues::FV
 end
 
-#=function TractionForce{dim,T}(faces, traction::Function, facevalues::FV, beo::Vector{IGA.BezierExtractionOperator{T}}=[Vector{SparseArrays.SparseVector{T,Int}}(undef,0) for _ in 1:2]) where {dim,T,FV<:JuAFEM.Values{dim,T}}
-    return TractionForce{dim,T,FV}(collect(faces), traction, facevalues, beo)
-end=#
-
 function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:JuAFEM.Values}
     
     fv = ef.facevalues
@@ -88,13 +84,7 @@ function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{
         #Get coords and dofs of cell
         JuAFEM.cellcoords!(coords, dh, cellid)
         JuAFEM.celldofs!(celldofs, dh, cellid)
-        
-        #Special case isogeomtric parts
-        if FV <: IGA.BezierValues
-            Ce = ef.bezier_operators[i]
-            IGA.set_bezier_operator!(fv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
+
         
         area = _compute_external_traction_force!(fv, coords, faceid, ef.traction, fe, state.t)
         total_area +=area

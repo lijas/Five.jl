@@ -164,17 +164,6 @@ function faceset_to_cellset(grid, master_faceset)
 
 end
 
-function bezieroperator_to_matrix(C::IGA.BezierExtractionOperator)
-
-    mat= zeros(Float64, length(C), length(first(C)))
-    for i in 1:length(C)
-        for j in 1:length(C[i])
-            mat[i,j] = C[i][j]
-        end
-    end
-    return mat
-end
-
 function cellcoords(dh::MixedDofHandler, i::Int)
     @assert JuAFEM.isclosed(dh)
     return dh.cell_coords[i]

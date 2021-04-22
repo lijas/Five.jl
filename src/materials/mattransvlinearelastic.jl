@@ -24,11 +24,20 @@ function getmaterialstate(::MatTransvLinearElastic)
     return MatTransvLinearElasticState(σ)
 end
 
-function MatTransvLinearElastic(;    E1::T,   E2::T,   E3::T = E2, 
-                                        ν_12::T, ν_23::T = ν_12, ν_13::T = ν_12, 
-                                        G_12::T, G_23::T = G_12, G_13::T = G_12, 
-                                        ρ = 0.0,
-                                        α::T=0.0) where {T<:Real}
+function MatTransvLinearElastic(;    
+    E1::T,   
+    E2::T,   
+    E3::T = E2, 
+
+    ν_12::T, 
+    ν_23::T = ν_12, 
+    ν_13::T = ν_12,  
+
+    G_12::T, 
+    G_23::T = G_12, 
+    G_13::T = G_12,                           
+    ρ::T = 0.0,
+    α::T=0.0) where {T<:Real}
 
     #Complience matrix voight form
     C = [   1/E1 -ν_12/E1 -ν_13/E1   0       0         0;
@@ -63,7 +72,7 @@ function _constitutive_driver(mp::MatTransvLinearElastic, ε)
     return symmetric(σ)
 end
 
-function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = MatTransvLinearElasticState()) where {dim,T,M}
+function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = getmaterialstate(mp)) where {dim,T,M}
     σ = _constitutive_driver(mp, ε) 
     dσ::SymmetricTensor{4,3,Float64,36}, σ::SymmetricTensor{2,3,Float64,6} = JuAFEM.gradient(e -> _constitutive_driver(mp, e), ε, :all)
     

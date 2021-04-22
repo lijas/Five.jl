@@ -167,7 +167,7 @@ end
 
 
 
-
+#=
 function _compute_2nd_PK_2(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,dim,T}, state::MatHyperElasticPlasticState) where {dim,T}
     
     Fᵖ = state.Fᵖ
@@ -252,7 +252,7 @@ function compute_residual(x, Cᵛ, H::Float64, τ₀::Float64, emat::HyperElasti
 
     return vcat(tovoigt(R1),R2)
 end
-
+=#
 
 function constitutive_driver_dissipation(mp::MatHyperElasticPlastic, C::SymmetricTensor{2,3}, state::MatHyperElasticPlasticState) 
     

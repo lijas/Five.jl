@@ -75,9 +75,6 @@ end
 
 @inline getR(cv::SurfaceVectorValues, qp::Int) = cv.R[qp]
 
-getR(bcv::IGA.BezierValues{dim,T,<:Five.SurfaceVectorValues}, qp::Int64) where {dim,T} = getR(bcv.cv_bezier, qp)
-getdetJdA(bcv::IGA.BezierValues{dim,T,<:Five.SurfaceVectorValues}, qp::Int64) where {dim,T} = getdetJdA(bcv.cv_bezier, qp)
-
 function SurfaceVectorValues(::Type{T},
     quad_rule::QuadratureRule{dim_p,RefCube},
     func_interpol::CohesiveZoneInterpolation{dim_s},

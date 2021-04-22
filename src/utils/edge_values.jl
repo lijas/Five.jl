@@ -2,13 +2,6 @@ export EdgeVectorValues, EdgeValues
 
 abstract type EdgeValues{dim,T,refshape} <: JuAFEM.Values{dim,T,refshape} end
 
-function JuAFEM.reinit!(bcv::IGA.BezierValues{dim_s,T,CV}, x::AbstractVector{Vec{dim_s,T}}, edgeid::Int) where {dim_s,T,CV<:EdgeValues}
-    JuAFEM.reinit!(bcv.cv_bezier, x, edgeid) #call the normal reinit function first
-    bcv.cv_store.current_face[] = edgeid
-
-    IGA._reinit_bezier!(bcv, edgeid)
-end
-
 struct EdgeVectorValues{dim,T<:Real,refshape<:JuAFEM.AbstractRefShape,M} <: EdgeValues{dim,T,refshape}
     N::Array{Vec{dim,T},3}
     dNdx::Array{Tensor{2,dim,T,M},3}
