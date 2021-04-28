@@ -38,4 +38,4 @@ end
 include("test_MatCZKolluri.jl")
 include("test_material2d.jl")
 include("test_transv_mat.jl")
-include("test_MatHyperElasticPlastic.jl")
+#include("test_MatHyperElasticPlastic.jl")
