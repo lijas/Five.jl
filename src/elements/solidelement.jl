@@ -1,10 +1,10 @@
 export SolidElement
 """
-SolidElement{dim,order,shape,T,CV<:JuAFEM.Values}
+SolidElement{dim,order,shape,T,CV<:Ferrite.Values}
 
 """
 
-struct SolidElement{dim,order,shape,T,CV<:JuAFEM.Values} <: AbstractElement
+struct SolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
     thickness::T #used in 2d
 
     celltype::Type{<:Cell}
@@ -12,10 +12,10 @@ struct SolidElement{dim,order,shape,T,CV<:JuAFEM.Values} <: AbstractElement
     field::Field
 end
 
-JuAFEM.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
-JuAFEM.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
-JuAFEM.getcelltype(e::SolidElement) = e.celltype
-getncoords(s::SolidElement) = JuAFEM.getngeobasefunctions(s.cv)
+Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
+Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
+Ferrite.getcelltype(e::SolidElement) = e.celltype
+getncoords(s::SolidElement) = Ferrite.getngeobasefunctions(s.cv)
 
 has_constant_massmatrix(::SolidElement) = true
 
@@ -24,7 +24,7 @@ get_fields(e::SolidElement{dim,order,shape,T}) where {dim,order,shape,T} = retur
 function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
-    geom_ip = JuAFEM.default_interpolation(celltype)
+    geom_ip = Ferrite.default_interpolation(celltype)
 
     qr = QuadratureRule{dim, refshape}(qr_order)
 
@@ -86,7 +86,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
 
     cv = element.cv
     reinit!(cv, cell)
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     δE = zeros(SymmetricTensor{2, dim, T, 3}, ndofs)
 
@@ -119,7 +119,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T, M}, 
     cv = element.cv
     x = cell .+ reinterpret(Vec{dim,T}, ue)
     reinit!(cv, x)
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     @timeit "Looping" for qp in 1:getnquadpoints(cv)
         
@@ -145,7 +145,7 @@ function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, e
 
     cv = element.cv
     reinit!(cv, cell)
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     for qp in 1:getnquadpoints(cv)
         dV = getdetJdV(cv, qp) * element.thickness
@@ -173,7 +173,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
 
     cv = element.cv
     reinit!(cv, cell)
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
 
@@ -235,7 +235,7 @@ function integrate_dissipation!(
 
     cv = element.cv
     reinit!(cv, coords)
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     for qp in 1:getnquadpoints(cv)
 

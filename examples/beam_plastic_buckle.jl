@@ -5,9 +5,9 @@ function generate_2dbuckle_grid(nelx, nely, L, h, d1)
 
     #
     h2 = h
-    grid1 = generate_grid(JuAFEM.Quadrilateral,(nelx, nely), Vec((0.0,0.0)), Vec((L,h2)))
-    grid2 = generate_grid(JuAFEM.Quadrilateral,(nelx, nely), Vec((0.0,d1+h2)), Vec((L,h+d1+h2)))
-    grid3 = generate_grid(JuAFEM.Quadrilateral,(nely÷3, round(Int, nelx/L *d1)), Vec((L - (L/nelx)*(nely÷3), h2)), Vec((L, h2+d1)))
+    grid1 = generate_grid(Ferrite.Quadrilateral,(nelx, nely), Vec((0.0,0.0)), Vec((L,h2)))
+    grid2 = generate_grid(Ferrite.Quadrilateral,(nelx, nely), Vec((0.0,d1+h2)), Vec((L,h+d1+h2)))
+    grid3 = generate_grid(Ferrite.Quadrilateral,(nely÷3, round(Int, nelx/L *d1)), Vec((L - (L/nelx)*(nely÷3), h2)), Vec((L, h2+d1)))
     grid  = gridmerge(grid1, grid2, grid3)
 
     #Filter and merge coincident nodes
@@ -22,7 +22,7 @@ function generate_2dbuckle_grid(nelx, nely, L, h, d1)
         end
     end
 
-    CellType = JuAFEM.Quadrilateral
+    CellType = Ferrite.Quadrilateral
     for (cellid, cell) in enumerate(grid.cells)
         nodes_to_switch = []
         for (i, nodeid) in enumerate(cell.nodes)
@@ -119,7 +119,7 @@ part = Part{2,Float64}(
 push!(data.parts, part)
 
 #
-dbc1 = JuAFEM.Dirichlet(
+dbc1 = Ferrite.Dirichlet(
     field = :u,
     set = getfaceset(data.grid, "left"),
     func = (x,t)->[0.0, 0.0],

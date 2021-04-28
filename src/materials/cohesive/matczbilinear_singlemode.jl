@@ -95,7 +95,7 @@ end
 
 function constitutive_driver(mp::MatCZBilinearSingleMode, J::Vec{dim,T}, prev_state::MatCZBilinearSingleModeState) where {dim,T}
     _, delta_max, damage = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
 
     return t, dt, MatCZBilinearSingleModeState(delta_max,damage,t,J)
 end

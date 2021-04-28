@@ -12,7 +12,7 @@ abstract type StateOutput <:AbstractOutput end
 """
 struct OutputData{output <: AbstractOutput} <: AbstractOutput
     type::output
-    set#::JuAFEM.IndexSets
+    set#::Ferrite.IndexSets
     data::Vector{Any} #Stores the data for each timestep.
     interval::Float64 
     output_times::Vector{Float64}
@@ -111,7 +111,7 @@ function Output(; savepath=raw".", runname::String, interval::T) where {T}
     return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, Dict{String, OutputData}())
 end
 
-function JuAFEM.close!(output::Output, dh::MixedDofHandler)
+function Ferrite.close!(output::Output, dh::MixedDofHandler)
     for (key, outp) in output.outputdata
         #Overwright with new data
         output.outputdata[key] = build_outputdata(outp, dh)
@@ -161,11 +161,11 @@ end
 
 function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; outputname::String) where {T}
     
-    dh::JuAFEM.AbstractDofHandler = globaldata.dh
+    dh::Ferrite.AbstractDofHandler = globaldata.dh
     parts = globaldata.parts
     
     vtmfile = vtk_multiblock(joinpath(output.savepath, outputname))
-    dim = JuAFEM.getdim(dh)
+    dim = Ferrite.getdim(dh)
 
     #Ouput to vtk_grid
     for (partid, part) in enumerate(parts)

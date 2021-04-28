@@ -1,15 +1,15 @@
 struct CellIterator2{dim,T}
     flags::UpdateFlags
-    current_cellid::JuAFEM.ScalarWrapper{Int}
+    current_cellid::Ferrite.ScalarWrapper{Int}
     nodes::Vector{Int}
     coords::Vector{Vec{dim,T}}
-    dh::JuAFEM.AbstractDofHandler
+    dh::Ferrite.AbstractDofHandler
     celldofs::Vector{Int}
     cellset::Vector{Int}
 
-    function CellIterator2{dim,T}(dh::JuAFEM.AbstractDofHandler, cellset::Vector{Int}, flags::UpdateFlags) where {dim,T}
+    function CellIterator2{dim,T}(dh::Ferrite.AbstractDofHandler, cellset::Vector{Int}, flags::UpdateFlags) where {dim,T}
         N = length(dh.grid.cells[first(cellset)].nodes)#nnodes_per_cell(dh, first(cellset))
-        cell = JuAFEM.ScalarWrapper(0)
+        cell = Ferrite.ScalarWrapper(0)
         nodes = zeros(Int, N)
         coords = zeros(Vec{dim,T}, N)
         n = ndofs_per_cell(dh, first(cellset))
@@ -19,8 +19,8 @@ struct CellIterator2{dim,T}
 
 end
 
-function CellIterator2(dh::JuAFEM.AbstractDofHandler, element::AbstractElement, cellset::Vector{Int}, flags::UpdateFlags=UpdateFlags()) 
-    dim = JuAFEM.getdim(element)
+function CellIterator2(dh::Ferrite.AbstractDofHandler, element::AbstractElement, cellset::Vector{Int}, flags::UpdateFlags=UpdateFlags()) 
+    dim = Ferrite.getdim(element)
     T = Float64
     return CellIterator2{dim,T}(dh, cellset, flags)
 end
@@ -40,19 +40,19 @@ Base.IteratorEltype(::Type{T}) where {T<:CellIterator2} = Base.HasEltype() # thi
 Base.eltype(::Type{T})         where {T<:CellIterator2} = T
 
 # utility
-@inline JuAFEM.getnodes(ci::CellIterator2) = ci.nodes
-@inline JuAFEM.getcoordinates(ci::CellIterator2) = ci.coords
-@inline JuAFEM.onboundary(ci::CellIterator2, face::Int) = ci.grid.boundary_matrix[face, ci.current_cellid[]]
-@inline JuAFEM.cellid(ci::CellIterator2) = ci.current_cellid[]
-@inline JuAFEM.celldofs!(v::Vector, ci::CellIterator2) = celldofs!(v, ci.dh, ci.current_cellid[])
-@inline JuAFEM.celldofs(ci::CellIterator2) = ci.celldofs
+@inline Ferrite.getnodes(ci::CellIterator2) = ci.nodes
+@inline Ferrite.getcoordinates(ci::CellIterator2) = ci.coords
+@inline Ferrite.onboundary(ci::CellIterator2, face::Int) = ci.grid.boundary_matrix[face, ci.current_cellid[]]
+@inline Ferrite.cellid(ci::CellIterator2) = ci.current_cellid[]
+@inline Ferrite.celldofs!(v::Vector, ci::CellIterator2) = celldofs!(v, ci.dh, ci.current_cellid[])
+@inline Ferrite.celldofs(ci::CellIterator2) = ci.celldofs
 
-function JuAFEM.reinit!(ci::CellIterator2{dim}, i::Int) where {dim}
+function Ferrite.reinit!(ci::CellIterator2{dim}, i::Int) where {dim}
     ci.current_cellid[] = ci.cellset[i]
     
-    ci.flags.nodes  && JuAFEM.cellnodes!(ci.nodes, ci.dh, ci.current_cellid[])
-    ci.flags.coords && JuAFEM.cellcoords!(ci.coords, ci.dh, ci.current_cellid[])
-    ci.flags.celldofs && JuAFEM.celldofs!(ci.celldofs, ci)
+    ci.flags.nodes  && Ferrite.cellnodes!(ci.nodes, ci.dh, ci.current_cellid[])
+    ci.flags.coords && Ferrite.cellcoords!(ci.coords, ci.dh, ci.current_cellid[])
+    ci.flags.celldofs && Ferrite.celldofs!(ci.celldofs, ci)
 
     return ci
 end
