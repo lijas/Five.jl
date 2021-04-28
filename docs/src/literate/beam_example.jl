@@ -34,7 +34,7 @@ push!(data.dirichlet, con1)
 
 part = Part{2,Float64}(
     element = SolidElement{2,2,RefCube,Float64}(
-        celltype = JuAFEM.Quadrilateral,
+        celltype = Ferrite.Quadrilateral,
         qr_order = 4
     ),
     material = material,
