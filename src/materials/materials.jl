@@ -38,6 +38,7 @@ include("mattransvlinearelastic.jl")
 #include("matyeoh.jl")
 include("mathyper.jl")
 include("matplast_largedef.jl")
+include("mategp.jl")
 
 
 include("cohesive/cohesive.jl")
