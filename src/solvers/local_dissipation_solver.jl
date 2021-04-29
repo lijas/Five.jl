@@ -77,8 +77,13 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            @timeit "Solve system" ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
+            @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
             
+            if !_success
+                converged_failed = true
+                break
+            end
+
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
             state.d  += ΔΔd
@@ -153,7 +158,12 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
         KK = vcat(hcat(Kₜ, -q), hcat(h', w))
         ff = vcat(rₜ, -(Δg - ΔL))
 
-        aa = KK\ff
+        local aa
+        try
+            aa = KK\ff
+        catch
+            return 0.0 .* copy(h), 0.0, false
+        end
         ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
     elseif solvermode == INCREMENT_LOCAL
         ΔΔd  = Kₜ\rₜ
@@ -162,7 +172,7 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
         error("No mode")
     end
 
-    return ΔΔd, ΔΔλ
+    return ΔΔd, ΔΔλ, true
 end
 
 function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariables, ΔP, ⁿΔP, ntries)
