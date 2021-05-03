@@ -1,6 +1,6 @@
 using Five
 
-tmax = 500.0
+tmax = 200.0
 data = ProblemData(
     dim = 3,
     tend = tmax
@@ -55,7 +55,7 @@ part = Part{3,Float64}(
 push!(data.parts, part)
 
 data.output[] = Output(
-    interval = 100.0,
+    interval = tmax/10,
     runname = "egptest",
     savepath = "."
 )
@@ -71,9 +71,11 @@ output = OutputData(
 data.outputdata["reactionforce"] = output
 
 solver = NewtonSolver(
-    Δt0 = 0.1,
+    Δt0 = 10.0,
+    Δt_min = 10.0,
     Δt_max = 10.0,
-    tol = 1e-4
+    tol = 1e-5,
+    maxitr = 13
 )
 
 state, data = build_problem(data)
