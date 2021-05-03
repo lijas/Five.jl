@@ -346,3 +346,8 @@ function solid_constitutive_driver(material::T, F, materialstate) where T <: Abs
     S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate)
     return S, ∂S∂E, new_matstate
 end
+
+function solid_constitutive_driver(material::MatEGP, F, materialstate)
+    S, ∂S∂E, new_matstate = constitutive_driver(material, F, materialstate)
+    return S, ∂S∂E, new_matstate
+end
