@@ -73,13 +73,17 @@ get_material_state_type(::MatEGP) = MatEGPState
 # Drivers
 # # # # # # #
 
-function constitutive_driver(mp::MatEGP, F::Tensor{2,3}, state::MatEGPState)
+function constitutive_driver(mp::MatEGP, F::Tensor{2,3}, state::MatEGPState, dt::Float64)
     ngens = mp.NGENS
     _σ = zeros(Float64, ngens)
     _dσdε = zeros(Float64, ngens, ngens)
     H = copy(state.H)
 
-    _CONST_DRIVER_!(_σ, _dσdε, Matrix(state.F), Matrix(F), H, getdprops(mp), getiprops(mp))
+    #Set time step
+    dprops =  getdprops(mp)
+    dprops[1] = dt
+    
+    _CONST_DRIVER_!(_σ, _dσdε, Matrix(state.F), Matrix(F), H, dprops, getiprops(mp))
 
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
     dσdε = fromvoigt(SymmetricTensor{4,3}, _dσdε, order = EO) 
