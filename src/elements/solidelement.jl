@@ -10,6 +10,8 @@ struct SolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
     celltype::Type{<:Cell}
     cv::CV
     field::Field
+
+    total_lagrangian::Bool
 end
 
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
@@ -21,7 +23,7 @@ has_constant_massmatrix(::SolidElement) = true
 
 get_fields(e::SolidElement{dim,order,shape,T}) where {dim,order,shape,T} = return [e.field]
 
-function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
+function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, total_lagrangian::Bool = true, celltype::Type{<:Cell}) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
@@ -29,7 +31,7 @@ function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, c
     qr = QuadratureRule{dim, refshape}(qr_order)
 
     cv = CellVectorValues(qr, ip, geom_ip)
-    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
+    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim), total_lagrangian)
 end
 
 function calculate_minimum_timestep(element::SolidElement{2,1,RefCube,T,M}, material::AbstractMaterial, cell::CellIterator, ue::Vector, due::Vector) where {T,M}
@@ -68,9 +70,31 @@ function integrate_fstar!(element::SolidElement{dim, order, shape, T},
     ue::Vector,
     due::Vector,
     Δt::T) where {dim, order, shape, T}
-    
+    error("Check total vs updated lagrangian")
     integrate_forcevector_and_stiffnessmatrix!(element, elementstate,
      material, materialstate, zeros(T, length(fe), length(fe)), fe, cell, Δue, ue, due, Δt)
+end
+
+function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
+    elementstate::AbstractElementState, 
+    material::AbstractMaterial, 
+    materialstate::AbstractVector{<:AbstractMaterialState},
+    ke::AbstractMatrix, 
+    fe::Vector, 
+    cell, 
+    Δue::Vector,
+    ue::Vector,
+    due::Vector,
+    Δt::T) where {dim, order, shape, T}
+
+    if element.total_lagrangian
+        integrate_forcevector_and_stiffnessmatrix_tl!(element, elementstate,
+            material, materialstate, ke, fe, cell, Δue, ue, due, Δt)
+    else
+        integrate_forcevector_and_stiffnessmatrix_ul!(element, elementstate,
+            material, materialstate, ke, fe, cell, Δue, ue, due, Δt)
+    end
+
 end
 
 function integrate_forcevector!(element::SolidElement{dim, order, shape, T}, 
@@ -83,7 +107,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
         ue::Vector,
         due::Vector,
         Δt::T) where {dim, order, shape, T}
-
+    error("Check total vs updated lagrangian")
     cv = element.cv
     reinit!(cv, cell)
     ndofs = Ferrite.ndofs(element)
@@ -159,7 +183,7 @@ function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, e
     end
 end
 
-function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
+function integrate_forcevector_and_stiffnessmatrix_tl!(element::SolidElement{dim, order, shape, T}, 
     elementstate::AbstractElementState, 
     material::AbstractMaterial, 
     materialstate::AbstractVector{<:AbstractMaterialState},
@@ -213,6 +237,55 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
     end
 end
 
+
+function integrate_forcevector_and_stiffnessmatrix_ul!(element::SolidElement{dim, order, shape, T}, 
+    elementstate::AbstractElementState, 
+    material::AbstractMaterial, 
+    materialstate::AbstractVector{<:AbstractMaterialState},
+    ke::AbstractMatrix, 
+    fe::Vector, 
+    cell, 
+    Δue::Vector,
+    ue::Vector,
+    due::Vector,
+    Δt::T) where {dim, order, shape, T}
+
+    cv = element.cv
+    reinit!(cv, cell)
+    ndofs = Ferrite.ndofs(element)
+
+    δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
+
+    for qp in 1:getnquadpoints(cv)
+        ∇u = function_gradient(cv, qp, ue)
+        dΩ = getdetJdV(cv, qp) * element.thickness
+
+        # strain and stress + tangent
+        F = one(∇u) + ∇u
+        
+        ε = symmetric(∇u)
+
+        @assert(material <: MatEGP)
+        σ, c, new_matstate = onstitutive_driver(material, F, materialstate[qp])
+        materialstate[qp] = new_matstate
+
+        # Hoist computations of δE
+        for i in 1:ndofs
+            ∇δv = shape_gradient(cv, qp, i)
+            δd[i] = symmetric(∇δv)
+        end
+
+        for i in 1:ndofs
+
+            fe[i] += (σ ⊡ δd[i]) * dΩ
+
+            for j in 1:ndofs
+                ∇δvj = shape_gradient(cv, qp, j)
+                ke[i, j] += (δd[i]⊡c⊡ε + σ⊡(∇u'⋅∇δvj)) * dΩ
+            end
+        end
+    end
+end
 
 function integrate_dissipation!(
     element       :: SolidElement{dim_p,dim_s,CV},
