@@ -159,7 +159,7 @@ function assemble_dissipation!(dh::Ferrite.AbstractDofHandler,
 
 end
 
-function assemble_elastic!(dh::JuAFEM.AbstractDofHandler, 
+function assemble_elastic!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart,
     state::StateVariables)
 
@@ -167,7 +167,7 @@ function assemble_elastic!(dh::JuAFEM.AbstractDofHandler,
 
 end
 
-function _assemble_part!(dh::JuAFEM.AbstractDofHandler, 
+function _assemble_part!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart{dim},
     state::StateVariables{T},
     assemtype::ASSEMBLETYPE) where {dim,T}

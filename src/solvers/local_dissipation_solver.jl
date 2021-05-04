@@ -266,7 +266,7 @@ function do_first_newton_step!(solver, state, globaldata)
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ - solver.Δλ0*state.system_arrays.q
         K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 
-        state.norm_residual = norm(r[JuAFEM.free_dofs(globaldata.dbc)])
+        state.norm_residual = norm(r[Ferrite.free_dofs(globaldata.dbc)])
 
         #Solve 
         apply_zero!(K, r, globaldata.dbc)
