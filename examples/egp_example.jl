@@ -31,9 +31,9 @@ push!(data.dirichlet, con1)
 
 loadf(t) = begin
     if t < tmax/2
-        return (-t/tmax) * 0.48
+        return (-t/tmax) * -0.8
     else
-        return (t-tmax)/tmax * 0.48
+        return -0.5 * -0.8#(t-tmax)/tmax * -0.8
     end
 end
 
@@ -47,8 +47,9 @@ push!(data.dirichlet, con1)
 
 part = Part{3,Float64}(
     element = SolidElement{3,1,RefCube,Float64}(
-        celltype = JuAFEM.Hexahedron,
-        qr_order = 3
+        celltype = Ferrite.Hexahedron,
+        qr_order = 3,
+        total_lagrangian = false
     ),
     material = material,
     cellset = collect(1:getncells(data.grid))
@@ -88,4 +89,4 @@ d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(o
 f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
 
 using Plots; plotly()
-plot(d,f)
+plot(d,f,mark=:o)
