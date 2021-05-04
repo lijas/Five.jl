@@ -252,10 +252,12 @@ function integrate_forcevector_and_stiffnessmatrix_ul!(element::SolidElement{dim
     Δt::T) where {dim, order, shape, T}
 
     cv = element.cv
-    reinit!(cv, cell)
+    unodes = reinterpret(Vec{dim,T}, ue[1:(Ferrite.getngeobasefunctions(cv)*dim)])
+
+    reinit!(cv, cell+unodes)
     ndofs = Ferrite.ndofs(element)
 
-    δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
+    δd = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
 
     for qp in 1:getnquadpoints(cv)
         ∇u = function_gradient(cv, qp, ue)
@@ -266,8 +268,8 @@ function integrate_forcevector_and_stiffnessmatrix_ul!(element::SolidElement{dim
         
         ε = symmetric(∇u)
 
-        @assert(material <: MatEGP)
-        σ, c, new_matstate = onstitutive_driver(material, F, materialstate[qp])
+        @assert(material isa MatEGP)
+        σ, c, new_matstate = constitutive_driver(material, F, materialstate[qp], Δt)
         materialstate[qp] = new_matstate
 
         # Hoist computations of δE
@@ -277,12 +279,13 @@ function integrate_forcevector_and_stiffnessmatrix_ul!(element::SolidElement{dim
         end
 
         for i in 1:ndofs
-
+            ∇δvi = shape_gradient(cv, qp, i)
             fe[i] += (σ ⊡ δd[i]) * dΩ
 
             for j in 1:ndofs
-                ∇δvj = shape_gradient(cv, qp, j)
-                ke[i, j] += (δd[i]⊡c⊡ε + σ⊡(∇u'⋅∇δvj)) * dΩ
+
+                ∇δuj = shape_gradient(cv, qp, j)
+                ke[i, j] += (δd[i]⊡c⊡δd[j] + σ⊡(∇δuj'⋅∇δvi)) * dΩ
             end
         end
     end
