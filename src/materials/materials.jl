@@ -33,6 +33,11 @@ Construct a materialstate based in the input material
 """
 getmaterialstate
 
+"""
+    is_dissipative
+"""
+is_dissipative(::AbstractMaterial) = false
+
 include("matelastic.jl")
 include("mattransvlinearelastic.jl")
 #include("matyeoh.jl")
@@ -101,6 +106,8 @@ end
 PlaneStressMaterial(mat) = Material2D(mat, PLANE_STRESS)
 PlaneStrainMaterial(mat) = Material2D(mat, PLANE_STRAIN)
 
+is_dissipative(m::Material2D) = is_dissipative(m.material)
+
 function getmaterialstate(m::Material2D)
     return getmaterialstate(m.material)
 end
@@ -117,6 +124,19 @@ function constitutive_driver(m::Material2D{<:HyperElasticMaterial}, C::Symmetric
     ∂S∂C = SymmetricTensor{4,2,T,9}((∂S∂C₃[1,1,1,1], ∂S∂C₃[3,1,1,1], ∂S∂C₃[3,3,1,1], ∂S∂C₃[1,1,3,1], ∂S∂C₃[3,1,3,1], ∂S∂C₃[3,3,3,1], ∂S∂C₃[1,1,3,3], ∂S∂C₃[3,1,3,3], ∂S∂C₃[3,3,3,3]))
 
     return S, ∂S∂C, newstate₃
+end
+
+function constitutive_driver_dissipation(m::Material2D{<:HyperElasticMaterial}, C::SymmetricTensor{2,2,T}, state::AbstractMaterialState) where T
+    @assert(m.plane_state == PLANE_STRAIN)
+
+    #Convert to 3d
+    C₃ = SymmetricTensor{2,3,T,6}((C[1,1], zero(T), C[1,2], one(T), zero(T), C[2,2]))
+    g, dgdC₃ = constitutive_driver_dissipation(m.material, C₃, state)
+
+    #Convert back to 3d
+    dgdC = SymmetricTensor{2,2,T,3}((dgdC₃[1,1],dgdC₃[1,3],dgdC₃[3,3]))
+
+    return g, dgdC 
 end
 
 function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_state::AbstractMaterialState) where T

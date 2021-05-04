@@ -1,9 +1,9 @@
 export ProblemData, build_problem
 
 mutable struct ProblemData{dim,T}
-    grid::JuAFEM.AbstractGrid
+    grid::Ferrite.AbstractGrid
     parts::Vector{Five.AbstractPart{dim}}
-    dirichlet::Vector{JuAFEM.Dirichlet}
+    dirichlet::Vector{Ferrite.Dirichlet}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints::Vector{Five.AbstractExternalForce}
     output::Base.RefValue{Output{T}}
@@ -18,13 +18,13 @@ end
 function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
     
     parts = Five.AbstractPart{dim}[]
-    dbc   = JuAFEM.Dirichlet[]
+    dbc   = Ferrite.Dirichlet[]
     exfor = Five.AbstractExternalForce[]
     output = Base.RefValue{Output{T}}()
     outputdata = Dict{String, Five.OutputData}()
     cnstr = Five.AbstractExternalForce[]
     states = Dict{Int, Vector{Any}}()
-    grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
+    grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
 
     return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
 end
@@ -88,12 +88,16 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         push_output!(data.output[], name, o)
     end
     close!(data.output[], dh)
-    
-    func!(dh, data.parts, dch)
 
     contact = Contact_Node2Segment{dim,T}()# not used
 
     globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
+
+    for part in globaldata.parts
+        init_part!(part, dh)
+    end
+
+    func!(dh, data.parts, dch)
 
     #State
     state = StateVariables(T, ndofs(dh))
@@ -104,10 +108,6 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     #System Arrays
     state.system_arrays = SystemArrays(T, ndofs(dh))
     state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
-
-    for part in globaldata.parts
-        init_part!(part, dh)
-    end
 
     return state, globaldata
 end

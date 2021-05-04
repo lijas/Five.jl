@@ -6,7 +6,7 @@ nodeset_to_vertexset(grid::AbstractGrid, nodeset::Set{Int})
 
 Given a nodeset, convert it to a vertexset
 """
-function nodeset_to_vertexset(grid::JuAFEM.AbstractGrid, nodeset::Set{Int}) 
+function nodeset_to_vertexset(grid::Ferrite.AbstractGrid, nodeset::Set{Int}) 
     vertexset = Set{VertexIndex}()
     for nodeid in nodeset
         for (cellid, cell) in enumerate(grid.cells)
@@ -22,22 +22,22 @@ function nodeset_to_vertexset(grid::JuAFEM.AbstractGrid, nodeset::Set{Int})
 end
 
 
-function indexdofs(dh, element::FieldHandler, index::Index, field_name::Symbol, components::Vector{Int})
-    _dofs_on_something(dh, element, index, field_name, components, JuAFEM.getgeometryfunction(typeof(index)))
+function indexdofs(dh, element::FieldHandler, index::Ferrite.BoundaryIndex, field_name::Symbol, components::Vector{Int})
+    _dofs_on_something(dh, element, index, field_name, components, Ferrite.boundaryfunction(typeof(index)))
 end
 dofs_on_edge(dh, element::FieldHandler, faceindex::FaceIndex, field_name::Symbol, components::Vector{Int}) = 
-    _dofs_on_something(dh, element, faceindex, field_name, components, JuAFEM.edges)
+    _dofs_on_something(dh, element, faceindex, field_name, components, Ferrite.edges)
 dofs_on_face(dh, element::FieldHandler, faceindex::FaceIndex, field_name::Symbol, components::Vector{Int}) = 
-    _dofs_on_something(dh, element, faceindex, field_name, components, JuAFEM.faces)
+    _dofs_on_something(dh, element, faceindex, field_name, components, Ferrite.faces)
 dofs_on_vertex(dh, element::FieldHandler, vertexindex::VertexIndex, field_name::Symbol, components::Vector{Int}) = 
-    _dofs_on_something(dh, element, vertexindex, field_name, components, JuAFEM.vertices)
-function _dofs_on_something(dh::JuAFEM.AbstractDofHandler, fh::FieldHandler, faceindex, field_name::Symbol, components::Vector{Int}, faces_or_vertices::F) where {dim,T,F}
+    _dofs_on_something(dh, element, vertexindex, field_name, components, Ferrite.vertices)
+function _dofs_on_something(dh::Ferrite.AbstractDofHandler, fh::FieldHandler, faceindex, field_name::Symbol, components::Vector{Int}, faces_or_vertices::F) where {dim,T,F}
     
     #components = 1:dim
     #field =  element.fields[1]
-    fieldidx = JuAFEM.find_field(fh, field_name)
+    fieldidx = Ferrite.find_field(fh, field_name)
     field = fh.fields[fieldidx]
-    offset = JuAFEM.field_offset(fh, field_name)
+    offset = Ferrite.field_offset(fh, field_name)
     local_face_dofs = Int[]
     face = faces_or_vertices(field.interpolation)[faceindex[2]]
     
@@ -91,17 +91,17 @@ function get_node_dofs(dh::DofHandler{dim}, field_name = :u, ncomps = 2) where d
 end
 
 #Gets all initial coordinates (:u and :xyθ)
-function get_x0(dh::JuAFEM.AbstractDofHandler)
+function get_x0(dh::Ferrite.AbstractDofHandler)
 
     T = getT(dh)
-    dim = JuAFEM.getdim(dh)
+    dim = Ferrite.getdim(dh)
 
     nnodes = getnnodes(dh.grid)
     x0 = zeros(T, ndofs(dh))
     visited = falses(nnodes)
     for (ie, element) in enumerate(dh.fieldhandlers)
 
-        idx = findfirst(i->i == :u, JuAFEM.getfieldnames(element))
+        idx = findfirst(i->i == :u, Ferrite.getfieldnames(element))
         field = element.fields[idx]
         if field === nothing 
             continue
@@ -111,7 +111,7 @@ function get_x0(dh::JuAFEM.AbstractDofHandler)
             #end
         end
         field_dim = field.dim
-        offset = JuAFEM.field_offset(element, field.name)
+        offset = Ferrite.field_offset(element, field.name)
         _celldofs = Int[]
 
         for cellidx in element.cellset

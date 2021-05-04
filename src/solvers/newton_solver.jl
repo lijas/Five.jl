@@ -45,8 +45,9 @@ function step!(solver::NewtonSolver, state, globaldata)
 
             fill!(state.system_arrays, 0.0)
 
-            #@timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
-            #Δg = state.system_arrays.G[]
+            @timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
+            Δg = state.system_arrays.G[]
+            #Δg = 1/2 * dot(state.Δd, state0.system_arrays.q - state0.system_arrays.fᴬ)
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
@@ -57,7 +58,7 @@ function step!(solver::NewtonSolver, state, globaldata)
             r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
             K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 
-            state.norm_residual = norm(r[JuAFEM.free_dofs(globaldata.dbc)])
+            state.norm_residual = norm(r[Ferrite.free_dofs(globaldata.dbc)])
 
             #Solve 
             apply_zero!(K, r, globaldata.dbc)
@@ -65,8 +66,6 @@ function step!(solver::NewtonSolver, state, globaldata)
 
             state.Δd .+= ΔΔd
             state.d  .+= ΔΔd
-
-            Δg = 1/2 * dot(state.Δd, state0.system_arrays.q - state0.system_arrays.fᴬ)
 
             println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
         

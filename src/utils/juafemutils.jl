@@ -1,47 +1,42 @@
 export gridmerge
 #
-# Stuff that I think should be in JuAFEM
+# Stuff that I think should be in Ferrite
 #
 #Base.getindex(fi::FaceIndex, i::Int) = fi.idx[i]
-JuAFEM.getdim(::Type{Cell{dim,N,M}}) where {dim,N,M} = dim
+Ferrite.getdim(::Type{Cell{dim,N,M}}) where {dim,N,M} = dim
 
-JuAFEM.vertices(::Lagrange{2,RefCube,1}) = (1,2,3,4)
-JuAFEM.vertices(::Lagrange{3,RefCube,1}) = (1,2,3,4,5,6,7,8)
+Ferrite.vertices(::Lagrange{2,RefCube,1}) = (1,2,3,4)
+Ferrite.vertices(::Lagrange{3,RefCube,1}) = (1,2,3,4,5,6,7,8)
 
-JuAFEM.vertices(::Lagrange{3,RefTetrahedron,1}) = (1,2,3,4)
+Ferrite.vertices(::Lagrange{3,RefTetrahedron,1}) = (1,2,3,4)
 
-JuAFEM.vertices(c::Cell{dim,1,0}) where dim= (c.nodes[1],) #c.nodes[1]??
-JuAFEM.faces(::Cell{dim,1,0}) where dim = ()
+Ferrite.vertices(c::Cell{dim,1,0}) where dim= (c.nodes[1],) #c.nodes[1]??
+Ferrite.faces(::Cell{dim,1,0}) where dim = ()
 
-JuAFEM.cell_to_vtkcell(::Type{Cell{3,27,6}}) = VTKCellTypes.VTK_BIQUADRATIC_QUADRATIC_HEXAHEDRON 
-JuAFEM.cell_to_vtkcell(::Type{Cell{2,2,1}}) = VTKCellTypes.VTK_LINE
+Ferrite.cell_to_vtkcell(::Type{Cell{3,27,6}}) = VTKCellTypes.VTK_BIQUADRATIC_QUADRATIC_HEXAHEDRON 
 
-JuAFEM.vertices(::Lagrange{2,RefCube,2}) = ntuple(i->i, 9)
+Ferrite.vertices(::Lagrange{2,RefCube,2}) = ntuple(i->i, 9)
 
-JuAFEM.vertices(c::Cell{2,2,1}) = (c.nodes[1], c.nodes[2])
-JuAFEM.default_interpolation(::Type{Cell{2,2,1}}) = Lagrange{1,RefCube,1}()
-JuAFEM.vertices(::Interpolation{1,RefCube}) = (1,2)
+Ferrite.vertices(c::Cell{2,2,1}) = (c.nodes[1], c.nodes[2])
+Ferrite.default_interpolation(::Type{Cell{2,2,1}}) = Lagrange{1,RefCube,1}()
+Ferrite.vertices(::Interpolation{1,RefCube}) = (1,2)
 
-convert_index(T::Type{FaceIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
-convert_index(T::Type{VertexIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
-convert_index(T::Type{EdgeIndex}, set::IndexSets) = Set([T(c,i) for (c,i) in set])
-
-JuAFEM.getdim(::MixedDofHandler{dim,C,T}) where {dim,C,T} = dim
+Ferrite.getdim(::MixedDofHandler{dim,C,T}) where {dim,C,T} = dim
 getT(::MixedDofHandler{dim,C,T}) where {dim,C,T} = T
 
-JuAFEM.FaceIndex(array_or_set, b::Int) = [FaceIndex(a,b) for a in array_or_set]
+Ferrite.FaceIndex(array_or_set, b::Int) = [FaceIndex(a,b) for a in array_or_set]
 
-JuAFEM.cellid(f::Index) = f[1]
+Ferrite.cellid(f::Ferrite.BoundaryIndex) = f[1]
 
-JuAFEM.FieldHandler() = FieldHandler(Field[],Set([0])) 
+Ferrite.FieldHandler() = FieldHandler(Field[],Set([0])) 
 
 #For cohesive zones
-JuAFEM.vertices(::Lagrange{1,RefCube,1}) = (1,2)
-JuAFEM.vertices(::Lagrange{1,RefCube,2}) = (1,2)
+Ferrite.vertices(::Lagrange{1,RefCube,1}) = (1,2)
+Ferrite.vertices(::Lagrange{1,RefCube,2}) = (1,2)
 
 
-function JuAFEM.Dirichlet(;field::Symbol,set::IndexSets,func::Function,dofs::Vector{Int})
-    return JuAFEM.Dirichlet(field, set, func, dofs)
+function Ferrite.Dirichlet(;field::Symbol,set::Set{T},func::Function,dofs::Vector{Int}) where T
+    return Ferrite.Dirichlet(field, set, func, dofs)
 end
 
 function getfieldhandler(dh::MixedDofHandler, cellid::Int)
@@ -55,7 +50,7 @@ end
 ##
 #
 ##
-function JuAFEM.create_face_quad_rule(quad_rule::QuadratureRule{0,shape,T}, ::Interpolation{2,shape}) where {T,shape<:RefCube}
+function Ferrite.create_face_quad_rule(quad_rule::QuadratureRule{0,shape,T}, ::Interpolation{2,shape}) where {T,shape<:RefCube}
     w = getweights(quad_rule)
     vertex_quad_rule = QuadratureRule{2,shape,T}[]
 
@@ -78,20 +73,20 @@ end
 ##
 # 
 ##
-JuAFEM.faces(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
-JuAFEM.vertices(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
-#JuAFEM.vertices(c::Cell{3,4,2}) where dim = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
+Ferrite.faces(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
+Ferrite.vertices(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
+#Ferrite.vertices(c::Cell{3,4,2}) where dim = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
 
 ##
 # Serendipity
 ##
-JuAFEM.default_interpolation(::Type{Cell{2,2,2}}) = Lagrange{1,RefCube,1}()
-JuAFEM.default_interpolation(::Type{Cell{dim,1,0}}) where dim = Serendipity{dim,RefCube,0}()
-JuAFEM.getnbasefunctions(::Serendipity{dim,RefCube,0}) where dim = 1
-JuAFEM.vertices(::Serendipity{dim,RefCube,0}) where dim = (1,)
-JuAFEM.ncelldofs(::Serendipity{dim,RefCube,0}) where dim = 1
-JuAFEM.faces(::Serendipity{dim,RefCube,0}) where dim = ()
-JuAFEM.value(::Serendipity{3,RefCube,0}, ::Int64, ::Tensor{1,3,T,3}) where T = T(1.0)
+Ferrite.default_interpolation(::Type{Cell{2,2,2}}) = Lagrange{1,RefCube,1}()
+Ferrite.default_interpolation(::Type{Cell{dim,1,0}}) where dim = Serendipity{dim,RefCube,0}()
+Ferrite.getnbasefunctions(::Serendipity{dim,RefCube,0}) where dim = 1
+Ferrite.vertices(::Serendipity{dim,RefCube,0}) where dim = (1,)
+Ferrite.ncelldofs(::Serendipity{dim,RefCube,0}) where dim = 1
+Ferrite.faces(::Serendipity{dim,RefCube,0}) where dim = ()
+Ferrite.value(::Serendipity{3,RefCube,0}, ::Int64, ::Tensor{1,3,T,3}) where T = T(1.0)
 
 
 #Face interpolation
@@ -99,8 +94,8 @@ faceinterpolation(::Type{Triangle}) = Lagrange{1,RefCube,1}()
 faceinterpolation(::Type{Hexahedron}) = Lagrange{2,RefCube,1}()
 
 #
-JuAFEM.cell_to_vtkcell(::Type{Cell{3,4,2}}) = VTKCellTypes.VTK_QUAD
-JuAFEM.default_interpolation(::Type{Cell{3,4,2}}) = Lagrange{2,RefCube,1}()
+Ferrite.cell_to_vtkcell(::Type{Cell{3,4,2}}) = VTKCellTypes.VTK_QUAD
+Ferrite.default_interpolation(::Type{Cell{3,4,2}}) = Lagrange{2,RefCube,1}()
 
 
 Tensors.cross(v::Vec{2}) = Vec{2}((-v[2], v[1]))
@@ -108,23 +103,19 @@ Tensors.cross(v::Vec{2}) = Vec{2}((-v[2], v[1]))
 ##
 #CellValues
 
-macro showm(M)
-    return esc(:(display("text/plain", $M)))
-end
-
-function JuAFEM.reference_coordinates(::Serendipity{dim,RefCube,0}) where dim
+function Ferrite.reference_coordinates(::Serendipity{dim,RefCube,0}) where dim
     return [zero(Vec{dim, Float64})]
 end
 
-function JuAFEM.value(ip::Serendipity{dim,RefCube,0}, i::Int, ξ::Vec{dim}) where dim
+function Ferrite.value(ip::Serendipity{dim,RefCube,0}, i::Int, ξ::Vec{dim}) where dim
     i == 1 && return 1
     throw(ArgumentError("no shape function $i for interpolation $ip"))
 end
 
 face_coordinate(dh::DofHandler{dim,T}, element::AbstractElement, faceindex::FaceIndex, location::Int) where {dim,T} = 
-    _x_coordinate(dh, element, faceindex, location, JuAFEM.faces)   
+    _x_coordinate(dh, element, faceindex, location, Ferrite.faces)   
 vertex_coordinate(dh::DofHandler{dim,T}, element::AbstractElement, vertexindex::FaceIndex, location::Int) where {dim,T} = 
-    _x_coordinate(dh, element, vertexindex, location, JuAFEM.vertices)
+    _x_coordinate(dh, element, vertexindex, location, Ferrite.vertices)
 
 function _x_coordinate(dh::DofHandler{dim,T}, element, faceindex, location::Int, func::F) where {dim,T,F}
     xh = getcoordinates(dh.grid, faceindex[1])
@@ -168,19 +159,8 @@ function faceset_to_cellset(grid, master_faceset)
 
 end
 
-function bezieroperator_to_matrix(C::IGA.BezierExtractionOperator)
-
-    mat= zeros(Float64, length(C), length(first(C)))
-    for i in 1:length(C)
-        for j in 1:length(C[i])
-            mat[i,j] = C[i][j]
-        end
-    end
-    return mat
-end
-
 function cellcoords(dh::MixedDofHandler, i::Int)
-    @assert JuAFEM.isclosed(dh)
+    @assert Ferrite.isclosed(dh)
     return dh.cell_coords[i]
 end
 
@@ -220,7 +200,7 @@ function generate_ooplane_quadraturerule(::Type{T}, zcoords::Vector{T}; nqp_per_
 
 end
 
-function JuAFEM.QuadratureRule{2,RefCube}(orders::NTuple{2,Int}) 
+function Ferrite.QuadratureRule{2,RefCube}(orders::NTuple{2,Int}) 
     T = Float64
     dim = 2
     
@@ -240,7 +220,7 @@ function JuAFEM.QuadratureRule{2,RefCube}(orders::NTuple{2,Int})
     return QuadratureRule{dim,RefCube,T}(newweights, newpoints)
 end
 
-function JuAFEM.QuadratureRule{3,RefCube}(orders::NTuple{3,Int}) 
+function Ferrite.QuadratureRule{3,RefCube}(orders::NTuple{3,Int}) 
     T = Float64
     dim = 3
     
@@ -306,22 +286,22 @@ end
 ##
 #
 function add_edge!(ch::ConstraintHandler, dbc::Dirichlet)
-    JuAFEM.dbc_check(ch, dbc)
-    field_idx = JuAFEM.find_field(ch.dh, dbc.field_name)
+    Ferrite.dbc_check(ch, dbc)
+    field_idx = Ferrite.find_field(ch.dh, dbc.field_name)
     # Extract stuff for the field
-    interpolation =JuAFEM.getfieldinterpolation(ch.dh, field_idx)#ch.dh.field_interpolations[field_idx]
-    field_dim =JuAFEM. getfielddim(ch.dh, field_idx)#ch.dh.field_dims[field_idx] # TODO: I think we don't need to extract these here ...
-    bcvalue = JuAFEM.getbcvalue(ch.dh, field_idx)
-    _add_edge!(ch, dbc, dbc.faces, interpolation, field_dim, JuAFEM.field_offset(ch.dh, dbc.field_name), bcvalue)
+    interpolation =Ferrite.getfieldinterpolation(ch.dh, field_idx)#ch.dh.field_interpolations[field_idx]
+    field_dim =Ferrite. getfielddim(ch.dh, field_idx)#ch.dh.field_dims[field_idx] # TODO: I think we don't need to extract these here ...
+    bcvalue = Ferrite.getbcvalue(ch.dh, field_idx)
+    _add_edge!(ch, dbc, dbc.faces, interpolation, field_dim, Ferrite.field_offset(ch.dh, dbc.field_name), bcvalue)
     return ch
 end
 
-function _add_edge!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Tuple{Int,Int}}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::JuAFEM.BCValues)
+function _add_edge!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Tuple{Int,Int}}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::Ferrite.BCValues)
     # calculate which local dof index live on each face
     # face `i` have dofs `local_face_dofs[local_face_dofs_offset[i]:local_face_dofs_offset[i+1]-1]
     local_face_dofs = Int[]
     local_face_dofs_offset = Int[1]
-    for (i, face) in enumerate(JuAFEM.edges(interpolation))
+    for (i, face) in enumerate(Ferrite.edges(interpolation))
         for fdof in face, d in 1:field_dim
             if d ∈ dbc.components # skip unless this component should be constrained
                 push!(local_face_dofs, (fdof-1)*field_dim + d + offset)
@@ -329,8 +309,8 @@ function _add_edge!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Tuple{In
         end
         push!(local_face_dofs_offset, length(local_face_dofs) + 1)
     end
-    JuAFEM.copy!!(dbc.local_face_dofs, local_face_dofs)
-    JuAFEM.copy!!(dbc.local_face_dofs_offset, local_face_dofs_offset)
+    Ferrite.copy!!(dbc.local_face_dofs, local_face_dofs)
+    Ferrite.copy!!(dbc.local_face_dofs_offset, local_face_dofs_offset)
 
     # loop over all the faces in the set and add the global dofs to `constrained_dofs`
     constrained_dofs = Int[]
@@ -349,14 +329,14 @@ function _add_edge!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Tuple{In
     append!(ch.prescribed_dofs, constrained_dofs)
 end
 
-#=function JuAFEM.spatial_coordinate(bcv::JuAFEM.BCValues, q_point::Int, xh::AbstractVector{Vec{dim,T}}) where {dim,T}
+#=function Ferrite.spatial_coordinate(bcv::Ferrite.BCValues, q_point::Int, xh::AbstractVector{Vec{dim,T}}) where {dim,T}
     return zero(Vec{dim,T})
 end=#
 
 
-#Overwrite juafem.function_value for scalar cellvalues to interpolate any type
-function JuAFEM.function_value(fe_v::JuAFEM.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
-    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+#Overwrite Ferrite.function_value for scalar cellvalues to interpolate any type
+function Ferrite.function_value(fe_v::Ferrite.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
+    n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
     #isa(fe_v, VectorValues) && (n_base_funcs *= dim)
     @assert length(dof_range) == n_base_funcs
     @boundscheck checkbounds(u, dof_range)
@@ -367,8 +347,8 @@ function JuAFEM.function_value(fe_v::JuAFEM.ScalarValues{dim}, q_point::Int, u::
     return val
 end
 
-function function_geometric_derivative(fe_v::JuAFEM.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, d::Int, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
-    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+function function_geometric_derivative(fe_v::Ferrite.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, d::Int, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
+    n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
     @assert length(dof_range) == n_base_funcs
     @boundscheck checkbounds(u, dof_range)
     grad = zero(T)
@@ -378,8 +358,8 @@ function function_geometric_derivative(fe_v::JuAFEM.ScalarValues{dim}, q_point::
     return grad
 end
 
-function function_shape_derivative(fe_v::JuAFEM.ScalarValues{dim_p}, q_point::Int, x::Vector{Vec{dim_s,T}}, u::AbstractVector{T2}, a::Vec{dim_s,T}, b::Vec{dim_s,T}, dof_order::AbstractVector{Int} = collect(1:length(u))) where {dim_p,dim_s,T,T2}
-    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+function function_shape_derivative(fe_v::Ferrite.ScalarValues{dim_p}, q_point::Int, x::Vector{Vec{dim_s,T}}, u::AbstractVector{T2}, a::Vec{dim_s,T}, b::Vec{dim_s,T}, dof_order::AbstractVector{Int} = collect(1:length(u))) where {dim_p,dim_s,T,T2}
+    n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
     @assert length(dof_order) == n_base_funcs
     @boundscheck checkbounds(u, dof_order)
 
@@ -404,19 +384,19 @@ function function_shape_derivative(fe_v::JuAFEM.ScalarValues{dim_p}, q_point::In
 end
 
 
-function JuAFEM.spatial_coordinate(fe_v::JuAFEM.ScalarValues{dim_p}, q_point::Int, x::AbstractVector{Vec{dim_s,T}}) where {dim_p,dim_s,T}
-    n_base_funcs = JuAFEM.getngeobasefunctions(fe_v)
+function Ferrite.spatial_coordinate(fe_v::Ferrite.ScalarValues{dim_p}, q_point::Int, x::AbstractVector{Vec{dim_s,T}}) where {dim_p,dim_s,T}
+    n_base_funcs = Ferrite.getngeobasefunctions(fe_v)
     @assert length(x) == n_base_funcs
     vec = zero(Vec{dim_s,T})
     @inbounds for i in 1:n_base_funcs
-        vec += JuAFEM.geometric_value(fe_v, q_point, i) * x[i]
+        vec += Ferrite.geometric_value(fe_v, q_point, i) * x[i]
     end
     return vec
 end
 ##
 
 
-function facedofs(dh::JuAFEM.AbstractDofHandler, fieldhandler::FieldHandler, faceindx::FaceIndex; field_name::Symbol = :all, components::Vector{Int} = [])
+function facedofs(dh::Ferrite.AbstractDofHandler, fieldhandler::FieldHandler, faceindx::FaceIndex; field_name::Symbol = :all, components::Vector{Int} = [])
 
 
     local_face_dofs = Int[]
@@ -436,9 +416,9 @@ function facedofs(dh::JuAFEM.AbstractDofHandler, fieldhandler::FieldHandler, fac
             _components = 1:field_dim
         end
 
-        offset = JuAFEM.field_offset(fieldhandler, field.name)
+        offset = Ferrite.field_offset(fieldhandler, field.name)
         
-        face = JuAFEM.faces(interpolation)[faceindx[2]]
+        face = Ferrite.faces(interpolation)[faceindx[2]]
         
         for fdof in face, d in 1:field_dim
             if d ∈ _components # skip unless this component should be constrained
@@ -456,7 +436,7 @@ end
 function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
     
     nodes_new = Node{dim,T}[]
-    cells_new = JuAFEM.AbstractCell[]
+    cells_new = Ferrite.AbstractCell[]
 
     faceset_new = Dict{String, Set{FaceIndex}}()
     vertexset_new = Dict{String, Set{VertexIndex}}()

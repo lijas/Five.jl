@@ -1,10 +1,10 @@
 
 #Cohesive part, just override some plotting stuff
 
-function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::JuAFEM.AbstractDofHandler) where {dim,T}
+function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDofHandler) where {dim,T}
     return nothing
     #=@assert(dim==2)
-    celltype = JuAFEM.VTKCellTypes.VTK_LINE
+    celltype = Ferrite.VTKCellTypes.VTK_LINE
     
     next_node_id = 1
     @show part.cellset
@@ -30,7 +30,7 @@ function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::JuAFEM.AbstractDofH
     end=#
 end
 
-function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables) where {dim,T}
+function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables) where {dim,T}
     return Vec{dim,T}[]
 end
 

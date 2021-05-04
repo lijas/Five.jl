@@ -56,9 +56,9 @@ get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
 function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
     
     t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,3,T,9}, t::Vec{3,T} = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
+    dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
     
-    dgdJ::Vec{3,T}, g = JuAFEM.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
+    dgdJ::Vec{3,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
     
 
     return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ, 0.0, zero(Vec{3,T}))
@@ -126,6 +126,7 @@ end
 #
 _damage(δ, δᶠₘ, δ⁰ₘ) = (δ<=δ⁰ₘ) ? 0.0 : (δᶠₘ*(δ - δ⁰ₘ))/(δ*(δᶠₘ-δ⁰ₘ))
 _delta_max(d, δᶠₘ, δ⁰ₘ) = (d==0.0) ? 0.0 : (-δᶠₘ*δ⁰ₘ)/(d*(δᶠₘ-δ⁰ₘ)-δᶠₘ)
+n_damage_parameters(state::MatCZBilinear) = 1
 interface_damage(state::MatCZBilinearState, ::Int = 1) = state.d
 initial_stiffness(mat::MatCZBilinear) = mat.K
 

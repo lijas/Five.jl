@@ -62,7 +62,7 @@ function constitutive_driver(mp::MatLinearElastic, ε::SymmetricTensor{2,3}, ::M
 end
 
 function constitutive_driver(mp::MatLinearElastic, ε::SymmetricTensor{2,2}, ::MatLinearElasticState = MatLinearElasticState()) 
-    dσ, σ = JuAFEM.gradient(e -> _constitutive_driver(mp, e), ε, :all)
+    dσ, σ = Tensors.gradient(e -> _constitutive_driver(mp, e), ε, :all)
 
     #The 2d material should store state tensor in 3d
     σ33 = mp.plain_stress == true ? 0.0 : (mp.λ/(2*(mp.μ + mp.λ))) * (σ[1,1] + σ[2,2])

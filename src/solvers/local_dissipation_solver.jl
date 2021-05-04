@@ -91,8 +91,13 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᴬ, state.system_arrays.G[], state.ΔL)
-            
+            @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᴬ, state.system_arrays.G[], state.ΔL)
+
+            if !_success
+                converged_failed = true
+                break
+            end
+
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
             state.d  += ΔΔd
@@ -100,9 +105,9 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
 
             #Check convergance
             if norm(state.λ*q) <= 1e-10
-                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
+                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])
             else
-                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
             #println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("Δg=$(state.system_arrays.G[]),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("λ=$(state.λ),", 20))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
             @printf("--->Newton %i, normr: %.5e, dissi: %.5e, Δλ: %.5e, Δg:%.5e \n", state.newton_itr, state.norm_residual, Δg, state.Δλ, state.system_arrays.G[])
@@ -163,9 +168,16 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
     KK = vcat(hcat(Kₜ, -q), hcat(h', w))
     ff = vcat(rₜ, -(Δg - ΔL))
     aa = KK\ff
+    local aa
+    try
+        aa = KK\ff
+    catch
+        return 0.0 .* copy(h), 0.0, false
+    end
+    
     ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
 
-    return ΔΔd, ΔΔλ
+    return ΔΔd, ΔΔλ, true
 end
 
 function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariables, ΔP, ⁿΔP, ntries)

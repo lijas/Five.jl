@@ -4,12 +4,11 @@ authors = ["lijas <elias.borjesson@hotmail.com>"]
 version = "0.1.0"
 
 [deps]
+Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-IGA = "e7b8d123-e02a-40ba-ad18-d3943ed54f1c"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-JuAFEM = "30d91d44-8115-11e8-1d28-c19a5ac16de8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"

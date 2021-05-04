@@ -4,8 +4,8 @@ using Five
 function generate_enf_grid(nelx, nely, L, h, a0)
 
     #
-    grid1 = generate_grid(JuAFEM.Quadrilateral,(nelx,nely),Vec((0.0,0.0)),Vec((L,h)))
-    grid2 = generate_grid(JuAFEM.Quadrilateral,(nelx,nely),Vec((0.0,h)),Vec((L,h*2)))
+    grid1 = generate_grid(Ferrite.Quadrilateral,(nelx,nely),Vec((0.0,0.0)),Vec((L,h)))
+    grid2 = generate_grid(Ferrite.Quadrilateral,(nelx,nely),Vec((0.0,h)),Vec((L,h*2)))
     grid = gridmerge(grid1,grid2)
 
     #
@@ -38,14 +38,14 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String)
     grid2_bottom_faceset = collect(getfaceset(grid, setname2))
     grid1_top_faceset = collect(getfaceset(grid, setname1))
     function sortby(f1)
-        n1,n2 = JuAFEM.faces(grid.cells[f1[1]])[f1[2]]
+        n1,n2 = Ferrite.faces(grid.cells[f1[1]])[f1[2]]
         return min(n1,n2)
     end
     function myless(f1,f2)
-        n1,n2 = JuAFEM.faces(grid.cells[f1[1]])[f1[2]]
+        n1,n2 = Ferrite.faces(grid.cells[f1[1]])[f1[2]]
         minA = min(grid.nodes[n1].x,grid.nodes[n1].x)
 
-        n1,n2 = JuAFEM.faces(grid.cells[f2[1]])[f2[2]]
+        n1,n2 = Ferrite.faces(grid.cells[f2[1]])[f2[2]]
         minB = min(grid.nodes[n1].x,grid.nodes[n1].x)
         return minA<minB
     end
@@ -59,8 +59,8 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String)
         botface_index = grid2_bottom_faceset[i]
 
         
-        topface = JuAFEM.faces(grid.cells[faceind[1]])[faceind[2]]
-        botface = JuAFEM.faces(grid.cells[botface_index[1]])[botface_index[2]]
+        topface = Ferrite.faces(grid.cells[faceind[1]])[faceind[2]]
+        botface = Ferrite.faces(grid.cells[botface_index[1]])[botface_index[2]]
 
         cell_nodes = [topface[2], topface[1], botface[1], botface[2]]
         new_cell = CohesiveCell{2,4,2}(Tuple(cell_nodes))
@@ -145,7 +145,7 @@ for cellid in getcellset(data.grid, "precracked")
 end
 
 #
-dbc1 = JuAFEM.Dirichlet(
+dbc1 = Ferrite.Dirichlet(
     field = :u,
     set = getvertexset(data.grid, "botleft"),
     func = (x,t)->[0.0, 0.0],
@@ -153,7 +153,7 @@ dbc1 = JuAFEM.Dirichlet(
 )
 push!(data.dirichlet, dbc1)
 
-dbc1 = JuAFEM.Dirichlet(
+dbc1 = Ferrite.Dirichlet(
     field = :u,
     set    = getvertexset(data.grid, "botright"),
     func   = (x,t)->[0.0],

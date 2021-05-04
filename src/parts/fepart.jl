@@ -1,5 +1,5 @@
 export Part
-export IGAPart, PartState
+export PartState
 
 struct PartCache{dim,T}
     ue::Vector{T}
@@ -41,14 +41,15 @@ function Part{dim,T}(;
    return Part{dim,T}(material, collect(cellset), element)
 end
 
+#Not implemented:
 struct IGAPart{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim}
  
     material::M
     cellset::Vector{Int}
     element::E
 
-    Cb::Vector{IGA.BezierExtractionOperator{T}}
-    cv_plot::CellScalarValues 
+    #Cb::Vector{IGA.BezierExtractionOperator{T}}
+    #cv_plot::CellScalarValues 
 end
 
 const FEPart{dim} = Union{IGAPart{dim}, Part{dim}}# where dim
@@ -65,7 +66,6 @@ end
 getmaterialstate(partstate::PartState, field::Symbol) =  getproperty.(partstate.materialstates, field)
 
 get_partstate_type(part::Part{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
-get_partstate_type(part::IGAPart{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
 
 get_fields(part::FEPart) = get_fields(part.element)
 get_cellset(part::FEPart) = part.cellset
@@ -94,13 +94,13 @@ function construct_partstates(part::FEPart)
 end
 
 
-function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
+function init_part!(part::Part, dh::Ferrite.AbstractDofHandler)
     celltype = typeof(dh.grid.cells[first(part.cellset)])
     
     next_node_id = 1
     for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
         cell = dh.grid.cells[cellid]
-        vtk_celltype = JuAFEM.cell_to_vtkcell(celltype)
+        vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
 
         new_ids = Int[]
         for nodeid in cell.nodes
@@ -118,12 +118,12 @@ function init_part!(part::Part, dh::JuAFEM.AbstractDofHandler)
     end
 
 
-    resize!(part.cache.coords, JuAFEM.nnodes(celltype))
+    resize!(part.cache.coords, Ferrite.nnodes(celltype))
 end
 
 @enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI ELASTIC
 
-function assemble_stiffnessmatrix_and_forcevector!(dh::JuAFEM.AbstractDofHandler, 
+function assemble_stiffnessmatrix_and_forcevector!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart,
     state::StateVariables)
 
@@ -131,7 +131,7 @@ function assemble_stiffnessmatrix_and_forcevector!(dh::JuAFEM.AbstractDofHandler
 
 end
 
-function assemble_forcevector!(dh::JuAFEM.AbstractDofHandler, 
+function assemble_forcevector!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart,
     state::StateVariables)
 
@@ -139,7 +139,7 @@ function assemble_forcevector!(dh::JuAFEM.AbstractDofHandler,
 
 end
 
-function assemble_fstar!(dh::JuAFEM.AbstractDofHandler, 
+function assemble_fstar!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart,
     state::StateVariables)
 
@@ -147,9 +147,13 @@ function assemble_fstar!(dh::JuAFEM.AbstractDofHandler,
 
 end
 
-function assemble_dissipation!(dh::JuAFEM.AbstractDofHandler, 
+function assemble_dissipation!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart,
     state::StateVariables)
+
+    if !(part.material |> is_dissipative)
+        return 
+    end
 
     _assemble_part!(dh, part, state, DISSI)
 
@@ -189,18 +193,12 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
         #@show typeof(element)
         #@show length(celldofs)
         #@show ndofs_per_cell(dh,cellid)
-        JuAFEM.cellcoords!(coords, dh, cellid)
-        JuAFEM.celldofs!(celldofs, dh, cellid)
+        Ferrite.cellcoords!(coords, dh, cellid)
+        Ferrite.celldofs!(celldofs, dh, cellid)
 
         Δue .= state.Δd[celldofs]
         ue .= state.d[celldofs]
         due .= state.v[celldofs]
-
-        if typeof(part) <: IGAPart
-            Ce = get_bezier_operator(part, localid)
-            IGA.set_bezier_operator!(part.element.cv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
         
         if assemtype == STIFFMAT
             integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, ke, fe, coords, Δue, ue, due, Δt)
@@ -230,33 +228,27 @@ function _assemble_part!(dh::JuAFEM.AbstractDofHandler,
     
 end
 
-function assemble_massmatrix!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where T
+function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where T
 
     assembler = start_assemble(state.system_arrays.M, fillzero=false)
     element = part.element
 
-    dim = JuAFEM.getdim(part)
+    dim = Ferrite.getdim(part)
     
     #preallocate stuff (could be stored in Part)
     me = zeros(T, ndofs(element), ndofs(element))
     ue = zeros(T, ndofs(element))
     due = zeros(T, ndofs(element))
 
-    coords = zeros(Vec{dim,T}, JuAFEM.nnodes_per_cell(dh, first(part.cellset)))
+    coords = zeros(Vec{dim,T}, Ferrite.nnodes_per_cell(dh, first(part.cellset)))
     celldofs = zeros(Int, ndofs(element))
 
     for (localid,celldata) in enumerate(CellIterator(dh,part.cellset))
         
         fill!(me, 0.0)
 
-        JuAFEM.cellcoords!(coords, dh, cellid(celldata))
-        JuAFEM.celldofs!(celldofs, dh, cellid(celldata))
-
-        if typeof(part) <: IGAPart
-            Ce = get_bezier_operator(part, localid)
-            IGA.set_bezier_operator!(part.element.cv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
+        Ferrite.cellcoords!(coords, dh, cellid(celldata))
+        Ferrite.celldofs!(celldofs, dh, cellid(celldata))
 
         integrate_massmatrix!(element, get_elementstate_type(element)(), part.material, coords, me, ue, due)
 
@@ -265,7 +257,7 @@ function assemble_massmatrix!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state
 
 end
 
-function get_vtk_grid(dh::JuAFEM.AbstractDofHandler, part::Part)
+function get_vtk_grid(dh::Ferrite.AbstractDofHandler, part::Part)
     return part.vtkexport.vtkcells, part.vtkexport.vtknodes
 end
 
@@ -273,11 +265,11 @@ function post_part!(dh, part::FEPart, states::StateVariables)
     
 end
 
-function commit_part!(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables)
+function commit_part!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables)
     return nothing
 end
 
-function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
+function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
     @assert(length(get_fields(part.element)) == 1 && get_fields(part.element)[1].name == :u)
 
     node_coords = zeros(Vec{dim,T}, length(part.vtkexport.vtknodes))
@@ -333,11 +325,11 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     FieldDataType = typeof(first_field)
     #celltype = getcelltype(part.element)
     celltype = typeof(globaldata.grid.cells[first(part.cellset)])
-    geom_ip = JuAFEM.default_interpolation(celltype)
-    refshape = RefCube#getrefshape(geom_ip)
+    geom_ip = Ferrite.default_interpolation(celltype)
+    refshape = Ferrite.getrefshape(geom_ip)# RefCube#getrefshape(geom_ip)
     nqp = length(state.partstates[_cellid].materialstates)
-    qp_order = convert(Int, nqp^(1/dim))
-    qr = QuadratureRule{dim, refshape}(qp_order)
+    #qp_order = convert(Int, nqp^(1/dim))
+    qr = QuadratureRule{dim, refshape}(2)#qp_order)
     cellvalues = CellScalarValues(qr, geom_ip)
     projector = L2Projector(cellvalues, geom_ip, globaldata.grid, part.cellset)
 
@@ -365,11 +357,11 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     return vtk_node_data
 end
 
-function get_vtk_celldata(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
+function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
     return nothing, nothing
 end
 
-function get_vtk_nodedata(dh::JuAFEM.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
+function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
     return nothing, nothing
 end
 

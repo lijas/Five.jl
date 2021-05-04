@@ -15,12 +15,12 @@ struct CohesiveElement{dim_s,CV} <: AbstractElement
     cv::CV
 end
 
-JuAFEM.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
-JuAFEM.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
-JuAFEM.getcelltype(e::CohesiveElement) = e.celltype
+Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
+Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
+Ferrite.getcelltype(e::CohesiveElement) = e.celltype
 
 has_constant_massmatrix(::CohesiveElement) = true
-getncoords(s::CohesiveElement) = JuAFEM.getngeobasefunctions(s.cv)
+getncoords(s::CohesiveElement) = Ferrite.getngeobasefunctions(s.cv)
 
 get_fields(e::CohesiveElement) = return [e.field]
 
@@ -35,7 +35,7 @@ function CohesiveElement(;
 
     ip = CohesiveZoneInterpolation(Lagrange{dim_s-1,RefCube,order}())
     
-    geom_ip = JuAFEM.default_interpolation(celltype)
+    geom_ip = Ferrite.default_interpolation(celltype)
     mid_qr = QuadratureRule{dim_s-1,RefCube}(nqp)
 
     cv = SurfaceVectorValues(mid_qr, ip, geom_ip)
@@ -57,7 +57,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
     
     cv = element.cv
     
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     xe = cell + reinterpret(Vec{dim_s,T}, ue)#[1:length(cell)*dim_s])
 
@@ -109,7 +109,7 @@ function integrate_fstar!(element::CohesiveElement{dim_s,CV},
     
     cv = element.cv
     
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     xe = cell + reinterpret(Vec{dim_s,T}, ue)
 
@@ -160,7 +160,7 @@ function integrate_dissipation!(element::CohesiveElement{dim_s,CV},
     Δt::T) where {dim_s,CV,T}
     
     cv = element.cv
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
     xe = coords + reinterpret(Vec{dim_s,T}, ue)
 
     reinit!(cv, xe)
@@ -253,7 +253,7 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
     
     cv = element.cv
     
-    ndofs = JuAFEM.ndofs(element)
+    ndofs = Ferrite.ndofs(element)
 
     xe = cell + reinterpret(Vec{dim_s,T}, ue)
 
