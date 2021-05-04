@@ -84,7 +84,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             state.λ  += ΔΔλ
 
             #Arc-leanth equation
-            Δg = 1/2 * dot(state.Δd, state0.λ*q - state0.system_arrays.fᴬ)# - state.ΔL
+            #Δg = 1/2 * dot(state.Δd, state0.λ*q - state0.system_arrays.fᴬ)# - state.ΔL
             
             #Check convergance
             if norm(state.λ*q) <= 1e-10
