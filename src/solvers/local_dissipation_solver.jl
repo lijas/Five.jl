@@ -42,7 +42,11 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
 
     λ0     = state.λ
     q      = state.system_arrays.q
+    â      = state.system_arrays.â
     state0 = deepcopy(state)
+
+    all(iszero.(â)) && @assert( !all(iszero.(q)) )
+    all(iszero.(q)) && @assert( !all(iszero.(â)) )
 
     #ΔP prepresents either ΔL or Δλ depending 
     # on the solver mode (INCREMENT_LOCAL or DISSIPATION_LOCAL).
@@ -64,6 +68,14 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
             
+            #
+            update!(globaldata.dbc, state.λ) 
+            apply!(state.d, globaldata.dbc)
+
+            update!(globaldata.dbc, state.Δλ) 
+            apply!(state.Δd, globaldata.dbc)
+
+
             @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
             Δg = state.system_arrays.G[]
             
@@ -75,9 +87,9 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
             
-            apply_zero!(Kₜ, rₜ, globaldata.dbc)
+            #apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
+            @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, â, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode, state.system_arrays.C, globaldata.dh, globaldata.dbc)
             
             if !_success
                 converged_failed = true
@@ -149,23 +161,49 @@ function newton_done(solver::LocalDissipationSolver, residual, Δg, ΔL, solverm
     return false
 end
 
-function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
+function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q, â, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode, C, dh, dbc)
     local ΔΔd, ΔΔλ
     if solvermode == DISSIPATION_LOCAL
         w = 0.0
         h = fᴬ
 
-        KK = vcat(hcat(Kₜ, -q), hcat(h', w))
-        ff = vcat(rₜ, -(Δg - ΔL))
+        opt = 2
+        if opt == 1
+            apply_zero!(Kₜ, rₜ, dbc)
+            KK = vcat(hcat(Kₜ, -q), hcat(h', w))
+            ff = vcat(rₜ, -(Δg - ΔL))
 
-        local aa
-        try
-            aa = KK\ff
-        catch
-            return 0.0 .* copy(h), 0.0, false
+            local aa
+            try
+                aa = KK\ff
+            catch
+                return 0.0 .* copy(h), 0.0, false
+            end
+            ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
+        else
+            kk1 = C'*Kₜ*C
+            kk2 = C'*Kₜ*â - C'*q
+            kk3 = h' * C
+            kk4 = h'*â + w
+
+            KK = vcat(hcat(kk1, kk2), hcat(kk3, kk4))
+
+            f1 = C' * rₜ
+            f2 = -(Δg - ΔL)
+
+            ff = vcat(f1, f2)
+            local AA
+            try
+                AA = KK\ff
+            catch
+                return copy(h), 0.0, false
+            end
+            ΔΔdf, ΔΔλ = (AA[1:end-1], AA[end])
+    
+            ΔΔd = C*ΔΔdf + ΔΔλ*â
         end
-        ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
     elseif solvermode == INCREMENT_LOCAL
+        apply_zero!(Kₜ, rₜ, dbc)
         ΔΔd  = Kₜ\rₜ
         ΔΔλ = 0.0
     else
