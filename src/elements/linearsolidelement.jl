@@ -7,54 +7,36 @@ Any order, any shape, any dim,
 """
 
 struct LinearSolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
-
     thickness::T #used in 2d
 
-    ndofs::Int
-    fields::Vector{Field}
     celltype::Type{<:Cell}
-    M2::Int
     cv::CV
+    field::Field
 end
 
-struct LinearSolidElementState <: AbstractElementState
-end
 
-LinearSolidElementState(::LinearSolidElement{dim,order,shape,T}, 
-                        ::AbstractVector{Vec{dim,T}} = Vec{dim,T}[]) where {dim,order,shape,T} = LinearSolidElementState()
-
-get_elementstate_type(e::LinearSolidElement) = LinearSolidElementState
-Ferrite.getnquadpoints(e::LinearSolidElement) = Ferrite.getnquadpoints(e.cv)
-Ferrite.ndofs(e::LinearSolidElement) = e.ndofs
+Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
+Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
-getfaceinterpolation(element::LinearSolidElement{2,1,shape}) where {shape} = Lagrange{1, RefCube, 1}()
-getfaceinterpolation(element::LinearSolidElement{3,1,shape}) where {shape} = Lagrange{2, shape, 1}()
-has_constant_massmatrix(::LinearSolidElement) = true
 getncoords(s::LinearSolidElement) = Ferrite.getngeobasefunctions(s.cv)
 
-function LinearSolidElement{dim, order, refshape, T}(; thickness::T = 1.0) where {dim, order, refshape, T}
+has_constant_massmatrix(::LinearSolidElement) = true
+
+get_fields(e::LinearSolidElement) = return [e.field]
+
+function LinearSolidElement{dim, order, refshape, T}(; thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
-    qr = QuadratureRule{dim, refshape}(2)
-    nnodes = getnbasefunctions(ip)
-    nfaces = length(Ferrite.faces(ip))
-    M2 =  dim == 2 ? 3 : 6
-    ndofs = nnodes*dim
-    cv = CellVectorValues(qr, ip)
-    return LinearSolidElement{dim, order, refshape, T, typeof(cv)}(thickness, ndofs, [Field(:u, ip, dim)], Cell{dim,nnodes,nfaces}, M2, cv)
+    geom_ip = Ferrite.default_interpolation(celltype)
+
+    qr = QuadratureRule{dim, refshape}(qr_order)
+
+    cv = CellVectorValues(qr, ip, geom_ip)
+    return LinearSolidElement{dim, order, refshape, T, typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
 end
 
-function LinearSolidElement{dim, order, refshape, T}(cv::Ferrite.Values{dim}, ip) where {dim, order, refshape, T}
-    
-    nnodes = Ferrite.getngeobasefunctions(cv)
-    nfaces = length(Ferrite.faces(ip))
-    M2 =  dim == 2 ? 3 : 6
-    ndofs = Ferrite.getnbasefunctions(cv)
-    return LinearSolidElement{dim, order, refshape, T, typeof(cv)}(ndofs, [Field(:u, ip, dim)], Cell{dim,nnodes,nfaces}, M2, cv)
-end
-
-function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{dim, order, shape, T, M}, 
-    elementstate::LinearSolidElementState, 
+function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{dim, order, shape, T}, 
+    elementstate::AbstractElementState, 
     material::AbstractMaterial, 
     materialstate::AbstractVector{<:AbstractMaterialState},
     ke::AbstractMatrix, 
@@ -63,11 +45,11 @@ function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{
     Δue::Vector,
     ue::Vector,
     due::Vector,
-    dt::T) where {dim, order, shape, T, M}
+    dt::T) where {dim, order, shape, T}
 
     cellvalues = element.cv
   
-    @timeit "reinit" reinit!(cellvalues, cell)
+    reinit!(cellvalues, cell)
 
     n_basefuncs = getnbasefunctions(cellvalues)
 
@@ -94,8 +76,8 @@ function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{
             fe[i] += (σ ⊡ δɛ[i]) * dΩ
             
             ɛC = δɛ[i] ⊡ ∂σ∂ɛ
-            for j in 1:n_basefuncs # assemble only upper half
-                ke[i, j] += (ɛC ⊡ δɛ[j]) * dΩ # can only assign to parent of the Symmetric wrapper
+            for j in 1:n_basefuncs 
+                ke[i, j] += (ɛC ⊡ δɛ[j]) * dΩ 
             end
         end
     end
