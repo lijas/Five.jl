@@ -95,4 +95,14 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
     
     state.system_arrays.q .= state.system_arrays.fᵉ
     #state.prev_detK = state.detK = det(state.system_arrays.Kⁱ - state.system_arrays.Kᵉ)
+
+    #Used by arc-length solvers with displacement control
+    #Assume that all boundary condition are constant in time, except for the one which are controlled..
+    update!(globaldata.dbc, 1.0)
+    apply!(state.system_arrays.â, globaldata.dbc)
+    update!(globaldata.dbc, 0.0)
+
+    freedofs = Ferrite.free_dofs(globaldata.dbc)
+    nfreedofs = length(freedofs)
+    state.system_arrays.C = sparse(freedofs, 1:nfreedofs, ones(Float64, nfreedofs), ndofs(globaldata.dh), nfreedofs)
 end
