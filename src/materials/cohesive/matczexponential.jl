@@ -45,6 +45,8 @@ function getmaterialstate(m::MatCZKolluri, d::Float64=zero(Float64))
     return MatCZKolluriState(zero(Vec{3,T}), zero(Vec{3,T}), Vec{3,T}(Tuple(Δ_max)), (d,d), (d,d))
 end
 
+is_dissipative(::MatCZKolluri) = true
+
 get_material_state_type(::MatCZKolluri) = MatCZKolluriState
 n_damage_parameters(m::MatCZKolluri) = 4
 function interface_damage(m::MatCZKolluriState, d::Int)

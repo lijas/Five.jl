@@ -50,6 +50,8 @@ end
 
 get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
 
+is_dissipative(::MatCZBilinear) = true
+
 function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
     
     t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
