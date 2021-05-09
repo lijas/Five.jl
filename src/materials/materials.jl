@@ -139,7 +139,7 @@ function constitutive_driver_dissipation(m::Material2D{<:HyperElasticMaterial}, 
     return g, dgdC 
 end
 
-function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_state::AbstractMaterialState) where T
+function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_state::AbstractMaterialState, Δt::T) where T
 
     ε = SymmetricTensor{2,3,T,6}((ε_2d[1,1], T(0.0), ε_2d[1,2], T(0.0), T(0.0), ε_2d[2,2]))
 
@@ -156,7 +156,7 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
         local σⱽ, Cⱽ
         while _error > NEWTON_TOL; 
             newton_counter +=1
-            _σⱽ, _Cⱽ, state = constitutive_driver(m.material, ε, prev_state)
+            _σⱽ, _Cⱽ, state = constitutive_driver(m.material, ε, prev_state, Δt)
             σⱽ = tovoigt(_σⱽ)
             Cⱽ = tovoigt(_Cⱽ)
 
@@ -183,7 +183,7 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
         σ = fromvoigt(SymmetricTensor{2,3,T}, σⱽ)
         C = fromvoigt(SymmetricTensor{4,3,T}, Cⱽ)
     else
-        σ, C, state = constitutive_driver(m.material, ε, prev_state)
+        σ, C, state = constitutive_driver(m.material, ε, prev_state, Δt)
     end
 
     σ_2d = SymmetricTensor{2,2,T,3}((σ[1,1],σ[1,3],σ[3,3]))
