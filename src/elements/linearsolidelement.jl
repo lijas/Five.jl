@@ -58,8 +58,14 @@ function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{
     for q_point in 1:getnquadpoints(cellvalues)
 
         ∇u = function_gradient(cellvalues, q_point, ue)
-        ɛ = symmetric(1/2 * (∇u + ∇u'))
+        ɛ = symmetric(∇u)
+        ⁿ∇u = function_gradient(cellvalues, q_point, ue-Δue)
+        ⁿɛ = symmetric(ⁿ∇u) 
+        Δɛ = ɛ - ⁿɛ
    
+        #Δ∇u = function_gradient(cellvalues, q_point, Δue)
+        #Δɛ = symmetric(Δ∇u) 
+
         #MatLinearElasticState(zero(SymmetricTensor{2,dim,T}))
         σ, ∂σ∂ɛ, new_matstate = constitutive_driver(material, ɛ, materialstate[q_point])
         materialstate[q_point] = new_matstate

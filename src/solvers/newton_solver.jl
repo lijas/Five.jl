@@ -38,6 +38,7 @@ function step!(solver::NewtonSolver, state, globaldata)
         #Apply boundary conditions
         update!(globaldata.dbc, state.t)
         apply!(state.d, globaldata.dbc)
+        state.Δd = state.d - state0.d
 
         state.newton_itr = 0
         while true
