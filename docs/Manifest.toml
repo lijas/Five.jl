@@ -103,7 +103,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[Ferrite]]
 deps = ["LinearAlgebra", "Reexport", "SparseArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "500416f69e52588ae5c0cc18fe69ed7410190dbf"
+git-tree-sha1 = "cf8a88fa7b583e5cc3145dd16e1b746199e443dc"
+repo-rev = "master"
+repo-url = "https://github.com/Ferrite-FEM/Ferrite.jl.git"
 uuid = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
 version = "0.3.0"
 
