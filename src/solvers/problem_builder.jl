@@ -35,6 +35,8 @@ end
 
 function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     
+    _check_input(data)
+
     # Create FieldHandlers/cellsets with parts that have the same element-type and fields 
     # This makes it easier to constraints that span multiple parts
     dict = Dict{Pair{Type{<:Ferrite.AbstractCell},Vector{Field}}, Vector{Int}}()
@@ -130,4 +132,20 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
 
     return state, globaldata
+end
+
+function _check_input(data::ProblemData{dim,T}) where {dim,T}
+
+    all_cellsets = Int[]
+    for part in data.parts
+        for cellid in part.cellset
+            if cellid in all_cellsets
+                error("$cellid is in two sets")
+            end
+        end
+        append!(all_cellsets, part.cellset)
+    end
+
+    length(all_cellsets) < getncells(data.grid) && error("Not all cells are included in a part.")
+
 end
