@@ -46,7 +46,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         combo = Pair(celltype, fields)
         if !haskey(dict, combo)
             #Add new cellset
-            dict[combo] = part.cellset
+            dict[combo] = copy(part.cellset)
         else
             #Combine the cellset
             union!(dict[combo], part.cellset)
