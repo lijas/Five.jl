@@ -51,6 +51,8 @@ function VTKNodeOutput(; type, func = mean)
     return VTKNodeOutput(type, func)
 end
 
+outputname(o::VTKNodeOutput) = outputname(o.type)
+
 """
 VTKCellOutput
 
@@ -64,6 +66,8 @@ end
 function VTKCellOutput(; type, func = mean)
     return VTKCellOutput(type, func)
 end
+
+outputname(o::VTKCellOutput) = outputname(o.type)
 
 struct VTKOutput
     #data::Union{Any, Vector{Any}}
@@ -155,16 +159,16 @@ function vtk_add_state!(output::Output{T}, state::StateVariables, globaldata) wh
     if should_output(output.vtkoutput, state.t)
         output.vtkoutput.last_output[] = state.t
         filename =  output.runname * string(state.step)
-        _vtk_add_state!(output, state, globaldata, outputname=filename)
+        _vtk_add_state!(output, state, globaldata, filename=filename)
     end
 end
 
-function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; outputname::String) where {T}
+function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; filename::String) where {T}
     
     dh::Ferrite.AbstractDofHandler = globaldata.dh
     parts = globaldata.parts
     
-    vtmfile = vtk_multiblock(joinpath(output.savepath, outputname))
+    vtmfile = vtk_multiblock(joinpath(output.savepath, filename))
     dim = Ferrite.getdim(dh)
 
     #Ouput to vtk_grid
@@ -184,7 +188,7 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; o
         @timeit "nodedata" for nodeoutput in output.vtkoutput.nodeoutputs
             data = get_vtk_nodedata(part, nodeoutput, state, globaldata)
             if data !== nothing
-                name = string(typeof(nodeoutput.type)) #string(celloutput.name)
+                name = outputname(nodeoutput)
                 vtk_point_data(vtkfile, data, name)
             end
         end
@@ -192,7 +196,7 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; o
         @timeit "celldata" for celloutput in output.vtkoutput.celloutputs
             data = get_vtk_celldata(part, celloutput, state, globaldata)
             if data !== nothing
-                name = string(typeof(celloutput.type))
+                name = outputname(celloutput)
                 vtk_cell_data(vtkfile, data, name)
             end
         end

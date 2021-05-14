@@ -57,6 +57,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     ntries = 0
     Δg = 0.0
 
+    state.Δt = 10.0
     while converged_failed 
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
         
@@ -71,9 +72,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             #
             update!(globaldata.dbc, state.λ) 
             apply!(state.d, globaldata.dbc)
-
-            update!(globaldata.dbc, state.Δλ) 
-            apply!(state.Δd, globaldata.dbc)
+            state.Δd = state.d - state0.d
 
 
             @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
