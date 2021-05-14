@@ -1,6 +1,6 @@
 export MatEGP
 
-const PATH_TO_FORTRAN_SO = "/home/elias/Documents/julia_code/Five.jl/src/materials/callFromJ"
+const PATH_TO_FORTRAN_SO = joinpath(@__DIR__,"callFromJ")
 const EO = [1 4 6; 7 2 5; 9 8 3] #Julia to EGP voigt order
 
 """
@@ -87,8 +87,22 @@ function constitutive_driver(mp::MatEGP, F::Tensor{2,3}, state::MatEGPState, dt:
 
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
     dσdε = fromvoigt(SymmetricTensor{4,3}, _dσdε, order = EO) 
-
     return σ, dσdε, MatEGPState(σ, F, H)
+end
+
+
+function constitutive_driver(m::Material2D{MatEGP}, F::Tensor{2,2,T}, state::AbstractMaterialState, dt::Float64) where T
+    @assert(m.plane_state == PLANE_STRAIN)
+
+    #Convert to 3d
+    F₃ = Tensor{2,3,T,9}((F[1,1], zero(T), F[1,2], zero(T), one(T), zero(T), F[2,1], zero(T), F[2,2]))
+    σ₃, dσdε₃, newstate₃ = constitutive_driver(m.material, F₃, state, dt)
+
+    #Convert back to 3d
+    σ = SymmetricTensor{2,2,T,3}((σ₃[1,1],σ₃[1,3],σ₃[3,3]))
+    dσdε = SymmetricTensor{4,2,T,9}((dσdε₃[1,1,1,1], dσdε₃[3,1,1,1], dσdε₃[3,3,1,1], dσdε₃[1,1,3,1], dσdε₃[3,1,3,1], dσdε₃[3,3,3,1], dσdε₃[1,1,3,3], dσdε₃[3,1,3,3], dσdε₃[3,3,3,3]))
+
+    return σ, dσdε, newstate₃
 end
 
 # # # # # # #

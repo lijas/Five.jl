@@ -38,20 +38,9 @@ getmaterialstate
 """
 is_dissipative(::AbstractMaterial) = false
 
-include("matelastic.jl")
-include("mattransvlinearelastic.jl")
-#include("matyeoh.jl")
-include("mathyper.jl")
-include("matplast_largedef.jl")
-include("mategp.jl")
-
-
-include("cohesive/cohesive.jl")
-include("cohesive/matczbilinear.jl")
-include("cohesive/matczbilinear_singlemode.jl")
-include("cohesive/matczexponential.jl")
-#include("cohesive/mat_temp.jl")
-#include("cohesive/matczbilinear2.jl")
+function constitutive_driver(m::AbstractMaterial, ε::AbstractTensor, prev_state::AbstractMaterialState, Δt::T) where T
+    constitutive_driver(m, ε, prev_state)
+end
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # MatElasticSpring - Massless spring 
@@ -197,3 +186,20 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
 end
 
 get_material_state_type(m::Material2D) = get_material_state_type(m.material)
+
+
+
+include("matelastic.jl")
+include("mattransvlinearelastic.jl")
+#include("matyeoh.jl")
+include("mathyper.jl")
+include("matplast_largedef.jl")
+include("mategp.jl")
+
+
+include("cohesive/cohesive.jl")
+include("cohesive/matczbilinear.jl")
+include("cohesive/matczbilinear_singlemode.jl")
+include("cohesive/matczexponential.jl")
+#include("cohesive/mat_temp.jl")
+#include("cohesive/matczbilinear2.jl")

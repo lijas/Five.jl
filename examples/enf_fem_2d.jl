@@ -178,6 +178,23 @@ data.output[] = Output(
     savepath = "."
 )
 
+
+vtkoutput = VTKCellOutput(
+    type = MaterialStateOutput(
+        field = :d
+    ),
+    func = (x)-> mean(Vec.(x)),
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
+vtkoutput = VTKCellOutput(
+    type = MaterialStateOutput(
+        field = :d
+    ),
+    func = (x)-> mean(Vec.(x)),
+)
+#Five.push_vtkoutput!(data.output[], vtkoutput)
+
 #
 output = OutputData(
     type = DofValueOutput(
@@ -191,7 +208,7 @@ data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
-solver = DissipationSolver(
+solver = LocalDissipationSolver(
     Δλ0          = 5.0,
     Δλ_max       = 10.0,
     Δλ_min       = 1e-7,

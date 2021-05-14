@@ -75,7 +75,8 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
         
         J = function_value(cv, qp, ue)
         Ĵ = R'⋅J
-        
+#@show Ĵ
+
         #constitutive_driver
         t̂, ∂t∂Ĵ, new_matstate = constitutive_driver(material, Ĵ, materialstate[qp])
         materialstate[qp] = new_matstate

@@ -187,10 +187,15 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
         #@show ndofs_per_cell(dh,cellid)
         Ferrite.cellcoords!(coords, dh, cellid)
         Ferrite.celldofs!(celldofs, dh, cellid)
-
+        
         Δue .= state.Δd[celldofs]
         ue .= state.d[celldofs]
         due .= state.v[celldofs]
+        if cellid == 1 || cellid == 2
+            #x = coords + reinterpret(Vec{2,T}, ue[1:8])#assemtype, getproperty.(materialstate, :Δ_max)
+            #@show cellid
+            #@show first(materialstate).d, first(materialstate).d_c 
+        end
         
         if assemtype == STIFFMAT
             integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, ke, fe, coords, Δue, ue, due, Δt)
@@ -278,7 +283,7 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}
     return node_coords
 end
 
-function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T
+function get_vtk_celldata(part::Part{dim,T}, output::VTKCellOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where {dim,T}
 
     _cellid = first(part.cellset)
     first_state = first(state.partstates[_cellid].materialstates)
