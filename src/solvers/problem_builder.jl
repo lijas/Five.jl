@@ -34,20 +34,42 @@ function build_problem(data::ProblemData)
 end
 
 function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
-    partstates = AbstractPartState[]
     
-    dh = MixedDofHandler(data.grid)
-    for part in data.parts
-        #Add fields to dofhandler
-        fields = get_fields(part)
-        cells = get_cellset(part)
-        push!(dh, FieldHandler(fields, Set(cells)))
+    _check_input(data)
 
-        #partstates
-        states = construct_partstates(part)
-        append!(partstates, states)
+    # Create FieldHandlers/cellsets with parts that have the same element-type and fields 
+    # This makes it easier to constraints that span multiple parts
+    dict = Dict{Pair{Type{<:Ferrite.AbstractCell},Vector{Field}}, Vector{Int}}()
+    for part in data.parts
+        celltype = Ferrite.getcelltype(data.grid, first(part.cellset))
+        fields = get_fields(part)
+
+        #Check if this combination of celltype and fields have already been added
+        combo = Pair(celltype, fields)
+        if !haskey(dict, combo)
+            #Add new cellset
+            dict[combo] = copy(part.cellset)
+        else
+            #Combine the cellset
+            union!(dict[combo], part.cellset)
+        end
     end
+
+    #
+    dh = MixedDofHandler(data.grid)
+    for (combo, cells) in dict
+        fields = last(combo)
+        push!(dh, FieldHandler(fields, Set(cells)))
+    end 
     close!(dh)
+    
+    #
+    partstates = Vector{AbstractPartState}(undef, getncells(data.grid))
+    for part in data.parts
+        states = construct_partstates(part)
+        partstates[part.cellset] = states
+        #append!(partstates, states)
+    end
 
     for cellid in keys(data.materialstates)
         partstates[cellid].materialstates .= data.materialstates[cellid]
@@ -110,4 +132,22 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
 
     return state, globaldata
+end
+
+function _check_input(data::ProblemData{dim,T}) where {dim,T}
+
+    all_cellsets = Int[]
+    for part in data.parts
+        for cellid in part.cellset
+            if cellid in all_cellsets
+                error("$cellid is in two sets")
+            end
+        end
+        append!(all_cellsets, part.cellset)
+
+        !issorted(part.cellset) && error("The cellset for the parts must be sorted.")
+    end
+
+    length(all_cellsets) < getncells(data.grid) && error("Not all cells are included in a part.")
+
 end
