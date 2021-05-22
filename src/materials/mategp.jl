@@ -36,6 +36,7 @@ struct MatEGPState <: AbstractMaterialState
     σ::SymmetricTensor{2,3,Float64,6}
     F::Tensor{2,3,Float64,9}
     H::Vector{Float64}
+    εᵖ::Float64
 end
 
 # # # # # # #
@@ -63,7 +64,7 @@ function getmaterialstate(material::MatEGP)
 
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
 
-    return MatEGPState(σ, one(Tensor{2,3}), history)
+    return MatEGPState(σ, one(Tensor{2,3}), history, history[15*iprops[6]+2])
 end
 
 get_material_state_type(::MatEGP) = MatEGPState
@@ -82,12 +83,14 @@ function constitutive_driver(mp::MatEGP, F::Tensor{2,3}, state::MatEGPState, dt:
     #Set time step
     dprops =  getdprops(mp)
     dprops[1] = dt
+
+    iprops = getiprops(mp)
     
-    _CONST_DRIVER_!(_σ, _dσdε, Matrix(state.F), Matrix(F), H, dprops, getiprops(mp))
+    _CONST_DRIVER_!(_σ, _dσdε, Matrix(state.F), Matrix(F), H, dprops, iprops)
 
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
     dσdε = fromvoigt(SymmetricTensor{4,3}, _dσdε, order = EO) 
-    return σ, dσdε, MatEGPState(σ, F, H)
+    return σ, dσdε, MatEGPState(σ, F, H, H[15*iprops[6]+2])
 end
 
 
