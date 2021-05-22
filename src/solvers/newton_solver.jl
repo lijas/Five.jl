@@ -63,7 +63,13 @@ function step!(solver::NewtonSolver, state, globaldata)
 
             #Solve 
             apply_zero!(K, r, globaldata.dbc)
-            ΔΔd = K\-r
+            local ΔΔd
+            try 
+                ΔΔd = K\-r
+            catch 
+                conv_failed = true
+                break
+            end
 
             state.Δd .+= ΔΔd
             state.d  .+= ΔΔd
