@@ -59,7 +59,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
     
     ndofs = Ferrite.ndofs(element)
 
-    xe = cell + reinterpret(Vec{dim_s,T}, ue)#[1:length(cell)*dim_s])
+    xe = cell + reinterpret(Vec{dim_s,T}, ue[1:length(cell)*dim_s])
 
     reinit!(cv, xe)
 
@@ -162,7 +162,7 @@ function integrate_dissipation!(element::CohesiveElement{dim_s,CV},
     
     cv = element.cv
     ndofs = Ferrite.ndofs(element)
-    xe = coords + reinterpret(Vec{dim_s,T}, ue)
+    xe = coords + reinterpret(Vec{dim_s,T}, ue[1:length(coords)*dim_s])
 
     reinit!(cv, xe)
 
