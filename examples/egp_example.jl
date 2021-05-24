@@ -1,17 +1,44 @@
 using Five
 
-tmax = 1000.0
-tsim = 700.0
+tmax = 100.0
+tsim = 100.0
 data = ProblemData(
     dim = 3,
     tend = tsim
 )
 
-data.grid = generate_grid(Hexahedron, (1,1,1), Vec((0.0, 0.0, 0.0)), Vec((1.0, 1.0, 1.0)))
+data.grid = generate_grid(Hexahedron, (10,10,10), Vec((0.0, 0.0, 0.0)), Vec((1.0, 1.0, 1.0)))
 
 addvertexset!(data.grid, "leftvert", (x) -> x[1] == 0.0 && x[2] == 0.0 && x[3] == 0.0)
 
-material = MatEGP()
+material = 
+MatEGP(
+    E = 1.0e6,
+    ν = 0.25,
+    
+    ACTION = 1,
+    NOP = 1,
+    NAM = 1,
+    NBM = 0,
+    NGM = 0,
+    NGENS = 6,
+    PRESMET = 1,
+    HARDMET = 1,
+    VISCHARD = 0,
+    STIFFNESS = 0,
+    VISCDEF = 0,
+
+    STANDPROP = [NaN, 273, 273, 26.0, 0.0E0, 0.0E0, 3750, 1.0e-10],
+
+    PROPS_PROC1_STD = [2.89e5, 0.0, 0.0 , 0.0 , 26.5, 0.964, 50.0, -5.0, 0.7, 0.08],
+    PROPS_PROC1_G = [321.0],
+    PROPS_PROC1_GH0R = [2.1e11]
+) 
+
+material = MatLinearElastic(
+    E = 1e4,
+    nu = 0.35
+) 
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
@@ -48,8 +75,8 @@ push!(data.dirichlet, con1)
 part = Part{3,Float64}(
     element = SolidElement{3,1,RefCube,Float64}(
         celltype = Ferrite.Hexahedron,
-        qr_order = 3,
-        total_lagrangian = false
+        qr_order = 2,
+        total_lagrangian = true
     ),
     material = material,
     cellset = collect(1:getncells(data.grid))
@@ -58,9 +85,25 @@ push!(data.parts, part)
 
 data.output[] = Output(
     interval = tmax/10,
-    runname = "egptest",
+    runname = "zegptest",
     savepath = "."
 )
+
+vtkoutput = VTKCellOutput(
+    type = MaterialStateOutput(
+        field = :εᵖ
+    ),
+    func = (x)-> mean(x),
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
+vtkoutput = VTKCellOutput(
+    type = MaterialStateOutput(
+        field = :σ
+    ),
+    func = (x)-> mean(x),
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
 
 output = OutputData(
     type = DofValueOutput(
@@ -77,8 +120,8 @@ solver = NewtonSolver(
     Δt_min = 0.01,
     Δt_max = 10.0,
     tol = 1e-4,
-    maxitr = 13,
-    optitr = 8
+    maxitr = 20,
+    optitr = 15
 )
 
 state, data = build_problem(data)

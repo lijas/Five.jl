@@ -266,9 +266,13 @@ function integrate_forcevector_and_stiffnessmatrix_ul!(element::SolidElement{dim
         F = one(∇u) + ∇u
         
         ε = symmetric(∇u)
-        @assert(material.material isa MatEGP)
+        @assert(material isa MatEGP || material.material isa MatEGP )
         σ, c, new_matstate = constitutive_driver(material, F, materialstate[qp], Δt)
         materialstate[qp] = new_matstate
+
+        if any(isnan.(c))
+            @show "isnan"
+        end
 
         # Hoist computations of δE
         for i in 1:ndofs

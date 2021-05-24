@@ -203,7 +203,11 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
         end
     elseif solvermode == INCREMENT_LOCAL
         apply_zero!(Kₜ, rₜ, dbc)
-        ΔΔd  = Kₜ\rₜ
+        try
+            ΔΔd  = Kₜ\rₜ
+        catch
+            return copy( fᴬ), 0.0, false
+        end
         ΔΔλ = 0.0
     else
         error("No mode")
