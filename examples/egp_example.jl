@@ -1,13 +1,13 @@
 using Five
 
-tmax = 100.0
-tsim = 100.0
+tmax = 1000.0
+tsim = 1000.0
 data = ProblemData(
     dim = 3,
     tend = tsim
 )
 
-data.grid = generate_grid(Hexahedron, (10,10,10), Vec((0.0, 0.0, 0.0)), Vec((1.0, 1.0, 1.0)))
+data.grid = generate_grid(Hexahedron, (3,3,3), Vec((0.0, 0.0, 0.0)), Vec((1.0, 1.0, 1.0)))
 
 addvertexset!(data.grid, "leftvert", (x) -> x[1] == 0.0 && x[2] == 0.0 && x[3] == 0.0)
 
@@ -35,10 +35,10 @@ MatEGP(
     PROPS_PROC1_GH0R = [2.1e11]
 ) 
 
-material = MatLinearElastic(
+#=material = MatLinearElastic(
     E = 1e4,
     nu = 0.35
-) 
+) =#
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
@@ -66,7 +66,7 @@ end
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "right"),
-    func = (x,t) -> (loadf(t), ),
+    func = (x,t) -> t*0.001,# (loadf(t), ),
     field = :u,
     dofs = [1]
 )
@@ -76,7 +76,7 @@ part = Part{3,Float64}(
     element = SolidElement{3,1,RefCube,Float64}(
         celltype = Ferrite.Hexahedron,
         qr_order = 2,
-        total_lagrangian = true
+        total_lagrangian = false
     ),
     material = material,
     cellset = collect(1:getncells(data.grid))

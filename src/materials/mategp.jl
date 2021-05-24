@@ -88,6 +88,16 @@ function constitutive_driver(mp::MatEGP, F::Tensor{2,3}, state::MatEGPState, dt:
     
     _CONST_DRIVER_!(_σ, _dσdε, Matrix(state.F), Matrix(F), H, dprops, iprops)
 
+    if !isnan(H[15*iprops[6]+2])
+        if !(H[15*iprops[6]+2] ≥ -1e-3) 
+            #@showm Matrix(state.F)
+            #@showm Matrix(F)
+            #@showm fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
+            #@show state.H
+            #error("sdf $(H[15*iprops[6]+2])")
+        end
+    end
+
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
     dσdε = fromvoigt(SymmetricTensor{4,3}, _dσdε, order = EO) 
     return σ, dσdε, MatEGPState(σ, F, H, H[15*iprops[6]+2])
