@@ -9,6 +9,7 @@ using TimerOutputs
 using StaticArrays
 
 using LinearAlgebra
+import Arpack
 using SparseArrays
 using Statistics: mean
 import Base: isdone

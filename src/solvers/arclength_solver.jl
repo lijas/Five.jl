@@ -164,7 +164,7 @@ function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, glob
         detK = detK0 = det(Kₜ)
     else
         if ntries == 0 
-            ΔL *= (0.5^(0.25*(prev_newton_itr-solver.optitr)))
+            ΔL *= (0.5^(0.1*(prev_newton_itr-solver.optitr)))
         else
             ΔL /= 2
         end

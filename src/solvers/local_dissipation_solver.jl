@@ -52,7 +52,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     converged_failed = true
     ntries = 0
     Δg = 0.0
-
+    local Kₜ
     while converged_failed 
         ΔP = set_initial_guess!(solver, state, ΔP, ΔP0, ntries)
         
@@ -131,6 +131,17 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     state.t += Δg
 
     determine_solvermode!(solver, state)
+
+    F = LinearAlgebra.ldlt(Symmetric(Kₜ))
+    D = Diagonal(sparse(F.LD))
+    @show prod(D.diag)
+    @show norm(D.diag)
+    @show minimum(abs.(D.diag))
+    @show minimum(abs.(D.diag./norm(D.diag)))
+    @show prod(D.diag./norm(D.diag))
+    state.detK = prod(D.diag./norm(D.diag))
+    @show state.detK
+    #@show norm(F.D)
 
     return true
 end

@@ -4,6 +4,7 @@ authors = ["lijas <elias.borjesson@hotmail.com>"]
 version = "0.1.0"
 
 [deps]
+Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
 Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
