@@ -199,7 +199,7 @@ function set_initial_guess!(solver::DissipationSolver, state::StateVariables, Δ
         #For the first try, increase/decrease the step 
         # based on the number of newton_iteration in the previeus 
         # converged solution
-        ΔP *= (0.5^(0.1*(state.newton_itr-solver.optitr)))
+        ΔP *= (0.5^(0.25*(state.newton_itr-solver.optitr)))
     else
         #If the previous newton loop failed (ie ntries != 0),
         # half the step size
