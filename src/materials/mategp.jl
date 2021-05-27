@@ -1,6 +1,6 @@
 export MatEGP
 
-const PATH_TO_FORTRAN_SO = joinpath(@__DIR__,"callFromJ")
+const PATH_TO_FORTRAN_SO = joinpath(@__DIR__,"egpmain")
 const EO = [1 4 6; 7 2 5; 9 8 3] #Julia to EGP voigt order
 
 """
@@ -45,8 +45,7 @@ end
 
 function getmaterialstate(material::MatEGP)
     
-	iprops = getiprops(material)
-	dprops = getdprops(material)
+	dprops, iprops = getprops(material)
 
 	ngens = iprops[8]
 	nstats = iprops[7]
@@ -59,7 +58,8 @@ function getmaterialstate(material::MatEGP)
 
     F0 = Matrix{Float64}(I, 3, 3)
 	F1 = Matrix{Float64}(I, 3, 3)
-
+    dprops[1] = 0.0
+    
     _INIT_HISTORY_!(_σ,_dσdε, F0, F1, history, dprops, iprops)
 
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
@@ -76,31 +76,24 @@ get_material_state_type(::MatEGP) = MatEGPState
 
 function constitutive_driver(mp::MatEGP, F::Tensor{2,3}, state::MatEGPState, dt::Float64)
     ngens = mp.NGENS
-    _σ = zeros(Float64, ngens)
+    _σ = tovoigt(state.σ, order = EO)
     _dσdε = zeros(Float64, ngens, ngens)
     H = copy(state.H)
 
     #Set time step
-    dprops =  getdprops(mp)
+    dprops, iprops = getprops(mp)
     dprops[1] = dt
 
-    iprops = getiprops(mp)
-    
     _CONST_DRIVER_!(_σ, _dσdε, Matrix(state.F), Matrix(F), H, dprops, iprops)
-
-    if !isnan(H[15*iprops[6]+2])
-        if !(H[15*iprops[6]+2] ≥ -1e-3) 
-            #@showm Matrix(state.F)
-            #@showm Matrix(F)
-            #@showm fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
-            #@show state.H
-            #error("sdf $(H[15*iprops[6]+2])")
-        end
-    end
 
     σ = fromvoigt(SymmetricTensor{2,3}, _σ, order = EO)
     dσdε = fromvoigt(SymmetricTensor{4,3}, _dσdε, order = EO) 
     return σ, dσdε, MatEGPState(σ, F, H, H[15*iprops[6]+2])
+
+    #J = det(F)
+    #c = inv(J)*(otimesu(F,F) ⊡ dσdε ⊡ otimesu(F',F'))
+    #S = J * inv(F) ⋅ σ ⋅ inv(F')
+    #return S, c, MatEGPState(σ, F, H, H[15*iprops[6]+2])
 end
 
 
@@ -122,7 +115,7 @@ end
 # UTILS
 # # # # # # #
 
-function getiprops(props::MatEGP)
+function getprops(props::MatEGP)
 	modelength_std = 10
     alphastart = 9
 
@@ -142,26 +135,69 @@ function getiprops(props::MatEGP)
     iprops[12] = props.VISCHARD
     iprops[13] = props.STIFFNESS
     iprops[14] = props.VISCDEF
-	return iprops
-end
+    
+    #dprops = zeros(Float64, iprops[9])
+    dprops = [1.00000000e+01,2.73000000e+02,2.73000000e+02,2.60000000e+01,0.00000000e+00,0.00000000e+00,3.75000000e+03,1.00000000e-10,2.89000000e+05,0.00000000e+00,0.00000000e+00,0.00000000e+00,2.65000000e+01,9.65000000e-01,5.00000000e+01,-5.00000000e+00,5.38452923e-27,8.00000000e-02,3.21000000e+02,9.94474705e-45]
+    #=dprops[1:8] .= props.STANDPROP
 
-function getdprops(props::MatEGP)
-	dprops = Float64[]
-	append!(dprops, props.STANDPROP, props.PROPS_PROC1_STD, props.PROPS_PROC1_G, props.PROPS_PROC1_GH0R)
+    start = zeros(Int, iprops[2])
+    modes = zeros(Int, iprops[2])
+    if iprops[2]==1
+        start[1] = alphastart
+        modes[1] = iprops[3]
+    elseif iprops[2]==2
+        start[1] = alphastart
+        start[2] = alphastart+10+2+1*self.iprops[3]
+        modes[1] = self.iprops[3]
+        modes[2] = self.iprops[4]
+    elseif iprops[2]==3
+        start[1] = alphastart
+        start[2] = alphastart+2*10+2+1*self.iprops[3]+2+1*self.iprops[4]
+        start[3] = alphastart+2*10+2+1*self.iprops[3]+2+1*self.iprops[4]
+        modes[1] = iprops[3]
+        modes[2] = iprops[4]
+        modes[3] = iprops[5]
+    else
+        error("NOP IS WRONGLY DEFINED")
+    end
+      
+    kB = 1.38064852e-23
+    @show kB
+    R = 8.31e0
+
+    @show props.PROPS_PROC1_STD
+    k = 0
+    for i in 1:iprops[1]
+        @show start[i]
+        dprops[start[i]:start[i]+modelength_std-1] = props.PROPS_PROC1_STD
+        dprops[start[i]+modelength_std:start[i]+modelength_std+modes[i]-1] = props.PROPS_PROC1_G
+        dprops[start[i]+modelength_std+modes[i]:start[i]+modelength_std+2*modes[i]-1] = props.PROPS_PROC1_GH0R
+        
+        if dprops[start[i]+9] > 1.0e-20
+            dprops[start[i]+9] = kB * dprops[2]/dprops[start[i]+9] / 1.0e6
+        end
+            
+        for l in 1:modes[i]
+            @show start[i]+10+modes[i]+l
+            self.dprops[start[i]+10+modes[i]+l] = dprops[start[i]+10+modes[i]+l] * exp(-1.0*dprops[start[i]]/R/dprops[2])
+        end
+    end=#
+
+    return dprops, iprops
 end
 
 function _INIT_HISTORY_!(σ::Vector{Float64}, dσdε::Matrix{Float64}, F0::Matrix{Float64}, F1::Matrix{Float64}, history::Vector{Float64}, dprops::Vector{Float64}, iprops::Vector{Int32})
     iprops[1] = 6
 	err = ccall((:egpgen_, PATH_TO_FORTRAN_SO), 
 	Cvoid,
-	(Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Int32}), 
-	σ, dσdε, F0, F1, history, dprops, iprops)
+	(Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Int32}, Ref{Int32}, Ref{Int32}, Ref{Int32}), 
+    σ, dσdε, F0, F1, history, dprops, iprops, 6|>Int32, length(history) |>Int32 , length(dprops) |> Int32)
 end
 
 function _CONST_DRIVER_!(σ::Vector{Float64}, dσdε::Matrix{Float64}, F0::Matrix{Float64}, F1::Matrix{Float64}, history::Vector{Float64}, dprops::Vector{Float64}, iprops::Vector{Int32})
     iprops[1] = 1
 	err = ccall((:egpgen_, PATH_TO_FORTRAN_SO), 
 	Cvoid,
-	(Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Int32}), 
-	σ, dσdε, F0, F1, history, dprops, iprops)
+	(Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Int32}, Ref{Int32}, Ref{Int32}, Ref{Int32}), 
+	σ, dσdε, F0, F1, history, dprops, iprops, 6|>Int32, length(history) |>Int32 , length(dprops) |> Int32)
 end
