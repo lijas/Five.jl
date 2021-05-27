@@ -244,35 +244,35 @@ function integrate_forcevector_and_stiffnessmatrix_ul!(element::SolidElement{dim
     materialstate::AbstractVector{<:AbstractMaterialState},
     ke::AbstractMatrix, 
     fe::Vector, 
-    cell, 
+    Xs, 
     Δue::Vector,
     ue::Vector,
     due::Vector,
     Δt::T) where {dim, order, shape, T}
 
     cv = element.cv
-    unodes = reinterpret(Vec{dim,T}, ue[1:(Ferrite.getngeobasefunctions(cv)*dim)])
+    us = reinterpret(Vec{dim,T}, ue[1:(Ferrite.getngeobasefunctions(cv)*dim)])
 
-    reinit!(cv, cell+unodes)
+    Xe = reinterpret(T, Xs)
+    xs = Xs + us
+    xe = reinterpret(T, xs)
+
+    reinit!(cv, xs)
     ndofs = Ferrite.ndofs(element)
 
     δd = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
 
     for qp in 1:getnquadpoints(cv)
-        ∇u = function_gradient(cv, qp, ue)
         dΩ = getdetJdV(cv, qp) * element.thickness
 
-        # strain and stress + tangent
-        F = one(∇u) + ∇u
-        
+        ∇X = function_gradient(cv, qp, Xe)
+        ∇u = function_gradient(cv, qp, ue)
+        F = inv(∇X)
+
         ε = symmetric(∇u)
         @assert(material isa MatEGP || material.material isa MatEGP )
         σ, c, new_matstate = constitutive_driver(material, F, materialstate[qp], Δt)
         materialstate[qp] = new_matstate
-
-        if any(isnan.(c))
-            @show "isnan"
-        end
 
         # Hoist computations of δE
         for i in 1:ndofs
