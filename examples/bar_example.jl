@@ -119,20 +119,51 @@ push!(data.external_forces, force)
     tol = 1e-4
 )=#
 
+output = OutputData(
+    type = EigenOutput(),
+    interval = 0.0,
+    set      = Set()
+)
+data.outputdata["eigen"] = output
+
 solver = ArcLengthSolver(
+    Δλ0 = 1.0,
     λ_max = 40.0,
     λ_min = -40.0,
-    ΔL0 = 1.0,
-    ΔL_max = 20.0,
-    tol = 1e-3,
-    maxsteps = 300,
+    ΔL_min = 0.01,
+    ΔL_max = 5.0,
+    tol = 1e-4,
+    maxsteps = 60,
     optitr = 5
 )
 
-state, data = build_problem(data)
+state, globaldata = build_problem(data)
 
-result = solvethis(solver, state, data)
+output = solvethis(solver, state, globaldata)
 
-u = getproperty.(result.outputdata["reactionforce"].data, :displacement)
-f = getproperty.(result.outputdata["reactionforce"].data, :fint)
-#plot(u,f, mark=:o)
+u = getproperty.(output.outputdata["reactionforce"].data, :displacement)
+f = getproperty.(output.outputdata["reactionforce"].data, :fint)
+plot(u,f, mark=:o)
+
+
+
+for imode in 1:7
+    d = output.outputdata["eigen"].data[end].d
+    vec = output.outputdata["eigen"].data[end].evec[:,imode]
+
+    state.d .= vec*1.0
+    Five._vtk_add_state!(output, state, globaldata, outputname = "eigenval$imode");
+end
+
+#=
+for imode in 1:6
+    vals = []
+    for step in 1:length(output.outputdata["eigen"].data)
+        push!(vals, output.outputdata["eigen"].data[step].eval[imode])
+    end
+
+    fig = plot(vals./norm(vals), mark = :o)
+    plot!(fig, f./norm(f))
+    display(fig)
+end
+=#

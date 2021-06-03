@@ -344,14 +344,6 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     return vtk_node_data
 end
 
-function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
-    return nothing, nothing
-end
-
-function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
-    return nothing, nothing
-end
-
 
 #=function init!(part::Part{<:SolidElement}, dh::DofHandler{dim,T}) where {dim,T}
     

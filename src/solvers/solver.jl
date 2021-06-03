@@ -64,6 +64,8 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
             ⁿstate = deepcopy(state)
             prev_state = deepcopy(state)
 
+            dumpstate(output, state)
+
             #Checkinput
             @timeit "Handle IO" handle_input_interaction(output)
             if get_simulation_termination(output) == ABORTED_SIMULATION

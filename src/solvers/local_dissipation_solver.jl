@@ -131,17 +131,13 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     state.t += Δg
 
     determine_solvermode!(solver, state)
-
-    F = LinearAlgebra.ldlt(Symmetric(Kₜ))
-    D = Diagonal(sparse(F.LD))
-    @show prod(D.diag)
-    @show norm(D.diag)
-    @show minimum(abs.(D.diag))
-    @show minimum(abs.(D.diag./norm(D.diag)))
-    @show prod(D.diag./norm(D.diag))
-    state.detK = prod(D.diag./norm(D.diag))
-    @show state.detK
-    #@show norm(F.D)
+    
+    #=vals, vecs = Arpack.eigs(Kₜ, nev=10, which = :SM)
+    state.eigs .= real.(vals)#det(Kₜ)
+    
+    if any(sign.(state.eigs) != sign.(state0.eigs))
+        println("Sighchanged")
+    end=#
 
     return true
 end
