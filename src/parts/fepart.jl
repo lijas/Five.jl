@@ -289,11 +289,11 @@ function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOut
     StateType = typeof(first_state)
     npartcells = length(part.cellset)
     ncomp = length(getproperty(first_state, output.type.field))
-    data = Matrix{T}(undef, npartcells, ncomp)
+    data = Matrix{T}(undef, ncomp, npartcells)
     
     for (ic, cellid) in enumerate(part.cellset)
         matstates = state.partstates[cellid].materialstates
-        data[ic, :] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
+        data[:, ic] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
     end
 
     return data
@@ -342,14 +342,6 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
         end
     end
     return vtk_node_data
-end
-
-function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
-    return nothing, nothing
-end
-
-function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
-    return nothing, nothing
 end
 
 

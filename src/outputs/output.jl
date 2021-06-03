@@ -221,6 +221,14 @@ function outputs!(output::Output{T}, state::StateVariables, globaldata; force = 
 
 end
 
+function dumpstate(output::Output{T}, state::StateVariables) where {T}
+
+    if state.step == 24
+        filename = output.runname * string("_statedump.jld2")
+        save(joinpath(output.savepath, filename), Dict("state"=>state))
+    end
+
+end
 
 function handle_input_interaction(output)
     #Checkinput

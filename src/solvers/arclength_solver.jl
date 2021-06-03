@@ -92,6 +92,8 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
 
             δλ = θ₁ > θ₂ ? δλ1 : δλ2
 
+            path_eq = dot(state.Δd,state.Δd) - ΔL^2
+
             #Update d
             δd = δū + δλ*δuₜ
             state.Δd += δd
@@ -105,12 +107,14 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
             else
                 state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
-            println("------>Normg: $(state.norm_residual), Δλ = $(state.Δλ)")
+            println("------>Normg: $(state.norm_residual), Δλ = $(state.Δλ), ϕ = $(path_eq)")
             
             #Check convergence
             if state.norm_residual < solver.tol
-                converged = true
-                break
+                if path_eq < solver.tol
+                    converged = true
+                    break
+                end
             end
 
             maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
