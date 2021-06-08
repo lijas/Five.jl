@@ -143,7 +143,9 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
 
     ε = SymmetricTensor{2,3,T,6}((ε_2d[1,1], T(0.0), ε_2d[1,2], T(0.0), T(0.0), ε_2d[2,2]))
 
-    local σ, C, state
+    local σ::SymmetricTensor{2,3,Float64,6}
+    local C::SymmetricTensor{4,3,Float64,36}
+    local state
     if m.plane_state == PLANE_STRESS
         #Newton variables
         NEWTON_TOL = 1e-8
@@ -153,12 +155,13 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
         index = [2,4,6]
         εⱽ = tovoigt(ε)
         _error = NEWTON_TOL + 1.0
-        local σⱽ, Cⱽ
+        σⱽ = zeros(Float64, 6)
+        Cⱽ = zeros(Float64, 6, 6)
         while _error > NEWTON_TOL; 
             newton_counter +=1
-            _σⱽ, _Cⱽ, state = constitutive_driver(m.material, ε, prev_state)
-            σⱽ = tovoigt(_σⱽ)
-            Cⱽ = tovoigt(_Cⱽ)
+            _σⱽ::SymmetricTensor{2,3,Float64,6}, _Cⱽ::SymmetricTensor{4,3,Float64,36}, state = constitutive_driver(m.material, ε, prev_state)
+            tovoigt!(σⱽ, _σⱽ)
+            tovoigt!(Cⱽ, _Cⱽ)
 
             Δεⱽ = -Cⱽ[index, index]\σⱽ[index]
             εⱽ[index] += Δεⱽ
