@@ -142,5 +142,6 @@ d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(o
 f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
 
 using Plots; plotly()
-fig = plot(abs.(d),abs.(f),mark=:o, xlim = [0.0, 1.0], ylim = [0.0,100.0], label="julia")
-plot!(fig, abs.(res[:,1]), abs.(res[:,2]), label = "pyfem")
+fig = plot(abs.(d),abs.(f), mark=:o, xlim = [0.0, 1.0], ylim = [0.0,100.0], label="julia UpdateLag")
+plot!(fig, abs.(dtl),abs.(ftl) , mark=:cross, xlim = [0.0, 1.0], ylim = [0.0,100.0], label="julia TotalLag")
+plot!(fig, abs.(res[:,1]), abs.(res[:,2]) , mark=:square, label = "pyfem")
