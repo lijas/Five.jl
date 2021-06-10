@@ -496,3 +496,13 @@ function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
     return Grid(cells_new, nodes_new, cellset_new, nodeset_new, faceset_new, edgeset_new, vertexset_new, bm)
 
 end
+
+export disassemble!
+Base.@propagate_inbounds function disassemble!(ue::AbstractVector, u::AbstractVector, dofs::AbstractVector{Int})
+    Base.@boundscheck checkbounds(u, dofs)
+    # @inbounds for i in eachindex(ue, dofs) # Slow on Julia 1.6 (JuliaLang/julia#40267)
+        Base.@inbounds for i in eachindex(ue)
+        ue[i] = u[dofs[i]]
+    end
+    return ue
+end
