@@ -9,6 +9,8 @@ function MaterialStateOutput(; field::Symbol, func::Function = maximum)
     return MaterialStateOutput(field, func)
 end
 
+outputname(o::MaterialStateOutput) = string(o.field)
+
 function collect_output!(output::MaterialStateOutput, state::StateVariables, set::Set{<:Ferrite.BoundaryIndex}, globaldata)
 
     for cellid in set
