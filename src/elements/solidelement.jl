@@ -159,6 +159,21 @@ function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, e
     end
 end
 
+function get_rotation_matrix(cv::CellVectorValues{dim,T}, qp::Int, x::Vector{Vec{dim,T}}) where {dim,T}
+
+    E = zeros(Vec{dim,T},dim-1)
+    for j in 1:Ferrite.getngeobasefunctions(cv)
+        for d in 1:dim-1
+            E[d] += cv.dMdξ[j,qp][d] * x[j]
+        end
+    end
+    D = cross(E...) 
+    _R = hcat((E./norm.(E))..., D/norm(D))
+
+    return Tensor{2,dim,T}(_R)
+
+end
+
 function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
     elementstate::AbstractElementState, 
     material::AbstractMaterial, 
@@ -182,11 +197,16 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
         dΩ = getdetJdV(cv, qp) * element.thickness
 
         # strain and stress + tangent
+        R = get_rotation_matrix(cv, qp, cell)
         F = one(∇u) + ∇u
         E = symmetric(1/2 * (F' ⋅ F - one(F)))
-
-        S, ∂S∂E, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+        _E = symmetric(R' ⋅ E ⋅ R)
+        
+        _S, _∂S∂E, new_matstate = constitutive_driver(material, _E, materialstate[qp])
         materialstate[qp] = new_matstate
+
+        ∂S∂E = otimesu(R,R) ⊡ _∂S∂E ⊡ otimesu(R',R')
+        S = R⋅_S⋅R'
         #U = sqrt(C)
         #R = F⋅inv(U)
 
