@@ -209,7 +209,7 @@ function integrate_forcevector_and_stiffnessmatrix_tl!(element::SolidElement{dim
         F = one(∇u) + ∇u
         E = symmetric(1/2 * (F' ⋅ F - one(F)))
 
-        S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate[qp], Δt)
+        S, ∂S∂E, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
         materialstate[qp] = new_matstate
         #U = sqrt(C)
         #R = F⋅inv(U)
@@ -339,6 +339,12 @@ function solid_constitutive_driver(material::Material2D{T}, F, materialstate) wh
     C = tdot(F)
     S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
     return S, 2*∂S∂C, new_matstate
+end
+
+function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:AbstractMaterial
+    E = symmetric(1/2 * (F' ⋅ F - one(F)))
+    S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate)
+    return S, ∂S∂E, new_matstate
 end
 
 function solid_constitutive_driver(material::T, F, materialstate) where T <: HyperElasticMaterial
