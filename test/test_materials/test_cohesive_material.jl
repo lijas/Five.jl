@@ -57,7 +57,7 @@ end
     @test 1.0 ≈ state.damage[3]
 
 end=#
-
+#=
 @testset "cohesive material3" begin
     δₙ=0.00001
     G1 = 1.0
@@ -91,31 +91,41 @@ end=#
 
     
 
-end
-
+end=#
+using Five
 function testg()
     G1 = 2.0
     σₘₐₓ = 10.0
-    mat = MatCZKolluri(σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Φₙ = G1, Φₜ = G1, with_damage = true)
-    state = Five.getmaterialstate(mat, 1.0)
+    mat = MatCZBilinear2(K = 1e3, σₘₐₓ = σₘₐₓ, τₘₐₓ = σₘₐₓ, Gᴵ = G1, Gᴵᴵ = G1, η = 1.5)
+    
+    #=mat = 
+    MatCZBilinear(
+        K    = 1.0e3,
+        Gᴵ   = (2.0, 2.000, 2.0).*1,
+        τᴹᵃˣ = (10.0, 10.0, 10.0).*1,
+        η    = 1.5
+    )=#
+
+    state = Five.getmaterialstate(mat, 0.0)
 
     δvec = []
-    append!(δvec, range(0.0, stop=mat.δₙ*20, length=100))
-    #append!(δvec, range(mat.δₙ*3, stop=0.0, length=100))
-    #append!(δvec, range(0.0, stop=mat.δₙ*20, length=100))
+    append!(δvec, range(0.0, stop=mat.δᶠₜ /2, length=100))
+    append!(δvec, range(mat.δᶠₜ/2, stop=-mat.δᶠₜ/10, length=100))
+    append!(δvec, range(-mat.δᶠₜ/10, stop=mat.δᶠₜ, length=100))
     
     traction = Float64[]
     g = 0.0
     for δ in δvec
-        deltag, dg = Five.constitutive_driver_dissipation(mat, Vec((0.0, δ, 0.0)), state)
-        τ, dτ, state = Five.constitutive_driver(mat, Vec((0.0, δ, 0.0)), state)
+        #deltag, dg = Five.constitutive_driver_dissipation(mat, Vec((0.0, 0.0, δ)), state)
+        τ, dτ, state = Five.constitutive_driver(mat, Vec((0.0,0.0,δ)), state)
         #@show state
-        push!(traction, τ[2])
-        g += deltag
+        push!(traction, τ[3])
+        #g += deltag
     end
 
-    @show g
     return δvec, traction
 end
 
+d,f = testg()
 
+plot(d,f)
