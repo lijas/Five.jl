@@ -132,19 +132,53 @@ function constitutive_driver(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState)
     return T, dTdΔ, new_state
 end
 
+function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_state::MatCZKolluriState)
+
+    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
+    ΔD, dΔDdJ = constitutive_driver_dissipation(mp, J, prev_state)
+
+    return ΔD, Vec{2,Float64}((dΔDdJ[1], dΔDdJ[3]))
+end
+
 function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
 
     J_dual = Tensors._load(J, nothing)
-    _, _, _, _, _, _, _ΔD = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
+    _ΔD = _constitutive_driver_dissipation_fe(mp, J_dual, prev_state)
 
     ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
 
-    return  ΔD, dΔDdJ
+    return ΔD, dΔDdJ
 end
 
-function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_state::MatCZKolluriState)
-    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
-    _ΔD, _dΔDdJ::Vec{3,Float64} = constitutive_driver_dissipation(mp, J, prev_state)
+function _constitutive_driver_dissipation_fe(m::MatCZKolluri, Δ::Vec{3}, ms::MatCZKolluriState)
 
-    return _ΔD, Vec{2,Float64}((_dΔDdJ[1], _dΔDdJ[3]))
+    Δₜ_max = [max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])]
+    Δₙ_max = max(Δ[3], ms.Δ_max[3])
+
+    
+    (norm(Δₜ_max) == Inf) && return 0.0
+    (Δₙ_max == Inf) && return 0.0
+
+    Δₜ = [ms.Δ[1], ms.Δ[2]]
+    Δₙ = ms.Δ[3]
+
+    ΔΔₙ =  (Δₙ_max - ms.Δ_max[3])
+    ΔΔₜ =  (Δₜ_max - ms.Δ_max[1:2])
+
+    d_cn = ms.d_c[1]
+    d_ct = ms.d_c[2]
+    d_n = ms.d[1]
+    d_t = ms.d[2]
+
+    Δd_n = 1/m.δₙ * exp(-ms.Δ_max[3]/m.δₙ) * ΔΔₙ
+    Δd_cn  = ms.Δ_max[3]/m.δₙ^2 * exp(-ms.Δ_max[3]/m.δₙ) * ΔΔₙ
+    Δd_t  = 1/m.δₜ^2 * exp(-ms.Δ_max[1:2]'*ms.Δ_max[1:2]/(2m.δₜ^2)) * ms.Δ_max[1:2]' * ΔΔₜ
+    Δd_ct = Δd_t
+
+    ΔD = 0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_ct) * Δd_n + 
+         0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_n)  * Δd_ct + 
+         0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_t) * Δd_cn + 
+         0.5 * (m.Φₜ/m.δₜ^2) * dot(Δₜ,Δₜ) * (1 - d_cn)* Δd_t
+
+    return ΔD
 end
