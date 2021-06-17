@@ -193,6 +193,52 @@ function integrate_dissipation!(element::CohesiveElement{dim_s,CV},
 
 end
 
+function integrate_dissipation_fe!(element::CohesiveElement{dim_s,CV}, 
+    elementstate::AbstractElementState, 
+    material::AbstractMaterial, 
+    materialstate::AbstractArray{<:AbstractMaterialState}, 
+    fe::Vector{T}, 
+    ge::Base.RefValue{T},
+    coords, 
+    Δue::Vector,
+    ue::Vector,
+    due::Vector,
+    Δt::T) where {dim_s,CV,T}
+    
+    cv = element.cv
+    ndofs = Ferrite.ndofs(element)
+    xe = coords + reinterpret(Vec{dim_s,T}, ue)
+
+    reinit!(cv, xe)
+
+    for qp in 1:getnquadpoints(cv)
+        
+        #Rotation matrix
+        R = getR(cv,qp)
+
+        dΓ = getdetJdA(cv, qp) * element.thickness2d
+        
+        J = function_value(cv, qp, ue)
+        Ĵ = R'⋅J
+
+        #
+        g, dgdĴ = constitutive_driver_dissipation_fe(material, Ĵ, materialstate[qp])
+        dgdJ =  R ⋅ dgdĴ
+        #ddd = material isa MatCZBilinear ? 3 : 2
+        #dgdJhat = Vec{2,T}((materialstate[qp].dgdJ[1], materialstate[qp].dgdJ[ddd]))
+        #g = materialstate[qp].g
+        #dgdJ =  R ⋅ dgdJhat
+
+
+        ge[] += g * dΓ 
+        for i in 1:ndofs
+            δJ = shape_value(cv, qp, i)
+            fe[i] += dgdJ ⋅ δJ * dΓ #(t ⋅ J̇) * dΓ
+        end
+    end
+
+end
+
 function integrate_forcevector!(element::CohesiveElement{dim_s}, 
     elementstate::AbstractElementState, 
     material::AbstractMaterial, 

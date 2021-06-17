@@ -132,16 +132,33 @@ function constitutive_driver(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState)
     return T, dTdΔ, new_state
 end
 
+function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
+
+    J_dual = Tensors._load(J, nothing)
+    _, _, _, _, _, _, _ΔD = _MatCZKolluri_law_with_damage(mp, J_dual, prev_state)
+
+    ΔD, dΔDdJ =  Tensors._extract_value(_ΔD), Tensors._extract_gradient(_ΔD, J)
+
+    return  ΔD, dΔDdJ
+end
+
 function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_state::MatCZKolluriState)
+    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
+    _ΔD, _dΔDdJ::Vec{3,Float64} = constitutive_driver_dissipation(mp, J, prev_state)
+
+    return _ΔD, Vec{2,Float64}((_dΔDdJ[1], _dΔDdJ[3]))
+end
+
+function constitutive_driver_dissipation_fe(mp::MatCZKolluri, _J::Vec{2}, prev_state::MatCZKolluriState)
 
     J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
-    ΔD, dΔDdJ = constitutive_driver_dissipation(mp, J, prev_state)
+    ΔD, dΔDdJ = constitutive_driver_dissipation_fe(mp, J, prev_state)
 
     return ΔD, Vec{2,Float64}((dΔDdJ[1], dΔDdJ[3]))
 end
 
-function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
-
+function constitutive_driver_dissipation_fe(mp::MatCZKolluri, J::Vec{3}, prev_state::MatCZKolluriState)
+    
     J_dual = Tensors._load(J, nothing)
     _ΔD = _constitutive_driver_dissipation_fe(mp, J_dual, prev_state)
 

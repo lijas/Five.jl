@@ -121,7 +121,7 @@ function init_part!(part::Part, dh::Ferrite.AbstractDofHandler)
     resize!(part.cache.coords, Ferrite.nnodes(celltype))
 end
 
-@enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI
+@enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI DISSI_FE
 
 function assemble_stiffnessmatrix_and_forcevector!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart,
@@ -156,6 +156,18 @@ function assemble_dissipation!(dh::Ferrite.AbstractDofHandler,
     end
 
     _assemble_part!(dh, part, state, DISSI)
+
+end
+
+function assemble_dissipation_fe!(dh::Ferrite.AbstractDofHandler, 
+    part::FEPart,
+    state::StateVariables)
+
+    if !(part.material |> is_dissipative)
+        return 
+    end
+
+    _assemble_part!(dh, part, state, DISSI_FE)
 
 end
 
@@ -205,11 +217,16 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
             integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
             state.system_arrays.fᴬ[celldofs] += fe
         elseif assemtype == DISSI
+            ge = Base.RefValue(zero(T))
+            integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            state.system_arrays.fᴬ[celldofs] += fe
+            state.system_arrays.G[] += ge[]
+        elseif assemtype == DISSI_FE
             prev_partstate = state.prev_partstates[cellid]
             prev_materialstate = prev_partstate.materialstates
 
             ge = Base.RefValue(zero(T))
-            integrate_dissipation!(element, cellstate, part.material, prev_materialstate, fe, ge, coords, Δue, ue, due, Δt)
+            integrate_dissipation_fe!(element, cellstate, part.material, prev_materialstate, fe, ge, coords, Δue, ue, due, Δt)
             state.system_arrays.fᴬ[celldofs] += fe
             state.system_arrays.G[] += ge[]
         end

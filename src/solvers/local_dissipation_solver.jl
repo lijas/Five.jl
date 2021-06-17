@@ -64,7 +64,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
             
-            @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
+            @timeit "Calculate dissipation" assemble_dissipation_fe!(globaldata.dh, state, globaldata)
             Δg = state.system_arrays.G[]
             
             #Get internal force                                                                       
