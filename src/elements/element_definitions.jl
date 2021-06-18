@@ -4,10 +4,10 @@ export LinearSolidElementHexa, LinearSolidElementQuad, LinearSolidElementTria
 const LinearSolidElementQuad = LinearSolidElement{2,1,RefCube,Float64}
 const LinearSolidElementTria = LinearSolidElement{2,1,RefTetrahedron,Float64}
 const LinearSolidElementHexa = LinearSolidElement{3,1,RefCube,Float64}
-const SolidElementQuad = SolidElement{2,1,RefCube,Float64}
-const SolidElementHexa = SolidElement{3,1,RefCube,Float64}
-const SolidElementTria = SolidElement{2,1,RefTetrahedron,Float64}
-const SolidElementTetra = SolidElement{3,1,RefTetrahedron,Float64}
+const SolidElementQuad = SolidElement{2,1,RefCube,Float64,3}
+const SolidElementHexa = SolidElement{3,1,RefCube,Float64,6}
+const SolidElementTria = SolidElement{2,1,RefTetrahedron,Float64,3}
+const SolidElementTetra = SolidElement{3,1,RefTetrahedron,Float64,6}
 const RigidElement2d = RigidElement{2}
 const RigidElement3d = RigidElement{3}
 #const SpringElement2d = SpringElement{2}

@@ -4,12 +4,14 @@ SolidElement{dim,order,shape,T,CV<:Ferrite.Values}
 
 """
 
-struct SolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
+struct SolidElement{dim,order,shape,T,CV<:Ferrite.Values,M} <: AbstractElement
     thickness::T #used in 2d
 
     celltype::Type{<:Cell}
     cv::CV
     field::Field
+
+    δE::Vector{SymmetricTensor{2,dim,T,M}}
 end
 
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
@@ -29,7 +31,11 @@ function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, c
     qr = QuadratureRule{dim, refshape}(qr_order)
 
     cv = CellVectorValues(qr, ip, geom_ip)
-    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
+
+    δE = zeros(SymmetricTensor{2, dim, T}, getnbasefunctions(cv))
+    M = Tensors.n_components(Tensors.get_base(eltype(δE)))
+
+    return SolidElement{dim,order,refshape,T,typeof(cv), M}(thickness, celltype, cv, Field(:u, ip, dim), δE)
 end
 
 function calculate_minimum_timestep(element::SolidElement{2,1,RefCube,T,M}, material::AbstractMaterial, cell::CellIterator, ue::Vector, due::Vector) where {T,M}
@@ -159,8 +165,8 @@ function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, e
     end
 end
 
-function get_rotation_matrix(cv::CellVectorValues{dim,T}, qp::Int, x::Vector{Vec{dim,T}}) where {dim,T}
-
+function get_rotation_matrix(cv::CellVectorValues{3,T}, qp::Int, x::Vector{Vec{3,T}}) where {T}
+    error("fix typeinstability")
     E = zeros(Vec{dim,T},dim-1)
     for j in 1:Ferrite.getngeobasefunctions(cv)
         for d in 1:dim-1
@@ -173,6 +179,22 @@ function get_rotation_matrix(cv::CellVectorValues{dim,T}, qp::Int, x::Vector{Vec
     return Tensor{2,dim,T}(_R)
 
 end
+
+function get_rotation_matrix(cv::CellVectorValues{2,T}, qp::Int, x::Vector{Vec{2,T}}) where {T}
+
+    E = zero(Vec{2,T})
+    for j in 1:Ferrite.getngeobasefunctions(cv)
+        E += cv.dMdξ[j,qp][1] * x[j]
+    end
+    D = cross(E)
+    E /= norm(E) 
+    D /= norm(D)
+    _R = (E[1], E[2], D[1], D[2])
+
+    return Tensor{2,2,T,4}(_R)
+
+end
+
 
 function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
     elementstate::AbstractElementState, 
@@ -190,7 +212,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
     reinit!(cv, cell)
     ndofs = Ferrite.ndofs(element)
 
-    δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
+    δE = element.δE
 
     for qp in 1:getnquadpoints(cv)
         ∇u = function_gradient(cv, qp, ue)
