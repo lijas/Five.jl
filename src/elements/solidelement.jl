@@ -70,9 +70,17 @@ function integrate_fstar!(element::SolidElement{dim, order, shape, T},
     ue::Vector,
     due::Vector,
     Δt::T) where {dim, order, shape, T}
-    error("Check total vs updated lagrangian")
-    integrate_forcevector_and_stiffnessmatrix!(element, elementstate,
-     material, materialstate, zeros(T, length(fe), length(fe)), fe, cell, Δue, ue, due, Δt)
+    
+    ke = zeros(T, length(fe), length(fe))
+
+    if element.total_lagrangian
+        integrate_forcevector_and_stiffnessmatrix_tl!(element, elementstate,
+            material, materialstate, ke, fe, cell, Δue, ue, due, Δt)
+    else
+        integrate_forcevector_and_stiffnessmatrix_ul!(element, elementstate,
+            material, materialstate, ke, fe, cell, Δue, ue, due, Δt)
+    end
+
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
