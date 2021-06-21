@@ -65,6 +65,15 @@ function SystemArrays(T::Type, ndofs::Int)
     return return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
+#=Base.@kwdef mutable struct PartData
+    ΔD::Float64 = 0.0#Dissipation
+    D::Float64 = 0.0
+
+    Wⁱ::Float64 = 0.0 #Internal energy
+    Wᵏ::Float64 = 0.0 #Kinetic energy
+    # And so on...
+end=#
+
 mutable struct StateVariables{T}
     
     d::Vector{T}
@@ -161,6 +170,7 @@ include("outputs/dof_value.jl")
 include("outputs/material_output.jl")
 include("outputs/solverstats_output.jl")
 
+
 include("solvers/solver_utils.jl")
 include("solvers/solver.jl")
 include("solvers/dissipation_solver.jl")
@@ -182,6 +192,8 @@ include("utils/stresses_through_thickness.jl")
 include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
+
+include("outputs/dissipationoutput.jl")
 
 mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     dbc::ConstraintHandler{DH,T}
