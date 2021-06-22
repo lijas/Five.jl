@@ -257,12 +257,12 @@ function commit_part!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::State
 end
 
 #=
-function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
+function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
     fh = FieldHandler(get_fields(part), Set([1]))
-    fieldidx = JuAFEM.find_field(fh, :u)
+    fieldidx = Ferrite.find_field(fh, :u)
     @assert(fieldidx !== nothing)
 
-    offset = JuAFEM.field_offset(fh, :u)
+    offset = Ferrite.field_offset(fh, :u)
     fdim   = dim
     data = _get_vtk_field(dh, part, state, offset, fdim)
 
@@ -271,12 +271,12 @@ function get_vtk_displacements(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T},
 end
 =#
 
-function get_vtk_field(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
+function get_vtk_field(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
     fh = FieldHandler(get_fields(part), Set([1]))
-    fieldidx = JuAFEM.find_field(fh, field_name)
+    fieldidx = Ferrite.find_field(fh, field_name)
     @assert(fieldidx !== nothing)
 
-    offset = JuAFEM.field_offset(fh, field_name)
+    offset = Ferrite.field_offset(fh, field_name)
     fdim   = fh.fields[fieldidx].dim 
 
     n_vtk_nodes = length(part.vtkexport.vtknodes)
@@ -293,7 +293,7 @@ function get_vtk_field(dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::
     return data
 end
 
-function _get_vtk_field!(data::Matrix, dh::JuAFEM.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
+function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
 
     celldofs = part.cache.celldofs
 

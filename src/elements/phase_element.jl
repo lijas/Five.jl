@@ -1,10 +1,10 @@
 export PhaseFieldElement
 """
-PhaseFieldElement{dim,order,shape,T,CV<:JuAFEM.Values}
+PhaseFieldElement{dim,order,shape,T,CV<:Ferrite.Values}
 
 """
 
-struct PhaseFieldElement{dim,order,shape,T,CV1<:JuAFEM.Values,CV2<:JuAFEM.Values} <: AbstractElement
+struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Values} <: AbstractElement
     thickness::T #used in 2d
     Gc::T
     lc::T
@@ -25,10 +25,10 @@ getelementstate(e::PhaseFieldElement) = PhaseFieldElementState(zeros(Float64, ge
 
 get_elementstate_type(::PhaseFieldElement) = PhaseFieldElementState
 
-JuAFEM.getnquadpoints(e::PhaseFieldElement) = getnquadpoints(e.cv_u)
-JuAFEM.ndofs(e::PhaseFieldElement) = getnbasefunctions(e.cv_u) + getnbasefunctions(e.cv_d)
-JuAFEM.getcelltype(e::PhaseFieldElement) = e.celltype
-getncoords(s::PhaseFieldElement) = JuAFEM.getngeobasefunctions(s.cv_u)
+Ferrite.getnquadpoints(e::PhaseFieldElement) = getnquadpoints(e.cv_u)
+Ferrite.ndofs(e::PhaseFieldElement) = getnbasefunctions(e.cv_u) + getnbasefunctions(e.cv_d)
+Ferrite.getcelltype(e::PhaseFieldElement) = e.celltype
+getncoords(s::PhaseFieldElement) = Ferrite.getngeobasefunctions(s.cv_u)
 
 has_constant_massmatrix(::PhaseFieldElement) = true
 
@@ -46,7 +46,7 @@ function PhaseFieldElement{dim,order,refshape,T}(;
     qr = QuadratureRule{dim, refshape}(qr_order)
     
     ip = Lagrange{dim, refshape, order}()
-    geom_ip = JuAFEM.default_interpolation(celltype)
+    geom_ip = Ferrite.default_interpolation(celltype)
 
     cv_u = CellVectorValues(qr, ip, geom_ip)
     cv_d = CellScalarValues(qr, ip, geom_ip)

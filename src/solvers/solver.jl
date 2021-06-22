@@ -103,7 +103,7 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
     apply!(state.system_arrays.â, globaldata.dbc)
     update!(globaldata.dbc, 0.0)
     
-    freedofs = JuAFEM.free_dofs(globaldata.dbc)
+    freedofs = Ferrite.free_dofs(globaldata.dbc)
     nfreedofs = length(freedofs)
     state.system_arrays.C = sparse(freedofs, 1:nfreedofs, ones(Float64, nfreedofs), ndofs(globaldata.dh), nfreedofs)
     

@@ -26,7 +26,7 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     cnstr = Five.AbstractExternalForce[]
     materialstates = Dict{Int, Vector{Any}}()
     elementstates = Dict{Int, Any}()
-    grid = Grid(JuAFEM.AbstractCell[], Node{dim,T}[])
+    grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
 
     return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, materialstates, elementstates, t0, tend, adaptive)
 end
