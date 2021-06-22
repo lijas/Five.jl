@@ -42,6 +42,9 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
 
     λ0     = state.λ
     q      = state.system_arrays.q
+
+    determine_solvermode!(solver, state)
+
     state0 = deepcopy(state)
 
     #ΔP prepresents either ΔL or Δλ depending 
@@ -49,6 +52,8 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     # Set ΔP to the privious time steps solution
     ΔP0 = ΔP = (state.solvermode == DISSIPATION_LOCAL ? (state.ΔL) : (state.Δλ))
     
+    #
+
     converged_failed = true
     ntries = 0
     Δg = 0.0
@@ -64,7 +69,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
             
-            @timeit "Calculate dissipation" assemble_dissipation_fe!(globaldata.dh, state, globaldata)
+            @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
             Δg = state.system_arrays.G[]
             
             #Get internal force                                                                       
@@ -129,8 +134,6 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     state.L += Δg
     state.Δt = Δg
     state.t += Δg
-
-    determine_solvermode!(solver, state)
     
     #=vals, vecs = Arpack.eigs(Kₜ, nev=10, which = :SM)
     state.eigs .= real.(vals)#det(Kₜ)
@@ -244,12 +247,16 @@ function determine_solvermode!(solver::LocalDissipationSolver, state::StateVaria
 
     if state.solvermode == INCREMENT_LOCAL
         if state.ΔL >= solver.sw2d
+            println("SWITCVH TOOOOO")
             state.solvermode = DISSIPATION_LOCAL
             state.newton_itr = solver.optitr
         end
     elseif state.solvermode == DISSIPATION_LOCAL
-        if state.ΔL/abs(state.Δλ) < solver.sw2i
+        #@show state.ΔL/abs(state.Δλ)
+        if state.ΔL < solver.sw2i
+            println("SWITCVH BACXK")
             state.solvermode = INCREMENT_LOCAL
+            state.newton_itr = solver.optitr
         end
     end
 
