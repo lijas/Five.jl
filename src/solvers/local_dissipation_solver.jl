@@ -101,9 +101,9 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
 
             #Check convergance
             if norm(state.λ*q) <= 1e-10
-                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
+                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])
             else
-                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
             println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("Δg=$(Δg),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("λ=$(state.λ),", 20))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
 

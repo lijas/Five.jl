@@ -1,7 +1,6 @@
-
 using Tensors
 using Test
 using Five
 
-include("test_cellshellvalues.jl")
-#include("test_elements.jl")
+include("test_materials/test_materials.jl")
+include("test_examples.jl")

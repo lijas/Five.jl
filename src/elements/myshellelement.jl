@@ -49,8 +49,8 @@ function ShellElementState(e::ShellElement{T}, info::ShellElementInfo, coords) w
     return ShellElementState(p,θ,X)
 
 end
-JuAFEM.getnquadpoints(e::ShellElement) = JuAFEM.getnquadpoints(e.cv)
-JuAFEM.ndofs(e::ShellElement) = e.ndofs
+Ferrite.getnquadpoints(e::ShellElement) = Ferrite.getnquadpoints(e.cv)
+Ferrite.ndofs(e::ShellElement) = e.ndofs
 
 function ShellElement{T}() where {T}
     

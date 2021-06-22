@@ -1,15 +1,14 @@
 #
 #
 #
-struct WeakBoundaryCondition{dim,T,FV<:JuAFEM.Values} <: AbstractExternalForce
+struct WeakBoundaryCondition{dim,T,FV<:Ferrite.Values} <: AbstractExternalForce
     faces::IndexVectors
     prescribed_displacement::Function
     local_dofs::Vector{Int}
     facevalues::FV
-    bezier_operators::Vector{IGA.BezierExtractionOperator{T}}
 end
 
-function WeakBoundaryCondition{dim,T}(dh::JuAFEM.AbstractDofHandler, faces, prescribed_displacement::Function, components, facevalues::FV, beo::Vector{IGA.BezierExtractionOperator{T}}=[Vector{SparseArrays.SparseVector{T,Int}}(undef,0) for _ in 1:2]) where {dim,T,FV<:JuAFEM.Values{dim,T}}
+function WeakBoundaryCondition{dim,T}(dh::Ferrite.AbstractDofHandler, faces, prescribed_displacement::Function, components, facevalues::FV) where {dim,T,FV<:Ferrite.Values{dim,T}}
    # @assert(length(prescribed_displacement(0.0,0.0))==length(components))
 
     celltype = typeof(dh.grid.cells[first(faces)[1]])
@@ -29,10 +28,10 @@ function WeakBoundaryCondition{dim,T}(dh::JuAFEM.AbstractDofHandler, faces, pres
         end
     end
 
-    return WeakBoundaryCondition{dim,T,FV}(faces, prescribed_displacement, local_dofs, facevalues, beo)
+    return WeakBoundaryCondition{dim,T,FV}(faces, prescribed_displacement, local_dofs, facevalues)
 end
 
-function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:JuAFEM.Values}
+function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:Ferrite.Values}
     
     fv = ef.facevalues
     local_dofs = ef.local_dofs
@@ -57,15 +56,8 @@ function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCo
         
         #Get coords and dofs of cell
         cellcoords!(coords, dh, cellid)
-        JuAFEM.celldofs!(celldofs, dh, cellid)
+        Ferrite.celldofs!(celldofs, dh, cellid)
         lcd = celldofs[local_dofs]
-
-        #Special case isogeomtric parts
-        if FV <: IGA.BezierValues
-            Ce = ef.bezier_operators[i]
-            IGA.set_bezier_operator!(fv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
         
         A += _compute_weak_boundary_condition!(fv, coords, faceid, g, ke, fe, state.d[celldofs])
 
@@ -77,7 +69,7 @@ function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::WeakBoundaryCo
 end
 
 
-function _compute_weak_boundary_condition!(fv::JuAFEM.Values{dim,T}, coords::AbstractVector{Vec{dim,T}}, faceid, prescr_disp::Function, ke, fe::AbstractVector, ue::AbstractVector) where {dim,T}
+function _compute_weak_boundary_condition!(fv::Ferrite.Values{dim,T}, coords::AbstractVector{Vec{dim,T}}, faceid, prescr_disp::Function, ke, fe::AbstractVector, ue::AbstractVector) where {dim,T}
     reinit!(fv, cellcoords, faceid)
     stiffness = 1e7
     dA = 0.0

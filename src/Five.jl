@@ -20,10 +20,10 @@ using InteractiveUtils
 #import JLD2
 import FileIO: save
 using JLD2
-import IGA #https://github.com/lijas/IGA.jl.git
+#import IGA #https://github.com/lijas/IGA.jl.git
 
 
-@reexport using JuAFEM
+@reexport using Ferrite
 @reexport using Tensors
 
 LOG = Logging.global_logger()
@@ -183,10 +183,10 @@ include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
 
-mutable struct GlobalData{dim,T,DH<:JuAFEM.AbstractDofHandler}
+mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     dbc::ConstraintHandler{DH,T}
 
-    grid::JuAFEM.AbstractGrid{dim}
+    grid::Ferrite.AbstractGrid{dim}
     dh::DH
     
     constraints::Constraints

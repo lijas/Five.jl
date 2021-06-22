@@ -15,9 +15,9 @@ function BarElement{dim}(; area::Float64) where {dim}
     return BarElement{dim}(area, [Field(:u, Lagrange{1,RefCube,1}(), dim)])
 end
 
-JuAFEM.getnquadpoints(e::BarElement) = 1
-JuAFEM.ndofs(e::BarElement{dim}) where {dim} = dim*2
-JuAFEM.getcelltype(e::BarElement) = e.celltype
+Ferrite.getnquadpoints(e::BarElement) = 1
+Ferrite.ndofs(e::BarElement{dim}) where {dim} = dim*2
+Ferrite.getcelltype(e::BarElement) = e.celltype
 getncoords(::BarElement) = 2
 
 getcelltype(el::BarElement{2}) = Cell{2,2,1}

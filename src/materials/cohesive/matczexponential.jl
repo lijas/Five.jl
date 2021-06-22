@@ -45,6 +45,8 @@ function getmaterialstate(m::MatCZKolluri, d::Float64=zero(Float64))
     return MatCZKolluriState(zero(Vec{3,T}), zero(Vec{3,T}), Vec{3,T}(Tuple(Δ_max)), (d,d), (d,d))
 end
 
+is_dissipative(::MatCZKolluri) = true
+
 get_material_state_type(::MatCZKolluri) = MatCZKolluriState
 n_damage_parameters(m::MatCZKolluri) = 4
 function interface_damage(m::MatCZKolluriState, d::Int)
@@ -57,20 +59,20 @@ onset_displacement(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.δₙ : mat.δₜ
 max_traction_force(mat::MatCZKolluri, d::Int)  = (3==d) ? mat.σₘₐₓ : mat.τₘₐₓ
 
 function _MatCZKolluri_law_with_damage(m::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZKolluriState) where T <: Real
-
+    
     # unpack tangential and normal directions from separation tensor
-    Δₜ = Δ[1:2]
+    Δₜ = Vec{2,T}( (Δ[1], Δ[2]) )
     Δₙ = Δ[3]
 
     # compute max separations
-    Δₜ_max = [max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])]
+    Δₜ_max = Vec{2,T}( (max(norm(Δ[1]), ms.Δ_max[1]), max(norm(Δ[2]), ms.Δ_max[2])) )
     Δₙ_max = max(Δ[3], ms.Δ_max[3])
     
     # compute damage variables
     d_n =  (Δₙ_max ==Inf) ? T(1.0) : 1 - exp(-Δₙ_max/m.δₙ)
     d_cn = (Δₙ_max ==Inf) ? T(1.0) : 1 - exp(-Δₙ_max/m.δₙ)*(1 + Δₙ_max/m.δₙ)
-    d_ct = (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2))
-    d_t =  (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2))
+    d_ct = (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-dot(Δₜ_max,Δₜ_max)/(2m.δₜ^2))
+    d_t =  (norm(Δₜ_max) ==Inf) ? T(1.0) : 1 - exp(-dot(Δₜ_max,Δₜ_max)/(2m.δₜ^2))
 
     #define Heavyside function
     H(Δ) = Δ < 0 ? 0.0 : 1.0
@@ -83,10 +85,11 @@ function _MatCZKolluri_law_with_damage(m::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZK
     if Δₙ_max == Inf || Δₜ_max == Inf
         ΔD = 0.0
     else
+        ⁿΔₜ_max = Vec{2,T}( (ms.Δ_max[1], ms.Δ_max[1]) )
         #Dissipaiton from magrnus, (d_cn -> d_tn     d_ct -> d_nt)
         Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
         Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
-        Δd_t  = 1/m.δₜ^2 * exp(-Δₜ_max'*Δₜ_max/(2m.δₜ^2)) * Δₜ_max' * (Δₜ_max - ms.Δ_max[1:2])
+        Δd_t  = 1/m.δₜ^2 * exp(-dot(Δₜ_max,Δₜ_max)/(2m.δₜ^2)) * dot(Δₜ_max, (Δₜ_max - ⁿΔₜ_max))
         Δd_ct = Δd_t
 
         ΔD = 0.5 * (m.Φₙ/m.δₙ^2) * Δₙ^2 * (1 - d_ct) * Δd_n + 

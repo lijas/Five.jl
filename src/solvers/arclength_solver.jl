@@ -101,9 +101,9 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
 
             #Check convergance
             if norm(state.λ*q) <= 1e-10
-                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])
+                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])
             else
-                state.norm_residual = norm(rₜ[JuAFEM.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
             println("------>Normg: $(state.norm_residual), Δλ = $(state.Δλ)")
             

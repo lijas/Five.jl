@@ -139,7 +139,7 @@ function solvethis(solver::ImplicitSolver{dim,T}) where {dim,T}
             #Compute residule
             r = M*a_np1 - f;
 
-            normg = norm(r[JuAFEM.free_dofs(dbc)])
+            normg = norm(r[Ferrite.free_dofs(dbc)])
 
             #Compute jacobian
             A = 1/(beta*dt^2)*M + Kint;

@@ -45,8 +45,8 @@ function BelytschkoLinTsayShellElementState(e::BelytschkoLinTsayShellElement{T},
     return BelytschkoLinTsayShellElementState{T}(zeros(T,24), zeros(T,2), zeros(T,3))
 end
 
-JuAFEM.getnquadpoints(e::BelytschkoLinTsayShellElement) = 5
-JuAFEM.ndofs(e::BelytschkoLinTsayShellElement) = 24
+Ferrite.getnquadpoints(e::BelytschkoLinTsayShellElement) = 5
+Ferrite.ndofs(e::BelytschkoLinTsayShellElement) = 24
 has_constant_massmatrix(::BelytschkoLinTsayShellElement) = true
 
 function BelytschkoLinTsayShellElement{T}(;thickness, shear_factor=5/6, nip=5) where {T}

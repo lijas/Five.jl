@@ -10,7 +10,7 @@ function ExternalForceHandler{T}() where T
     return ExternalForceHandler{T}(AbstractExternalForce[])
 end
 
-function JuAFEM.close!(ef::ExternalForceHandler, dh::MixedDofHandler)
+function Ferrite.close!(ef::ExternalForceHandler, dh::MixedDofHandler)
     for (i, e) in enumerate(ef.external_forces)
         ForceType = typeof(e)
         ef.external_forces[i] = init_external_force!(e, dh)
@@ -40,7 +40,7 @@ function PointForce(; field::Symbol, comps::AbstractVector{Int}, set, func::Func
 end
 
 function init_external_force!(force::PointForce, dh::MixedDofHandler)
-    JuAFEM._check_same_celltype(dh.grid, cellid.(force.set))
+    Ferrite._check_same_celltype(dh.grid, cellid.(force.set))
     fh = getfieldhandler(dh, cellid(first(force.set)))
     return PointForce(force.field, force.comps, force.set, force.func, fh)
 end
@@ -57,7 +57,7 @@ end
 #
 #
 #
-struct TractionForce{FV<:JuAFEM.Values} <: AbstractExternalForce
+struct TractionForce{FV<:Ferrite.Values} <: AbstractExternalForce
     field::Symbol
     comps::Vector{Int}
     set::Union{Vector{FaceIndex}, Vector{VertexIndex}, Vector{EdgeIndex}}
@@ -66,26 +66,12 @@ struct TractionForce{FV<:JuAFEM.Values} <: AbstractExternalForce
     facevalues::FV
 end
 
-function TractionForce{dim}(;
-    set, 
-    traction::Function) where {dim}
-
-    return TractionForce{dim,T,FV}(collect(faces), traction, facevalues, beo)
-end
-
-function init_external_force!(force::TractionForce, dh::MixedDofHandler)
-    
-    id = cellid(first(force.set))
-
-    return TractionForce(force.field, force.comps, force.set, force.func, fh)
-end
-
-function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:JuAFEM.Values}
+function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:Ferrite.Values}
     
     fv = ef.facevalues
     ndofs = getnbasefunctions(fv)
     fe = zeros(T, ndofs)
-    ncoords = JuAFEM.getngeobasefunctions(fv)
+    ncoords = Ferrite.getngeobasefunctions(fv)
     coords = zeros(Vec{dim,T}, ncoords)
     celldofs = zeros(Int, ndofs)
 
@@ -96,15 +82,9 @@ function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{
         #extract cell id and face id 
         cellid,faceid = (face[1], face[2])
         #Get coords and dofs of cell
-        JuAFEM.cellcoords!(coords, dh, cellid)
-        JuAFEM.celldofs!(celldofs, dh, cellid)
-        
-        #Special case isogeomtric parts
-        if FV <: IGA.BezierValues
-            Ce = ef.bezier_operators[i]
-            IGA.set_bezier_operator!(fv, Ce)
-            coords .= IGA.compute_bezier_points(Ce, coords)
-        end
+        Ferrite.cellcoords!(coords, dh, cellid)
+        Ferrite.celldofs!(celldofs, dh, cellid)
+
         
         area = _compute_external_traction_force!(fv, coords, faceid, ef.traction, fe, state.t)
         total_area +=area
@@ -114,7 +94,7 @@ function apply_external_force!(dh::JuAFEM.AbstractDofHandler, ef::TractionForce{
 end
 
 
-function _compute_external_traction_force!(fv::JuAFEM.Values{dim,T}, cellcoords, faceid, traction::Function, fe::AbstractVector, t::T) where {dim,T}
+function _compute_external_traction_force!(fv::Ferrite.Values{dim,T}, cellcoords, faceid, traction::Function, fe::AbstractVector, t::T) where {dim,T}
 
     reinit!(fv, cellcoords, faceid)
     dA = 0

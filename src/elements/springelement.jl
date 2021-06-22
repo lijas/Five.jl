@@ -29,7 +29,7 @@ function SpringElement{dim}() where dim
     return SpringElement{dim}([Field(:u, Lagrange{1, RefCube, 1}(), dim)], Cell{dim,2,2})
 end
 
-#JuAFEM.ndofs(::SpringElement{dim}) where {dim} = dim*2
+#Ferrite.ndofs(::SpringElement{dim}) where {dim} = dim*2
 
 function integrate_massmatrix!(element::SpringElement, material::AbstractMaterial, cell::CellIterator, me::Matrix)#, ue::Vector)
     #The spring should always be connected to other parts of the structure, so it does not contribute with mass

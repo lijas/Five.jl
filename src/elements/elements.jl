@@ -41,9 +41,9 @@ integrate_forcevector_and_stiffnessmatrix!
 
 
 getcelltype(el::AbstractElement) = el.celltype
-JuAFEM.nnodes(el::AbstractElement) = nnodes(getcelltype(el))
-JuAFEM.nfaces(el::AbstractElement) = nfaces(getcelltype(el))
-JuAFEM.getdim(el::AbstractElement) = JuAFEM.getdim(getcelltype(el))
+Ferrite.nnodes(el::AbstractElement) = nnodes(getcelltype(el))
+Ferrite.nfaces(el::AbstractElement) = nfaces(getcelltype(el))
+Ferrite.getdim(el::AbstractElement) = Ferrite.getdim(getcelltype(el))
 
 include("solidelement.jl")
 include("bar_element.jl")

@@ -1,5 +1,5 @@
 
-JuAFEM.getdim(p::P) where P<:AbstractPart{dim} where dim = dim
+Ferrite.getdim(p::P) where P<:AbstractPart{dim} where dim = dim
 
 """
     get_field(::AbstractPart)
@@ -20,7 +20,6 @@ get_fields
 init_part!
 
 include("fepart.jl")
-include("igapart.jl")
 include("cohesive_part.jl")
 #include("rigidbody/rigidpart.jl")
 

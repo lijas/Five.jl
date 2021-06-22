@@ -1,15 +1,8 @@
 export EdgeVectorValues, EdgeValues
 
-abstract type EdgeValues{dim,T,refshape} <: JuAFEM.Values{dim,T,refshape} end
+abstract type EdgeValues{dim,T,refshape} <: Ferrite.Values{dim,T,refshape} end
 
-function JuAFEM.reinit!(bcv::IGA.BezierValues{dim_s,T,CV}, x::AbstractVector{Vec{dim_s,T}}, edgeid::Int) where {dim_s,T,CV<:EdgeValues}
-    JuAFEM.reinit!(bcv.cv_bezier, x, edgeid) #call the normal reinit function first
-    bcv.cv_store.current_face[] = edgeid
-
-    IGA._reinit_bezier!(bcv, edgeid)
-end
-
-struct EdgeVectorValues{dim,T<:Real,refshape<:JuAFEM.AbstractRefShape,M} <: EdgeValues{dim,T,refshape}
+struct EdgeVectorValues{dim,T<:Real,refshape<:Ferrite.AbstractRefShape,M} <: EdgeValues{dim,T,refshape}
     N::Array{Vec{dim,T},3}
     dNdx::Array{Tensor{2,dim,T,M},3}
     dNdξ::Array{Tensor{2,dim,T,M},3}
@@ -18,18 +11,18 @@ struct EdgeVectorValues{dim,T<:Real,refshape<:JuAFEM.AbstractRefShape,M} <: Edge
     M::Array{T,3}
     dMdξ::Array{Vec{dim,T},3}
     qr_weights::Vector{T}
-    current_face::JuAFEM.ScalarWrapper{Int}
+    current_face::Ferrite.ScalarWrapper{Int}
 end
 
-function EdgeVectorValues(quad_rule::QuadratureRule, func_interpol::JuAFEM.Interpolation, geom_interpol::JuAFEM.Interpolation=func_interpol)
+function EdgeVectorValues(quad_rule::QuadratureRule, func_interpol::Ferrite.Interpolation, geom_interpol::Ferrite.Interpolation=func_interpol)
     EdgeVectorValues(Float64, quad_rule, func_interpol, geom_interpol)
 end
 
-function EdgeVectorValues(::Type{T}, quad_rule::QuadratureRule{dim_qr,shape}, func_interpol::JuAFEM.Interpolation,
-        geom_interpol::JuAFEM.Interpolation=func_interpol) where {dim_qr,T,shape<:JuAFEM.JuAFEM.AbstractRefShape}
+function EdgeVectorValues(::Type{T}, quad_rule::QuadratureRule{dim_qr,shape}, func_interpol::Ferrite.Interpolation,
+        geom_interpol::Ferrite.Interpolation=func_interpol) where {dim_qr,T,shape<:Ferrite.Ferrite.AbstractRefShape}
 
-    @assert JuAFEM.getdim(func_interpol) == JuAFEM.getdim(geom_interpol)
-    @assert JuAFEM.getrefshape(func_interpol) == JuAFEM.getrefshape(geom_interpol) == shape
+    @assert Ferrite.getdim(func_interpol) == Ferrite.getdim(geom_interpol)
+    @assert Ferrite.getrefshape(func_interpol) == Ferrite.getrefshape(geom_interpol) == shape
     n_qpoints = length(getweights(quad_rule))
     dim = dim_qr + 2
 
@@ -53,7 +46,7 @@ function EdgeVectorValues(::Type{T}, quad_rule::QuadratureRule{dim_qr,shape}, fu
     for face in 1:n_faces, (qp, ξ) in enumerate(edge_quad_rule[face].points)
         basefunc_count = 1
         for basefunc in 1:getnbasefunctions(func_interpol)
-            dNdξ_temp, N_temp = gradient(ξ -> JuAFEM.value(func_interpol, basefunc, ξ), ξ, :all)
+            dNdξ_temp, N_temp = gradient(ξ -> Ferrite.value(func_interpol, basefunc, ξ), ξ, :all)
             for comp in 1:dim
                 N_comp = zeros(T, dim)
                 N_comp[comp] = N_temp
@@ -66,19 +59,19 @@ function EdgeVectorValues(::Type{T}, quad_rule::QuadratureRule{dim_qr,shape}, fu
             end
         end
         for basefunc in 1:n_geom_basefuncs
-            dMdξ[basefunc, qp, face], M[basefunc, qp, face] = gradient(ξ -> JuAFEM.value(geom_interpol, basefunc, ξ), ξ, :all)
+            dMdξ[basefunc, qp, face], M[basefunc, qp, face] = gradient(ξ -> Ferrite.value(geom_interpol, basefunc, ξ), ξ, :all)
         end
     end
 
     detJdV = fill(T(NaN), n_qpoints, n_faces)
     MM = Tensors.n_components(Tensors.get_base(eltype(dNdx)))
 
-    EdgeVectorValues{dim,T,shape,MM}(N, dNdx, dNdξ, detJdV, normals, M, dMdξ, quad_rule.weights, JuAFEM.ScalarWrapper(0))
+    EdgeVectorValues{dim,T,shape,MM}(N, dNdx, dNdξ, detJdV, normals, M, dMdξ, quad_rule.weights, Ferrite.ScalarWrapper(0))
 end
 
-function JuAFEM.reinit!(fv::EdgeValues{dim}, x::AbstractVector{Vec{dim,T}}, face::Int) where {dim,T}
-    n_geom_basefuncs = JuAFEM.getngeobasefunctions(fv)
-    n_func_basefuncs = JuAFEM.getn_scalarbasefunctions(fv)
+function Ferrite.reinit!(fv::EdgeValues{dim}, x::AbstractVector{Vec{dim,T}}, face::Int) where {dim,T}
+    n_geom_basefuncs = Ferrite.getngeobasefunctions(fv)
+    n_func_basefuncs = Ferrite.getn_scalarbasefunctions(fv)
     @assert length(x) == n_geom_basefuncs
     isa(fv, EdgeVectorValues) && (n_func_basefuncs *= dim)
 
@@ -105,15 +98,15 @@ function JuAFEM.reinit!(fv::EdgeValues{dim}, x::AbstractVector{Vec{dim,T}}, face
 end
 
 getcurrentedge(fv::EdgeValues) = fv.current_face[]
-JuAFEM.getnormal(fv::EdgeValues, qp::Int) = fv.normals[qp]
-JuAFEM.getdetJdV(bv::EdgeValues, q_point::Int) = bv.detJdV[q_point, bv.current_face[]]
+Ferrite.getnormal(fv::EdgeValues, qp::Int) = fv.normals[qp]
+Ferrite.getdetJdV(bv::EdgeValues, q_point::Int) = bv.detJdV[q_point, bv.current_face[]]
 
-JuAFEM.getn_scalarbasefunctions(cv::EdgeVectorValues{dim}) where {dim} = size(cv.N, 1) ÷ dim
+Ferrite.getn_scalarbasefunctions(cv::EdgeVectorValues{dim}) where {dim} = size(cv.N, 1) ÷ dim
 
 ##################
 # All RefCube 3D #
 ##################
-function create_edge_quad_rule(quad_rule::QuadratureRule{1,shape,T}, ::JuAFEM.Interpolation{3,shape}) where {T,shape<:RefCube}
+function create_edge_quad_rule(quad_rule::QuadratureRule{1,shape,T}, ::Ferrite.Interpolation{3,shape}) where {T,shape<:RefCube}
     w = getweights(quad_rule)
     p = getpoints(quad_rule)
     n_points = length(w)
@@ -182,15 +175,15 @@ function weighted_normal(J::Tensor{2,3}, ::EdgeValues{3,T,RefCube}, edge::Int) w
     throw(ArgumentError("unknown edge number: $edge"))
 end
 
-@inline JuAFEM.shape_value(bv::EdgeValues, q_point::Int, base_func::Int) = bv.N[base_func, q_point, bv.current_face[]]
-Base.@pure JuAFEM._valuetype(::EdgeValues{dim}, ::AbstractVector{T}) where {dim,T} = Vec{dim,T}
+@inline Ferrite.shape_value(bv::EdgeValues, q_point::Int, base_func::Int) = bv.N[base_func, q_point, bv.current_face[]]
+Base.@pure Ferrite._valuetype(::EdgeValues{dim}, ::AbstractVector{T}) where {dim,T} = Vec{dim,T}
 
-function JuAFEM.function_value(fe_v::EdgeValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::UnitRange = 1:length(u)) where {dim,T}
-    n_base_funcs = JuAFEM.getn_scalarbasefunctions(fe_v)
+function Ferrite.function_value(fe_v::EdgeValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::UnitRange = 1:length(u)) where {dim,T}
+    n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
     isa(fe_v, EdgeVectorValues) && (n_base_funcs *= dim)
     @assert length(dof_range) == n_base_funcs
     @boundscheck checkbounds(u, dof_range)
-    val = zero(JuAFEM._valuetype(fe_v, u))
+    val = zero(Ferrite._valuetype(fe_v, u))
     @inbounds for (i, j) in enumerate(dof_range)
         val += shape_value(fe_v, q_point, i) * u[j]
     end

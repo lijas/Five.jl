@@ -24,11 +24,20 @@ function getmaterialstate(::MatTransvLinearElastic)
     return MatTransvLinearElasticState(σ)
 end
 
-function MatTransvLinearElastic(;    E1::T,   E2::T,   E3::T = E2, 
-                                        ν_12::T, ν_23::T = ν_12, ν_13::T = ν_12, 
-                                        G_12::T, G_23::T = G_12, G_13::T = G_12, 
-                                        ρ = 0.0,
-                                        α::T=0.0) where {T<:Real}
+function MatTransvLinearElastic(;    
+    E1::T,   
+    E2::T,   
+    E3::T = E2, 
+
+    ν_12::T, 
+    ν_23::T = ν_12, 
+    ν_13::T = ν_12,  
+
+    G_12::T, 
+    G_23::T = G_12, 
+    G_13::T = G_12,                           
+    ρ::T = 0.0,
+    α::T=0.0) where {T<:Real}
 
     #Complience matrix voight form
     C = [   1/E1 -ν_12/E1 -ν_13/E1   0       0         0;
@@ -48,24 +57,24 @@ get_material_state_type(::MatTransvLinearElastic) = MatTransvLinearElasticState
 # # # # # # #
 # Drivers
 # # # # # # #
-function _constitutive_driver(mp::MatTransvLinearElastic, ε) 
+function _constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,3,T}) where T
     α = mp.α
 
-    _R = [cos(α) -sin(α) 0; 
-          sin(α)  cos(α) 0; 
-          0            0 1]
-          
-    R = Tensor{2,3}(Tuple(_R))
-    C = (otimesu(R,R) ⊡ mp.C ⊡ otimesu(R',R'))
+    cα = cos(α)
+    sα = sin(α)
+    R = Tensor{2,3,T,9}((cα, sα, 0.0, -sα, cα, 0.0, 0.0, 0.0, 1.0))
+    C = symmetric(otimesu(R,R) ⊡ mp.C ⊡ otimesu(R',R'))
 
     σ = C⊡ε
 
-    return symmetric(σ)
+    return C, σ
 end
 
-function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = MatTransvLinearElasticState()) where {dim,T,M}
-    σ = _constitutive_driver(mp, ε) 
-    dσ::SymmetricTensor{4,3,Float64,36}, σ::SymmetricTensor{2,3,Float64,6} = JuAFEM.gradient(e -> _constitutive_driver(mp, e), ε, :all)
+function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = getmaterialstate(mp)) where {dim,T,M}
+
+    #dσ::SymmetricTensor{4,3,Float64,36}, σ::SymmetricTensor{2,3,Float64,6} = Tensors.gradient(e -> _constitutive_driver(mp, e), ε, :all)
     
-    return σ, dσ, MatTransvLinearElasticState(σ)
+    C, σ = _constitutive_driver(mp, ε)
+
+    return σ, C, MatTransvLinearElasticState(σ)
 end
