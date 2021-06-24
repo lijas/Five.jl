@@ -2,7 +2,7 @@
 
 function assemble_massmatrix!(dh, state, globaldata)
     for (partid, part) in enumerate(globaldata.parts)
-        assemble_massmatrix!(dh, part, system_arrays)
+        assemble_massmatrix!(dh, part, state)
     end
 end
 
