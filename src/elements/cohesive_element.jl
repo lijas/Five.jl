@@ -197,7 +197,6 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
     elementstate::AbstractElementState, 
     material::AbstractMaterial, 
     materialstate::AbstractArray{<:AbstractMaterialState}, 
-    new_materialstate::AbstractArray{<:AbstractMaterialState}, 
     fe::Vector{T}, 
     cell, 
     Δue::Vector,
@@ -227,11 +226,8 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
         
         #constitutive_driver
         t̂, _, new_matstate = constitutive_driver(material, Ĵ, materialstate[qp])
-        new_materialstate[qp] = new_matstate
+        materialstate[qp] = new_matstate
 
-        if iszero(t̂)
-            continue
-        end
         t = R ⋅ t̂
 
 

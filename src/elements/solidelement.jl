@@ -84,62 +84,34 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
         due::Vector,
         Δt::T) where {dim, order, shape, T}
 
-    cv = element.cv
-    reinit!(cv, cell)
-    ndofs = Ferrite.ndofs(element)
 
-    δE = zeros(SymmetricTensor{2, dim, T, 3}, ndofs)
+        cv = element.cv
+        reinit!(cv, cell)
+        ndofs = Ferrite.ndofs(element)
+    
+        δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
+    
+        for qp in 1:getnquadpoints(cv)
+            ∇u = function_gradient(cv, qp, ue)
+            dΩ = getdetJdV(cv, qp) * element.thickness
+    
+            # strain and stress + tangent
+            F = one(∇u) + ∇u
+            E = symmetric(1/2 * (F' ⋅ F - one(F)))
+    
+            S, _, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+            materialstate[qp] = new_matstate
 
-    for qp in 1:getnquadpoints(cv)
-        ∇u = function_gradient(cv, qp, ue)
-        #∇v = function_gradient(cv, qp, due*0.0003)
-        dΩ = getdetJdV(cv, qp) * element.thickness
-       
-        # strain and stress + tangent
-        F = one(∇u) + ∇u
-        E = symmetric(1/2 * (F' ⋅ F - one(F)))
-        
-        S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate[qp])
-        materialstate[qp] = new_matstate
-        #S = det(F)*inv(F)⋅S⋅inv(F')
-
-        # Hoist computations of δE
-        for i in 1:ndofs
-            δu = shape_value(cv, qp, i)
-            δFi = shape_gradient(cv, qp, i)
-            δE[i] = symmetric(1/2*(δFi'⋅F + F'⋅δFi))
-            fe[i] += (δE[i] ⊡ S) * dΩ
+            for i in 1:ndofs
+                δFi = shape_gradient(cv, qp, i)
+                δE[i] = symmetric(1/2*(δFi'⋅F + F'⋅δFi))
+            end
+    
+            for i in 1:ndofs
+                fe[i] += (δE[i] ⊡ S) * dΩ
+            end
         end
-    end
-
 end
-
-function integrate_forcevector!(element::SolidElement{dim, order, shape, T, M}, elementstate::AbstractElementState, material::HypoElasticMaterial, materialstate::Vector{<:AbstractMaterialState}, fe::Vector, cell, Δue::Vector, ue::Vector, due::Vector, Δt::T) where {dim, order, shape, T, M}
-
-    cv = element.cv
-    x = cell .+ reinterpret(Vec{dim,T}, ue)
-    reinit!(cv, x)
-    ndofs = Ferrite.ndofs(element)
-
-    @timeit "Looping" for qp in 1:getnquadpoints(cv)
-        
-        dΩ = getdetJdV(cv, qp) * element.thickness
-
-        @timeit "Gradient" ∇v = function_gradient(cv, qp, Δue)#due*0.0003)
-
-        #@show ∇v
-        @timeit "Material" σ, ∂σ∂L, new_matstate = constitutive_driver(material, ∇v, materialstate[qp])
-        materialstate[qp] = new_matstate
-
-        # Hoist computations of δE
-        for i in 1:ndofs
-            δv = shape_gradient(cv, qp, i)
-            fe[i] += (δv ⊡ σ) * dΩ
-        end
-    end
-
-end
-
 
 function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, elstate::AbstractElementState, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim, order, shape, T, M}
 
