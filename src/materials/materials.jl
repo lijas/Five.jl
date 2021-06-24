@@ -196,3 +196,5 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
 end
 
 get_material_state_type(m::Material2D) = get_material_state_type(m.material)
+
+density(m::Material2D) = m.material.density

@@ -6,7 +6,7 @@ export MatHyperElasticPlastic, MatHyperElasticPlasticState
 Hyper elastic plastic material for large deformations
 """
 struct MatHyperElasticPlastic{M <: HyperElasticMaterial} <: HyperElasticMaterial
-    rho::Float64
+    density::Float64
     elastic_material::M #Elastic material, Yeoh or Neo-hook
     τ₀::Float64		    #Yield stress
     H::Float64		    #Hardening
@@ -38,10 +38,10 @@ function MatHyperElasticPlastic(;
     elastic_material::HyperElasticMaterial,
     τ₀  ::T,
     H   ::T,
-    rho ::T = NaN, 
+    density ::T = NaN, 
     ) where T
 
-    return MatHyperElasticPlastic(rho, elastic_material, τ₀, H)
+    return MatHyperElasticPlastic(density, elastic_material, τ₀, H)
 end
 
 # # # # # # #
