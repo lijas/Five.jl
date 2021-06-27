@@ -97,6 +97,13 @@ solver = ExplicitSolver(
     #Δt_max = 0.1,
 )
 
+solver = ImplicitSolver(
+    Δt0 = 0.001,
+    β = 0.25,
+    γ = 0.5,
+    tol = 1e-5
+)
+
 state, data = build_problem(data)
 
 solvethis(solver, state, data)

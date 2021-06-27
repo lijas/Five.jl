@@ -166,6 +166,7 @@ include("solvers/local_dissipation_solver.jl")
 include("solvers/newton_solver.jl")
 include("solvers/arclength_solver.jl")
 include("solvers/explicit_solver.jl")
+include("solvers/implicit_solver.jl")
 
 include("parts/parts.jl")
 include("assembling.jl")
