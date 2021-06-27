@@ -87,7 +87,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
 
             #apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, â, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode, state.system_arrays.C, globaldata.dh, globaldata.dbc)
+            @timeit "Solve" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, â, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode, state.system_arrays.C, globaldata.dh, globaldata.dbc)
             
             if !_success
                 converged_failed = true
