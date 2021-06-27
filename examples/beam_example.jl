@@ -2,37 +2,39 @@ using Five
 
 data = ProblemData(
     dim = 2,
-    tend = 1.0
+    tend = 7.0
 )
 
-data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+data.grid = generate_grid(Quadrilateral, (10,1), Vec((0.0, 0.0)), Vec((100.0, 10.0)))
 
-addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
+addvertexset!(data.grid, "topright", (x) -> x[1] == 100.0 && x[2] == 10.0)
 
 material = MatLinearElastic(
-    rho = 1.0,
-    E = 1e5,
+    density = 7e-6,
+    E = 100.0,
     nu = 0.3
-)
+) |> PlaneStrainMaterial 
 
-
-material = MatHyperElasticPlastic(
+#=material = MatHyperElasticPlastic(
     elastic_material = MatNeoHook(
         E = 1.0e5,
         ν = 0.3
     ),
     τ₀ = 400.0,
     H = 1.0e5/20
-) |> PlaneStrainMaterial
+) |> PlaneStrainMaterial=#
 
-#=@addmat MatLinearElastic, "Steel", 1 begin
-    E = 1e5,
-    nu = 0.3   
-end=#
+con1 = Dirichlet(
+    set = getfaceset(data.grid, "right"),
+    func = (x,t) -> (0.0, 0.0),
+    field = :u,
+    dofs = [1,2]
+)
+push!(data.dirichlet, con1)
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
-    func = (x,t) -> (0.0, 0.0),
+    func = (x,t) -> (0.0, 0.1*t^2),
     field = :u,
     dofs = [1,2]
 )
@@ -49,7 +51,7 @@ part = Part{2,Float64}(
 push!(data.parts, part)
 
 data.output[] = Output(
-    interval = -0.1,
+    interval = 0.1,
     runname = "Beamexample",
     savepath = "."
 )
@@ -64,6 +66,7 @@ output = OutputData(
 )
 data.outputdata["reactionforce"] = output
 
+#=
 vtkoutput = VTKCellOutput(
     type = MaterialStateOutput(
         field = :ϵᵖ
@@ -79,18 +82,26 @@ vtkoutput = VTKNodeOutput(
     func = mean,
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
+=#
 
-force = PointForce(
+#=force = PointForce(
     field = :u,
     comps = [2],
     set = getvertexset(data.grid, "topright"),
     func = (X,t) -> -10.0*t
 )
-push!(data.external_forces, force)
+push!(data.external_forces, force)=#
 
-solver = NewtonSolver(
-    Δt0 = 0.1,
-    Δt_max = 0.1,
+solver = ExplicitSolver(
+    Δt0 = 0.0001,
+    #Δt_max = 0.1,
+)
+
+solver = ImplicitSolver(
+    Δt0 = 0.001,
+    β = 0.25,
+    γ = 0.5,
+    tol = 1e-5
 )
 
 state, data = build_problem(data)

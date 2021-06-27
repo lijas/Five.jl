@@ -220,31 +220,32 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     
 end
 
-function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where T
+function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables)
 
     assembler = start_assemble(state.system_arrays.M, fillzero=false)
     element = part.element
 
     dim = Ferrite.getdim(part)
     
-    #preallocate stuff (could be stored in Part)
-    me = zeros(T, ndofs(element), ndofs(element))
-    ue = zeros(T, ndofs(element))
-    due = zeros(T, ndofs(element))
+    ue, due, me, fe, coords, celldofs = (part.cache.ue, part.cache.due, 
+    part.cache.ke, part.cache.fe, part.cache.coords, part.cache.celldofs)
 
-    coords = zeros(Vec{dim,T}, Ferrite.nnodes_per_cell(dh, first(part.cellset)))
-    celldofs = zeros(Int, ndofs(element))
-
-    for (localid,celldata) in enumerate(CellIterator(dh,part.cellset))
+    for (localid,cellid) in enumerate(part.cellset)
         
         fill!(me, 0.0)
 
-        Ferrite.cellcoords!(coords, dh, cellid(celldata))
-        Ferrite.celldofs!(celldofs, dh, cellid(celldata))
+        partstate::get_partstate_type(part) = state.partstates[cellid]
 
-        integrate_massmatrix!(element, get_elementstate_type(element)(), part.material, coords, me, ue, due)
+        materialstate = partstate.materialstates
+        cellstate     = partstate.elementstate
 
-        assemble!(assembler, celldofs, me)
+        Ferrite.cellcoords!(coords, dh, cellid)
+        Ferrite.celldofs!(celldofs, dh, cellid)
+
+        integrate_massmatrix!(element, cellstate, part.material, coords, me, ue, due)
+
+        #assemble!(assembler, celldofs, me)
+        state.system_arrays.M[celldofs, celldofs] += me
     end
 
 end

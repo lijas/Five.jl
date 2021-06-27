@@ -5,7 +5,7 @@ export MatLinearElastic
 Standar elastic material routine. 
 """
 struct MatLinearElastic <: AbstractMaterial
-    denisty::Float64
+    density::Float64
     E::Float64
     nu::Float64
     μ::Float64
@@ -30,11 +30,11 @@ end
 
 get_material_state_type(m::MatLinearElastic) = MatLinearElasticState
 
-function MatLinearElastic(; rho::T = NaN, E::T, nu::T, plane_stress::Bool=true) where T
+function MatLinearElastic(; density::T = NaN, E::T, nu::T, plane_stress::Bool=true) where T
     λ = (E*nu) / ((1+nu) * (1 - 2nu))
     μ = E / (2(1+nu))
 
-    return MatLinearElastic(rho, E, nu, μ, λ, plane_stress)
+    return MatLinearElastic(density, E, nu, μ, λ, plane_stress)
 end
 
 # # # # # # #

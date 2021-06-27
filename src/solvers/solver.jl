@@ -89,6 +89,8 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
    
     fill!(state.system_arrays, 0.0)
 
+    assemble_massmatrix!(globaldata.dh, state, globaldata)
+
     apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
     assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
     apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)

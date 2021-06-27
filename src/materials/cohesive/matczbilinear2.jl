@@ -7,125 +7,81 @@ MatCZBilinear2
 Standard bi-linear cohesive zone law material model
 
 From: 
-Camanho, P., & Davila, C. G. (2002). Mixed-Mode Decohesion Finite Elements in for the Simulation Composite of Delamination Materials.
+Turon, A., Camanho, P. P., Costa, J., & Dávila, C. G. (2006). A damage model for the simulation of delamination in advanced composites under variable-mode loading. Mechanics of Materials, 38(11), 1072–1089. https://doi.org/10.1016/j.mechmat.2005.10.003
 
 """
 
 struct MatCZBilinear2{T} <: AbstractCohesiveMaterial
     K::T #Initial stiffness
-    Gᴵ::NTuple{3,T} #Fracture toughness
-    τᴹᵃˣ::NTuple{3,T} #Streanghts 
-    δ⁰::NTuple{3,T} #Value of jump when traction is maximum
-    δᶠ::NTuple{3,T} #Complete seperation
+    σₘₐₓ::T
+    τₘₐₓ::T
+    
+    #Onset damage
+    δ⁰ₙ::T
+    δ⁰ₜ::T
+
+    #Failure
+    δᶠₙ::T
+    δᶠₜ::T
+
+    Gᴵ::T
+    Gᴵᴵ::T
+
     η::T
 end
 
 struct MatCZBilinear2State{T} <: AbstractMaterialState
-    δᴹᵃˣₘ::T
+    r::T
     d::T
-    t::Vec{2,T}
-    J::Vec{2,T}
-
+    t::Vec{3,T}
+    Δ::Vec{3,T}
     #Dissipation
     g::T
-    dgdJ::Vec{2,T}
+    dgdJ::Vec{3,T}
 end
 
-function MatCZBilinear2(; K::T, Gᴵ::NTuple{3,T}, τᴹᵃˣ::NTuple{3,T}, η::T) where {T}
-    δᶠ = 2 .*Gᴵ./τᴹᵃˣ
-    δ⁰ = τᴹᵃˣ./K
-    return MatCZBilinear2{T}(K, Gᴵ, τᴹᵃˣ, δ⁰, δᶠ, η)
+function MatCZBilinear2(; K::T, Gᴵ, Gᴵᴵ, σₘₐₓ, τₘₐₓ, η::T) where {T}
+    δᶠₙ = 2 *Gᴵ/σₘₐₓ
+    δᶠₜ = 2 *Gᴵᴵ/τₘₐₓ
+    δ⁰ₙ = σₘₐₓ/K
+    δ⁰ₜ = τₘₐₓ/K
+    return MatCZBilinear2{T}(K, σₘₐₓ, τₘₐₓ, δ⁰ₙ, δ⁰ₜ, δᶠₙ, δᶠₜ, Gᴵ, Gᴵᴵ, η)
 end
 
 function getmaterialstate(mp::MatCZBilinear2{T}, d::T=zero(T)) where {T}
-    t = zero(Vec{2,T}) 
-    J = zero(Vec{2,T})
-
-    δᶠₘ = mp.δᶠ[1]
-    δ⁰ₘ = mp.δ⁰[1]
-    δᴹᵃˣₘ = _delta_max(d, δᶠₘ, δ⁰ₘ)
-    δᴹᵃˣₘ += δᴹᵃˣₘ*0.01
-    return MatCZBilinear2State(δᴹᵃˣₘ, d,t,J, 0.0, zero(Vec{2,T}))
+    λ = _delta_max2(d, mp.δᶠₙ, mp.δ⁰ₙ)
+    return MatCZBilinear2State(λ, d, zero(Vec{3,T}), zero(Vec{3,T}), 0.0, zero(Vec{3,T}))
 end
 
 get_material_state_type(::MatCZBilinear2{T}) where {T} = MatCZBilinear2State{T}
 
-#=function constitutive_driver(mp::MatCZBilinear2{T}, J::Vec{3,T}, prev_state::MatCZBilinear2State) where {T}
-    
-    t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    
-    dgdJ::Vec{dim,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
-    
+is_dissipative(::MatCZBilinear2) = true
 
-    return t, dt, MatCZBilinear2State(δᴹᵃˣₘ,d,t,J, g, dgdJ)
+function constitutive_driver(mp::MatCZBilinear2{T}, Δ::Vec{3,T}, prev_state::MatCZBilinear2State) where {T}
+    
+    t, r, d, g = _constitutive_driver(mp, Δ, prev_state)
+    #dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(Δ -> _constitutive_driver(mp, Δ, prev_state)[1], Δ, :all)
+    
+    #dgdJ::Vec{3,T}, g = Tensors.gradient(Δ -> _constitutive_driver(mp, Δ, prev_state)[4], Δ, :all)
+    
+    dgdJ = zero(Vec{3,T})
+    g = 0.0
+    dt = zero(Tensor{2,3,T})
+    return t, dt, MatCZBilinear2State(r, d, t, Δ, g, dgdJ)
 end
 
 function constitutive_driver_dissipation(mp::MatCZBilinear2{T}, J::Vec{3,T}, prev_state::MatCZBilinear2State) where {T}
     
-    J_dual = Tensors._load(J)
+    J_dual = Tensors._load(J, nothing)
     _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
 
     return Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
 end
 
-#2D
-function constitutive_driver(mp::MatCZBilinear2{T}, J2d::Vec{2,T}, prev_state::MatCZBilinear2State) where {T}
-    
-    #Pad with zero
-    J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
-
-    #Call 3d routine
-    t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
-    dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-
-    #Remove third direction
-    t2d = Vec{2,T}((t[1], t[3]))
-    dt2d = SymmetricTensor{2,2,T,3}((dt[1,1], dt[3,1], dt[3,3]))
-
-    dgdJ::Vec{3,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
-
-    return t2d, dt2d, MatCZBilinear2State(δᴹᵃˣₘ,d,t,J, g, dgdJ)
-end
-
-function constitutive_driver_dissipation(mp::MatCZBilinear2{T}, J2d::Vec{2,T}, prev_state::MatCZBilinear2State) where {T}
-    
-    #Pad with zero
-    J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
-
-    J_dual = Tensors._load(J)
-    _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
-
-    g, dg =  Tensors._extract_value(g_res), Tensors._extract_gradient(g_res, J)
-
-    return g, Vec{2,T}((dg[1], dg[3]))
-end=#
-
-
-#=function constitutive_driver_dissipation(mp::MatCZBilinear2{T}, J, prev_state::MatCZBilinear2State) where {T}
-    dim = 2
-    t, δᴹᵃˣₘ, d, g = _constitutive_driver(mp, J, prev_state)
-    #dt::Tensor{2,dim,T,M2},     t::Vec{dim,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    dt::Tensor{2,dim,T,dim^2}, t::Vec{dim,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    
-    dgdJ::Vec{dim,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
-    
-    return g, dgdJ
-end=#
-
-
-function constitutive_driver(mp::MatCZBilinear2{T}, J, prev_state) where {T}
-    
-    t, δᴹᵃˣₘ, d, g = _constitutive_driver(mp, J, prev_state)
-    #dt::Tensor{2,dim,T,M2},     t::Vec{dim,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    dt::Tensor{2,2,T,2^2}, t::Vec{2,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
-    
-    dgdJ::Vec{2,T}, g = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[4], J, :all)
-
-    return t, dt, MatCZBilinear2State(δᴹᵃˣₘ,d, t, J, g, dgdJ)
-end
-
 #
+_damage2(δ, δᶠₘ, δ⁰ₘ) = (δ<=δ⁰ₘ) ? 0.0 : (δᶠₘ*(δ - δ⁰ₘ))/(δ*(δᶠₘ-δ⁰ₘ))
+_delta_max2(d, δᶠₘ, δ⁰ₘ) = (d==0.0) ? δ⁰ₘ : (-δᶠₘ*δ⁰ₘ)/(d*(δᶠₘ-δ⁰ₘ)-δᶠₘ)
+n_damage_parameters(state::MatCZBilinear2) = 1
 interface_damage(state::MatCZBilinear2State, ::Int = 1) = state.d
 initial_stiffness(mat::MatCZBilinear2) = mat.K
 
@@ -135,68 +91,44 @@ max_traction_force(mat::MatCZBilinear2) = mat.τᴹᵃˣ
 onset_displacement(mat::MatCZBilinear2) = mat.δ⁰
 onset_displacement(mat::MatCZBilinear2, dim::Int) = mat.δ⁰[dim]
 
-function _constitutive_driver(mp::MatCZBilinear2{T1}, δ::Vec{dim,T2}, prev_state::MatCZBilinear2State) where {dim,T1,T2}
+function _constitutive_driver(mp::MatCZBilinear2{T1}, Δ::Vec{3,T2}, state::MatCZBilinear2State) where {T1,T2}
 
     K = mp.K
-    
-    δᵢⱼ = one(Tensor{2,dim,T1})
-    K == 0.0 && return zero(Vec{dim,T2}), 0.0, 1.0
-
-    δˢʰᵉᵃʳ₀ = mp.δ⁰[1] # = δ⁰[2]
+    Δ⁰ₜ = mp.δ⁰ₜ
+    δᵢⱼ = one(Tensor{2,3,T1})
+    δ₃₃ = δᵢⱼ[:,3] ⊗ δᵢⱼ[:,3]
+    d = state.d
+    D0 = δᵢⱼ*K
+    ΔΔ = Δ - state.Δ
 
     macl(x) = (x<=0 ? (0.0) : x)
 
-    #First check if it has failed
-    if prev_state.d == 1.0
-        #Only at traction force if negative penatration
-        if δ[dim] <= 0.0
-            D = δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K #* macl(-δ₃)/-δ₃
-        else
-            D = zero(Tensor{2,dim,T1})
-        end
-        return D⋅δ, prev_state.δᴹᵃˣₘ, prev_state.d, 0.0
-    end
-    δˢʰᵉᵃʳ = dim==3 ? sqrt(δ[1]^2 + δ[2]^2) : δ[1]
-    δₘ = sqrt((δˢʰᵉᵃʳ)^2 + macl(δ[dim])^2)
+    Δˢʰᵉᵃʳ = sqrt(Δ[1]^2 + Δ[2]^2)
+    λ  = sqrt((Δˢʰᵉᵃʳ)^2 + macl(Δ[3])^2)
 
-    δᴹᵃˣₘ = max(prev_state.δᴹᵃˣₘ, δₘ)
+    r = max(state.r, λ)
 
-    β = δˢʰᵉᵃʳ/δ[dim]
+    β = Δˢʰᵉᵃʳ/(Δˢʰᵉᵃʳ+macl(Δ[3]))
+    isnan(β) && return K*δᵢⱼ⋅Δ, r, d, 0.0 
 
-    δ⁰ₘ = _onset_softening(δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β)
-    δᶠₘ = _cohesive_bk_criterion(δ[dim], δ⁰ₘ, mp.δᶠ, K, β, mp.η, mp.Gᴵ)
-    local D, d, g
-    if δᴹᵃˣₘ <= δ⁰ₘ
-        D = K*δᵢⱼ
-        d=0.0
-        g=0.0
-    elseif δ⁰ₘ < δᴹᵃˣₘ < δᶠₘ
-        d = (δᶠₘ*(δᴹᵃˣₘ - δ⁰ₘ))/(δᴹᵃˣₘ*(δᶠₘ-δ⁰ₘ))
-        D = δᵢⱼ * (1-d)*K
-        Dg = K*δᵢⱼ # For compuation of dissipation
-        if δ[dim] <= 0.0
-            D += δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * d * K# * macl(-δ₃)/-δ₃
-            Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
-        end
+    B = β^2/(1 + 2β^2 - 2β)
 
-        Δd = d - prev_state.d
-        g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
+    Δ⁰ = _onset_softening2(mp.δ⁰ₙ, mp.δ⁰ₜ, B, mp.η)
+    Δᶠ = _cohesive_bk_criterion2(Δ⁰, mp.δ⁰ₙ, mp.δᶠₙ, mp.δ⁰ₜ, mp.δᶠₜ, B, mp.η)
 
-    elseif δᴹᵃˣₘ >= δᶠₘ
-        D = zero(δᵢⱼ)
-        Dg = K*δᵢⱼ
-        if δ[dim] <= 0.0
-            D += δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K# * macl(-δ₃)/-δ₃
-            Dg -= δᵢⱼ[:,dim]⊗δᵢⱼ[dim,:] * K
-        end
-        d=1.0
-        Δd = d - prev_state.d
-        g =  0.5(δ ⋅ Dg ⋅ δ) * Δd
-    else
-        @show δᴹᵃˣₘ, δ⁰ₘ, δ[dim], mp.δ⁰, δˢʰᵉᵃʳ₀, β, δᶠₘ
-        error("Wrong D")
-    end
 
-    
-    return D⋅δ, δᴹᵃˣₘ, d, g
+    d = _damage2(r, Δᶠ, Δ⁰)
+
+    t = (1-d)*D0⋅Δ - d*K*δᵢⱼ[:,3]*macl(-Δ[3]) 
+    g =  0.5(Δ ⋅ (K*δᵢⱼ) ⋅ Δ) * d
+
+    return t, r, d, g
+end
+
+function _cohesive_bk_criterion2( Δ⁰, Δ⁰₃, Δᶠ₃, Δ⁰ₜ, Δᶠₜ, B, η)
+    return (Δ⁰₃*Δᶠ₃ + (Δ⁰ₜ*Δᶠₜ - Δ⁰₃*Δᶠ₃) * B^η)/Δ⁰
+end
+
+function _onset_softening2(Δ⁰ₙ, Δ⁰ₜ, B, η)
+    return sqrt(Δ⁰ₙ^2 + ((Δ⁰ₜ)^2 - (Δ⁰ₙ)^2)*B^η)
 end
