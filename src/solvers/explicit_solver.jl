@@ -17,12 +17,6 @@ end
 
 function step!(solver::ExplicitSolver, state, globaldata) 
 
-    if state.step == 1
-        @timeit "Massmatrix" assemble_massmatrix!(globaldata.dh, state, globaldata)
-        #@showm state.system_arrays.M
-        #@showm state.system_arrays.Kⁱ
-    end
-    
     #Time update
     tᵢ = state.t
     tᵢ₊₀₅ = state.t + solver.Δt0/2
