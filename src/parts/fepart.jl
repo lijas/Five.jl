@@ -151,10 +151,6 @@ function assemble_dissipation!(dh::Ferrite.AbstractDofHandler,
     part::FEPart,
     state::StateVariables)
 
-    if !(part.material |> is_dissipative)
-        return 
-    end
-
     _assemble_part!(dh, part, state, DISSI)
 
 end
