@@ -4,7 +4,7 @@ using Five
 makedocs(
     sitename = "Five",
     format = Documenter.HTML(),
-    modules = [Five]
+    modules = [Five],
     pages = Any[
         "Home" => "index.md",
         "essentials.md",
