@@ -3,4 +3,5 @@
 ```@docs
 StateVariables
 SystemArrays
+GlobalData
 ```

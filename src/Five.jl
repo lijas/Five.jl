@@ -43,12 +43,11 @@ export SystemArrays, StateVariables, GlobalData
 
 Contains global arrays, such as internal force vector and stiffness matrix.
 
-**TODO**
+**Possible changes**
 Differnet solvers need different global arrays. For example, an static solver does need mass matrices,
 while a explicit solver does. Maybe create different <: SystemArrays depending on solver. 
 
 """
-
 mutable struct SystemArrays{T}
     fⁱ::Vector{T} #Internal force vector
     Kⁱ::SparseArrays.SparseMatrixCSC{T,Int} #Stiffness matrix
@@ -79,7 +78,6 @@ end
 
 Contains all information about the state of system (displacements, material damage etc).
 
-
 **Field variables:**
 * `d`: displacements 
 * `v`: velocityes
@@ -96,8 +94,10 @@ Contains all information about the state of system (displacements, material dama
 
 * `step`: Number of steps taken up until this point
 
-"""
+**Possible changes**
+Remove all Δ-variables, and require two states instead, (previous and current) 
 
+"""
 mutable struct StateVariables{T}
     
     d::Vector{T}
@@ -218,6 +218,12 @@ include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
 
+"""
+    GlobalData{dim,T,DH<:AbstractDofHandler}
+
+Contains all information about the problem being solved, e.g Forces, Boundary conditions, Parts
+
+"""
 mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     dbc::ConstraintHandler{DH,T}
 

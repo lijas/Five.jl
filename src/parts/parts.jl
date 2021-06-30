@@ -19,6 +19,28 @@ get_fields
 """
 init_part!
 
+""" 
+    assemble_stiffnessmatrix_and_forcevector!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+assemble_stiffnessmatrix_and_forcevector!
+
+"""
+    assemble_forcevector!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+assemble_forcevector!
+
+"""
+    assemble_dissipation!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+assemble_dissipation!
+
+"""
+bigtest!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+function bigtest()
+
+end
+
 include("fepart.jl")
 include("cohesive_part.jl")
 #include("rigidbody/rigidpart.jl")
