@@ -5,6 +5,14 @@ makedocs(
     sitename = "Five",
     format = Documenter.HTML(),
     modules = [Five]
+    pages = Any[
+        "Home" => "index.md",
+        "essentials.md",
+        "Solvers" => [
+            "solvers/crisfield_solver.md",
+            "solvers/local_dissipation_solver.md",
+            ],
+    ]
 )
 
 deploydocs(
