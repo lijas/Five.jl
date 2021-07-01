@@ -52,7 +52,7 @@ function step!(solver::ImplicitSolver{T}, state, globaldata) where {T}
             fill!(state.system_arrays, 0.0)
 
             #Get internal force                                                                       
-            @timeit "Assembling" assemble_forcevector!(globaldata.dh, state, globaldata)
+            @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
             
             @timeit "ExternalForces" apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
             @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
@@ -87,8 +87,9 @@ function step!(solver::ImplicitSolver{T}, state, globaldata) where {T}
 
             println("---->Normg: $(state.norm_residual)")
 
+            scaledtol = solver.tol * max( norm(state.system_arrays.fⁱ), norm(state.system_arrays.fᵉ), norm(M*state.a) )
             #Check convergence
-            if state.norm_residual < solver.tol
+            if state.norm_residual < scaledtol
                 converged = true
                 break
             end
