@@ -17,14 +17,17 @@ end
 
 function step!(solver::ExplicitSolver, state, globaldata) 
 
+    #
+    M = state.system_arrays.Mᵈⁱᵃᵍ
+    ⁿfⁱ = copy(state.system_arrays.fⁱ)
+    ⁿfᵉ = copy(state.system_arrays.fᵉ)
+
     #Time update
     tᵢ = state.t
     tᵢ₊₀₅ = state.t + solver.Δt0/2
     tᵢ₊₁ = state.t + solver.Δt0
     state.t = tᵢ₊₁
     Δtᵢ₊₀₅  = solver.Δt0
-
-    @show tᵢ₊₁
 
     #Partial update of vel
     vᵢ₊₀₅ = state.v .+ (tᵢ₊₀₅  - tᵢ).*state.a 
@@ -37,6 +40,7 @@ function step!(solver::ExplicitSolver, state, globaldata)
     state.Δd .= Δtᵢ₊₀₅ .* vᵢ₊₀₅ 
     state.d .+= state.Δd 
 
+    @show tᵢ₊₁
     @show maximum(abs.(state.d))
     @show any(isnan.(state.d))
 
@@ -54,8 +58,8 @@ function step!(solver::ExplicitSolver, state, globaldata)
     #Assabmle mass matrix each iteration due to rigid bodies have non-constant mass matrix
     # @timeit "Update massmatrix" update_massmatrix!(dh, parts, materials, cellstates, elementinfos, M, dᵢ₊₁, vᵢ₊₀₅)
     f =state.system_arrays.fᵉ - state.system_arrays.fⁱ
-    #apply_zero!(state.system_arrays.M, f, globaldata.dbc)
-    @timeit "Solve" state.a .= state.system_arrays.M\f
+    #apply_zero!(M, f, globaldata.dbc)
+    @timeit "Solve" state.a .= M\f
 
     #Second partial update nodal vel
     state.v  = vᵢ₊₀₅  + (tᵢ₊₁ - tᵢ₊₀₅ )*state.a
@@ -65,9 +69,9 @@ function step!(solver::ExplicitSolver, state, globaldata)
     apply!(state.v , globaldata.dbc)
     
     #Check energy balance 
-    #Wⁱⁿᵗᵢ₊₁ = 0.5*(dᵢ₊₁  - dᵢ)'*(fⁱⁿᵗᵢ + fⁱⁿᵗᵢ₊₁)
-    #Wᵉˣᵗᵢ₊₁ = 0.5*(dᵢ₊₁  - dᵢ)'*(fᵉˣᵗᵢ + fᵉˣᵗᵢ₊₁)
-    #Wᵏⁱⁿᵢ₊₁ = 0.5*vᵢ₊₁'*M*vᵢ₊₁ 
+    state.Wⁱ = 0.5*(state.Δd)'*(ⁿfⁱ + state.system_arrays.fⁱ)
+    state.Wᵉ = 0.5*(state.Δd)'*(ⁿfᵉ + state.system_arrays.fᵉ)
+    state.Wᵏ = 0.5*state.v'*M*state.v 
 
     return true
 

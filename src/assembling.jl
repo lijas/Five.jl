@@ -6,14 +6,16 @@ function assemble_massmatrix!(dh, state, globaldata)
     end
 end
 
-function assemble_lumped_massmatrix!(dh, state, globaldata)
+function assemble_lumped_massmatrix!(dh, state::StateVariables{T}, globaldata) where T
 
-    assemble_massmatrix!(dh, system_arrays, globaldata)
+    if state.system_arrays.M[1,1] == 0.0
+        assemble_massmatrix!(dh, system_arrays, globaldata)
+    end
 
-    fill!(system_arrays.Mᵈⁱᵃᵍ, 0.0)
+    fill!(state.system_arrays.Mᵈⁱᵃᵍ, 0.0)
     for I in 1:ndofs(dh)
         for J in 1:ndofs(dh)
-            system_arrays.Mᵈⁱᵃᵍ[I,I] += system_arrays.M[I,J]
+            state.system_arrays.Mᵈⁱᵃᵍ[I,I] += state.system_arrays.M[I,J]
         end
     end
 end
