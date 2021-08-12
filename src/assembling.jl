@@ -1,6 +1,6 @@
 
 
-function assemble_massmatrix!(dh, state, globaldata)
+function assemble_massmatrix!(dh, state::StateVariables{T}, globaldata) where T
     for (partid, part) in enumerate(globaldata.parts)
         assemble_massmatrix!(dh, part, state)
     end
