@@ -59,8 +59,6 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     # Set ΔP to the privious time steps solution
     ΔP0 = ΔP = state.ΔL
 
-    ΔD = 0.0
-    ΔU = 0.0
     Δg = 0.0
     
     while converged_failed 
@@ -75,8 +73,8 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             fill!(state.system_arrays, 0.0)
             
             @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
-            ΔD = state.system_arrays.G[]
-            ΔU = 0.5*dot(state.Δλ*state0.d + state0.λ*state.Δd, q)
+            state.ΔD = state.system_arrays.G[]
+            state.ΔU = 0.5*dot(state.Δλ*state0.d + state0.λ*state.Δd, q)
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
@@ -87,12 +85,12 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
                 w = 0.5*dot(state0.d, q)
                 h = 0.5*state0.λ*q
 
-                Δg = ΔU
+                Δg = state.ΔU
             elseif state.solvermode == DISSIPATION_LOCAL
                 w = 0.0;
                 h = state.system_arrays.fᴬ
 
-                Δg = ΔD
+                Δg = state.ΔD
             end
 
             #Normal stiffness matrix
@@ -100,8 +98,6 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
             
             apply_zero!(Kₜ, rₜ, globaldata.dbc)
-
-
 
             ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, h, w, Δg, state.ΔL)
  
@@ -121,7 +117,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
             else
                 state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
             end
-            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("ΔU=$(ΔU),", 20)) $(rpad("ΔD=$(ΔD),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("ΔD/ΔU=$(ΔD/ΔU),", 20))")
+            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("ΔU=$(state.ΔU),", 20)) $(rpad("ΔD=$(state.ΔD),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("ΔD/ΔU=$(state.ΔD/state.ΔU0),", 20))")
 
             if newton_done(solver, state.norm_residual, Δg, state.ΔL, state.solvermode)
                 converged_failed = false
@@ -150,13 +146,13 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
         end
     end
 
-    determine_solvermode!(solver, state, ΔD, ΔU)
+    determine_solvermode!(solver, state)
 
     #solvermode changed in above function
     if state.solvermode == INTERNAL_ENERGY_LOCAL
-        Δg = ΔU
+        Δg = state.ΔU
     elseif state.solvermode == DISSIPATION_LOCAL
-        Δg = ΔD
+        Δg = state.ΔD
     end
 
     #Update the dissipation increaments for this timestep
@@ -242,17 +238,24 @@ function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariable
     return ΔP
 end
 
-function determine_solvermode!(solver::LocalDissipationSolver, state::StateVariables, ΔD::Float64, ΔU::Float64)
+function determine_solvermode!(solver::LocalDissipationSolver, state::StateVariables)
 
     if state.solvermode == INTERNAL_ENERGY_LOCAL
-        if ΔD > solver.a * ΔU
-            println("Dissipation switch ΔD = $(ΔD) and Δu = $(ΔU) ")
+        if state.ΔD > solver.a * state.ΔU
+
+            println("Dissipation switch ΔD = $(state.ΔD) and Δu = $(state.ΔU) ")
             state.solvermode = DISSIPATION_LOCAL
+            state.ΔU_negative = false;
+
         end
     elseif state.solvermode == DISSIPATION_LOCAL
-        if ΔD < solver.a * ΔU
-            println("Dissipation switch ΔD = $(ΔD) and Δu = $(ΔU) ")
-            #state.solvermode = INTERNAL_ENERGY_LOCAL
+        if state.ΔD < solver.a * state.ΔU
+
+
+            println("Dissipation switch ΔD = $(state.ΔD) and Δu = $(state.ΔU) ")
+            state.solvermode = INTERNAL_ENERGY_LOCAL
+            state.ΔU = state.ΔU0
+
         end
     end
 
@@ -322,6 +325,7 @@ function do_first_newton_step!(solver, state, globaldata)
         error("Internal energy is equal to zero after the first timestep")
     end
 
+    state.ΔU0 = ΔU
     state.ΔL = ΔU
     state.L += ΔU
 

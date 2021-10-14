@@ -99,6 +99,12 @@ mutable struct StateVariables{T}
     newton_itr::Int
     solvermode::SolverMode
 
+    #
+    ΔU::T
+    ΔD::T
+    ΔU0::T
+    ΔU_negative::Bool
+
     #Need these for explicit solver...
     Wⁱ::T
     Wᵉ::T
@@ -109,7 +115,7 @@ function StateVariables(T::Type, ndofs::Int)
     dofvecs1 = [zeros(T, ndofs) for _ in 1:3]
     dofvecs2 = [zeros(T, ndofs) for _ in 1:3]
     sa = SystemArrays(T, ndofs)
-    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, dofvecs2..., 0.0, 0.0, 0.0, sa, AbstractPartState[], AbstractPartState[], 0, NaN, NaN, 0, true, Inf, 0, MODE1, 0.0, 0.0, 0.0)
+    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, dofvecs2..., 0.0, 0.0, 0.0, sa, AbstractPartState[], AbstractPartState[], 0, NaN, NaN, 0, true, Inf, 0, MODE1, 0.0, 0.0, 0.0, false, 0.0, 0.0, 0.0)
 end
 
 function Base.copy!(a::StateVariables, b::StateVariables)
