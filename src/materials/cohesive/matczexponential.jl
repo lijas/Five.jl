@@ -85,7 +85,8 @@ function _MatCZKolluri_law_with_damage(m::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZK
     if Δₙ_max == Inf || Δₜ_max == Inf
         ΔD = 0.0
     else
-        ⁿΔₜ_max = Vec{2,T}( (ms.Δ_max[1], ms.Δ_max[1]) )
+        ⁿΔₜ_max = Vec{2,T}( (ms.Δ_max[1], ms.Δ_max[2]) )
+        
         #Dissipaiton from magrnus, (d_cn -> d_tn     d_ct -> d_nt)
         Δd_n = 1/m.δₙ * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
         Δd_cn  = Δₙ_max/m.δₙ^2 * exp(-Δₙ_max/m.δₙ) * (Δₙ_max - ms.Δ_max[3])
