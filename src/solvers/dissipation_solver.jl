@@ -42,7 +42,11 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
 
     λ0     = state.λ
     q      = state.system_arrays.q
+    â      = state.system_arrays.â
     state0 = deepcopy(state)
+
+    all(iszero.(â)) && @assert( !all(iszero.(q)) )
+    all(iszero.(q)) && @assert( !all(iszero.(â)) )
 
     #ΔP represents either ΔL or Δλ depending 
     # on the solver mode (INCREMENT or DISSIPATION).
@@ -64,19 +68,30 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             state.newton_itr += 1
             fill!(state.system_arrays, 0.0)
 
+            #
+            update!(globaldata.dbc, state.λ) 
+            apply!(state.d, globaldata.dbc)
+            state.Δd = state.d - state0.d
+
             #Get internal force                                                                       
             assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
             apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)
             
             #Normal stiffness matrix
-            Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
-            rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
+            Kₜ = state.system_arrays.Kⁱ # - state.system_arrays.Kᵉ
+            rₜ = -state.system_arrays.fⁱ
             
-            Δg = 1/2 * dot(state.Δd, state0.λ*q - state0.system_arrays.fᴬ)
+            #Δg = 1/2 * dot(state.Δd, state0.λ*q - state0.system_arrays.fᴬ)
+            Δg = 1/2 * dot(state.Δd, state0.system_arrays.fⁱ - state0.system_arrays.fᴬ)
             
-            apply_zero!(Kₜ, rₜ, globaldata.dbc)
+            #apply_zero!(Kₜ, rₜ, globaldata.dbc)
 
-            ΔΔd, ΔΔλ = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state0.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode)
+            @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, state0.system_arrays.fⁱ, q, â, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, λ0, state.ΔL, state.solvermode, state.system_arrays.C, globaldata.dh, globaldata.dbc)
+
+            if !_success
+                converged_failed = true
+                break
+            end
             
             state.Δd += ΔΔd
             state.Δλ += ΔΔλ
@@ -88,11 +103,9 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
             
             #Check convergance
             if norm(state.λ*q) <= 1e-10
-                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])
-            else
-                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+                state.norm_residual = norm(state.system_arrays.C'*rₜ)#/1000
             end
-            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("Δg=$(Δg),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("λ=$(state.λ),", 20))  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
+            println("------>Newton $(state.newton_itr): $(rpad("normr: $(state.norm_residual),", 20)) $(rpad("Δg=$(Δg),", 20)) $(rpad("Δλ=$(state.Δλ),", 20)) $(rpad("λ=$(state.λ),", 20))")#  $(rpad("maxd=$(maximum(abs.(state.d))),", 30)) $(rpad("maxd=$(maximum(abs.(state.Δd))),", 30))  $(rpad("L=$(norm(state.L)),", 30))")
 
             if newton_done(solver, state.norm_residual, Δg, state.ΔL, state.solvermode)
                 converged_failed = false
@@ -108,6 +121,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
 
             #Reset partstates
             state.partstates .= deepcopy(state0.partstates)
+            #state.partstates .= deepcopy(state.prev_partstates)
         end
 
         if converged_failed 
@@ -125,6 +139,8 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
     #Update the dissipation increaments for this timestep
     state.ΔL = Δg
     state.L += Δg
+    state.Δt = Δg
+    state.t += Δg
 
     determine_solvermode!(solver, state)
 
@@ -138,6 +154,7 @@ end
 function newton_done(solver::DissipationSolver, residual, Δg, ΔL, solvermode) 
     if residual < solver.tol 
         if solvermode == DISSIPATION
+            @show norm(Δg-ΔL)
             if norm(Δg-ΔL) < solver.tol
                 return true
             else
@@ -149,25 +166,62 @@ function newton_done(solver::DissipationSolver, residual, Δg, ΔL, solvermode)
     return false
 end
 
-function _solve_dissipation_system(solver::DissipationSolver, Kₜ, rₜ, q, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode)
+function _solve_dissipation_system(solver::DissipationSolver, Kₜ, rₜ, fⁱ_0, q, â, fᵉ, fᴬ, Δg, λ0, ΔL, solvermode, C, dh, dbc)
     local ΔΔd, ΔΔλ
+
     if solvermode == DISSIPATION
         w = 0.0
-        h = 0.5*(λ0*q - fᴬ)
-        
-        KK = vcat(hcat(Kₜ, -q), hcat(h', w))
-        ff = vcat(rₜ, -(Δg - ΔL))
+        h = 0.5*(fⁱ_0 - fᴬ)
 
-        aa = KK\ff
-        ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
+        opt = 2
+        if opt == 1
+            apply_zero!(Kₜ, rₜ, dbc)
+            KK = vcat(hcat(Kₜ, -q), hcat(h', w))
+            ff = vcat(rₜ, -(Δg - ΔL))
+
+            local aa
+            try
+                aa = KK\ff
+            catch
+                return 0.0 .* copy(h), 0.0, false
+            end
+            ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
+        else
+            kk1 = C'*Kₜ*C
+            kk2 = C'*Kₜ*â
+            kk3 = h' * C
+            kk4 = h'*â
+
+            KK = vcat(hcat(kk1, kk2), hcat(kk3, kk4))
+
+            f1 = C' * rₜ
+            f2 = -(Δg - ΔL)
+
+            ff = vcat(f1, f2)
+            local AA
+            try
+                AA = KK\ff
+            catch
+                return copy(h), 0.0, false
+            end
+            ΔΔdf, ΔΔλ = (AA[1:end-1], AA[end])
+    
+            ΔΔd = C*ΔΔdf + ΔΔλ*â
+        end
     elseif solvermode == INCREMENT
-        ΔΔd  = Kₜ\rₜ
+        apply_zero!(Kₜ, rₜ, dbc)
+        try
+            ΔΔd  = Kₜ\rₜ
+        catch
+            return copy( fᴬ), 0.0, false
+        end
         ΔΔλ = 0.0
     else
         error("No mode")
     end
 
-    return ΔΔd, ΔΔλ
+    return ΔΔd, ΔΔλ, true
+
 end
 
 function set_initial_guess!(solver::DissipationSolver, state::StateVariables, ΔP, ⁿΔP, ntries)

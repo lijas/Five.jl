@@ -9,7 +9,7 @@ end
 function assemble_lumped_massmatrix!(dh, state::StateVariables{T}, globaldata) where T
 
     if state.system_arrays.M[1,1] == 0.0
-        assemble_massmatrix!(dh, system_arrays, globaldata)
+        assemble_massmatrix!(dh, state, globaldata)
     end
 
     fill!(state.system_arrays.Mᵈⁱᵃᵍ, 0.0)
