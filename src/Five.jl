@@ -38,11 +38,21 @@ abstract type AbstractSolver{T} end
 
 export SystemArrays, StateVariables, GlobalData
 
-mutable struct SystemArrays{T}
-    fⁱ::Vector{T}
-    Kⁱ::SparseArrays.SparseMatrixCSC{T,Int}
+"""
+    SystemArrays(T::Type, ndofs::Int)
 
-    fᵉ::Vector{T}
+Contains global arrays, such as internal force vector and stiffness matrix.
+
+**Possible changes**
+Differnet solvers need different global arrays. For example, an static solver does need mass matrices,
+while a explicit solver does. Maybe create different <: SystemArrays depending on solver. 
+
+"""
+mutable struct SystemArrays{T}
+    fⁱ::Vector{T} #Internal force vector
+    Kⁱ::SparseArrays.SparseMatrixCSC{T,Int} #Stiffness matrix
+
+    fᵉ::Vector{T} #External force vector
     Kᵉ::SparseArrays.SparseMatrixCSC{T,Int}
     
     Mᵈⁱᵃᵍ::SparseArrays.SparseMatrixCSC{T,Int}
@@ -63,6 +73,31 @@ function SystemArrays(T::Type, ndofs::Int)
     return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
+"""
+    StateVariables(T::Type, ndofs::Int)
+
+Contains all information about the state of system (displacements, material damage etc).
+
+**Field variables:**
+* `d`: displacements 
+* `v`: velocityes
+* `a`: accelerations 
+* `t`: current time
+* `λ`: current loading factor (fᵉ = λ*f̂, used in arc-length solver) 
+* `L`: Current step length (used in arc-length solvers)
+* `Δd`, `Δv`, `Δa`, `Δt`, `Δλ`, `ΔL` - Difference between current and previous timestep of variables above
+
+* `system_arrays`: Instance of [`SystemArrays`](@ref)
+
+* `partstates`: Contains [`PartState`](@ref), one for each cell
+* `prev_partstates`: Contains [`PartState`](@ref) from previous timesteps, one for each cell
+
+* `step`: Number of steps taken up until this point
+
+**Possible changes**
+Remove all Δ-variables, and require two states instead, (previous and current) 
+
+"""
 mutable struct StateVariables{T}
     
     d::Vector{T}
@@ -189,6 +224,12 @@ include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
 
+"""
+    GlobalData{dim,T,DH<:AbstractDofHandler}
+
+Contains all information about the problem being solved, e.g Forces, Boundary conditions, Parts
+
+"""
 mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     dbc::ConstraintHandler{DH,T}
 
