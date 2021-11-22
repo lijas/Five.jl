@@ -37,6 +37,7 @@ function step!(solver::NewtonSolver, state, globaldata)
 
         #Apply boundary conditions
         update!(globaldata.dbc, state.t)
+        apply_zero!(state.Δd, globaldata.dbc)
         apply!(state.d, globaldata.dbc)
 
         state.newton_itr = 0
@@ -63,9 +64,11 @@ function step!(solver::NewtonSolver, state, globaldata)
             #Solve 
             apply_zero!(K, r, globaldata.dbc)
             ΔΔd = K\-r
+            apply_zero!(ΔΔd, globaldata.dbc)
 
             state.Δd .+= ΔΔd
             state.d  .+= ΔΔd
+            apply!(state.d, globaldata.dbc)
 
             println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
         

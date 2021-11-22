@@ -85,3 +85,47 @@ end
     f[consteq.dofs] -= penalty*g*G;
     #K[consteq.dofs, consteq.dofs] -= (penalty*G*G' + penalty*H)
 end=#
+
+export TestConstraint
+
+struct TestConstraint
+
+    faces::Set{FaceIndex}
+    mastervertex::VertexIndex
+    dofs::Vector{Int}
+    field::Symbol
+end
+
+function TestConstraint(; faces, mastervertex, field, dofs)
+    TestConstraint(faces, mastervertex, dofs, field)
+end
+
+function create_linear_constraints(dh::MixedDofHandler, tc::TestConstraint)
+
+    fh = getfieldhandler(dh, cellid(first(tc.faces)))
+
+    masterdofs = dofs_on_vertex(dh, fh, tc.mastervertex, tc.field, tc.dofs);
+    @assert(length(masterdofs) == 1)
+    masterdof = masterdofs[1]
+    slavedofs = Int[]
+    for face in tc.faces
+        dofs = dofs_on_face(dh, fh, face, tc.field, tc.dofs)
+        append!(slavedofs, dofs)
+    end
+
+    @assert( masterdof in slavedofs)
+    unique!(slavedofs)
+    filter!((x)->x!=masterdof, slavedofs)
+
+
+    lcs = Ferrite.LinearConstraint[]
+    for d in slavedofs
+        push!(lcs, Ferrite.LinearConstraint(d, [masterdof=>1.0], 0.0))
+    end
+     
+    return lcs;
+end
+
+
+
+

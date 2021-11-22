@@ -4,6 +4,7 @@ mutable struct ProblemData{dim,T}
     grid::Ferrite.AbstractGrid
     parts::Vector{Five.AbstractPart{dim}}
     dirichlet::Vector{Ferrite.Dirichlet}
+    linear_constraints::Vector{TestConstraint}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints::Vector{Five.AbstractExternalForce}
     output::Base.RefValue{Output{T}}
@@ -19,6 +20,7 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     
     parts = Five.AbstractPart{dim}[]
     dbc   = Ferrite.Dirichlet[]
+    lcs   = TestConstraint[]
     exfor = Five.AbstractExternalForce[]
     output = Base.RefValue{Output{T}}()
     outputdata = Dict{String, Five.OutputData}()
@@ -26,7 +28,7 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     states = Dict{Int, Vector{Any}}()
     grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
+    return ProblemData{dim,T}(grid, parts, dbc, lcs, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)
@@ -80,6 +82,13 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     for d in data.dirichlet
         fh = getfieldhandler(dh, first(d.faces)[1])
         add!(dch, fh, d)
+    end
+
+    for lc in data.linear_constraints
+        lcs = create_linear_constraints(dh, lc)
+        for _lc in lcs
+            add!(dch, _lc)
+        end
     end
     close!(dch)
     update!(dch, 0.0)
