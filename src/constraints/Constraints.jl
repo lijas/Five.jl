@@ -88,9 +88,9 @@ end=#
 
 export TestConstraint
 
-struct TestConstraint
+struct TestConstraint{BI <: Ferrite.BoundaryIndex}
 
-    faces::Set{FaceIndex}
+    faces::Set{BI}
     mastervertex::VertexIndex
     dofs::Vector{Int}
     field::Symbol
@@ -100,7 +100,7 @@ function TestConstraint(; faces, mastervertex, field, dofs)
     TestConstraint(faces, mastervertex, dofs, field)
 end
 
-function create_linear_constraints(dh::MixedDofHandler, tc::TestConstraint)
+function create_linear_constraints(dh::MixedDofHandler, tc::TestConstraint{BI}) where BI
 
     fh = getfieldhandler(dh, cellid(first(tc.faces)))
 
@@ -109,17 +109,26 @@ function create_linear_constraints(dh::MixedDofHandler, tc::TestConstraint)
     masterdof = masterdofs[1]
     slavedofs = Int[]
     for face in tc.faces
-        dofs = dofs_on_face(dh, fh, face, tc.field, tc.dofs)
+        dofs = []
+        @show typeof(face)
+        if face isa FaceIndex
+            dofs = dofs_on_face(dh, fh, face, tc.field, tc.dofs)
+        elseif face isa VertexIndex
+            dofs = dofs_on_vertex(dh, fh, face, tc.field, tc.dofs)
+        else
+            error("Hej")
+        end
         append!(slavedofs, dofs)
     end
 
-    @assert( masterdof in slavedofs)
+    #@assert( masterdof in slavedofs)
     unique!(slavedofs)
     filter!((x)->x!=masterdof, slavedofs)
 
 
     lcs = Ferrite.LinearConstraint[]
     for d in slavedofs
+        @show Ferrite.LinearConstraint(d, [masterdof=>1.0], 0.0)
         push!(lcs, Ferrite.LinearConstraint(d, [masterdof=>1.0], 0.0))
     end
      
