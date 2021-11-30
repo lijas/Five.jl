@@ -57,18 +57,43 @@ function step!(solver::NewtonSolver, state, globaldata)
             @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
 
             r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
+            @show nnz(state.system_arrays.Kᵉ)
+            @show norm(state.system_arrays.Kⁱ)
+            @show nnz(state.system_arrays.Kⁱ)
             K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
-
-            state.norm_residual = norm(r[Ferrite.free_dofs(globaldata.dbc)])
-
+            @show norm(K)
+            @show nnz(K)
+            error("adsf")
             #Solve 
             apply_zero!(K, r, globaldata.dbc)
             ΔΔd = K\-r
             apply_zero!(ΔΔd, globaldata.dbc)
+            #C, g = Ferrite.create_constraint_matrix(globaldata.dbc)
+            #ff  = C'*(r)
+            #KK = C'*K*C;
+            #_ΔΔd = -KK\ff
+            #ΔΔd = C*_ΔΔd #+ g
+
+            #@assert( all( abs.(ΔΔd2 .- ΔΔd) .< 1e-5 ) )
 
             state.Δd .+= ΔΔd
             state.d  .+= ΔΔd
+            apply_zero!(state.Δd, globaldata.dbc)
             apply!(state.d, globaldata.dbc)
+
+            state.norm_residual = norm(r[Ferrite.free_dofs(globaldata.dbc)])
+            #for lc in globaldata.dbc.lcs
+            #    @show lc
+            #end
+
+            #@show "hej1"
+            #@show K1 = create_sparsity_pattern(globaldata.dh)
+
+           # K1.nzval .= 2.0
+
+            #Ferrite._condense!(K1, r, globaldata.dbc.lcs, size(K1,1))
+
+            #error("sdf")
 
             println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
         
