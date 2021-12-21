@@ -8,11 +8,14 @@ abstract type AbstractElementState end
 struct EmptyElementState <: AbstractElementState end
 
 EmptyElementState(::AbstractElement) = EmptyElementState() 
+get_elementstate_type(::AbstractElement) = EmptyElementState
 
 """
-Returns the AbstractElementState for a Element. Default to EmptyElementState
+    get_fields(::AbstractElement)
+
+Returns a list with all fields used by the element, e.g :u, :T, :θ 
 """
-get_elementstate_type(::AbstractElement) = EmptyElementState
+get_fields
 
 """
     Returns a boolean depending on if the massmatrix is constant or not
@@ -23,11 +26,6 @@ has_constant_massmatrix
     Return the internal forcevector of element
 """
 integrate_forcevector!
-
-"""
-    Return the internal forcevector of element
-"""
-calculate_minimum_timestep
 
 """
     Return the mass matrix of the element

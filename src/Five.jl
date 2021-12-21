@@ -44,7 +44,7 @@ mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
     fⁱ::Vector{T}
     Kⁱ::SparseArrays.SparseMatrixCSC{T,Int}
 
-    fᵉ::Vector{T}
+    fᵉ::Vector{T} #External force vector
     Kᵉ::SparseArrays.SparseMatrixCSC{T,Int}
     
     Mᵈⁱᵃᵍ::SparseArrays.SparseMatrixCSC{T,Int}
@@ -197,6 +197,12 @@ include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
 
+"""
+    GlobalData{dim,T,DH<:AbstractDofHandler}
+
+Contains all information about the problem being solved, e.g Forces, Boundary conditions, Parts
+
+"""
 mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     dbc::ConstraintHandler{DH,T}
 
