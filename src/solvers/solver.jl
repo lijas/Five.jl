@@ -1,5 +1,28 @@
 export solvethis
 
+"""
+    step!(solver::AbstractSolver, state::StateVariables, globaldata::GlobalData)
+
+Given the current `state` of a system, the solver advances to the next state (mutating the input argument `state`).
+The next state (and step size) is determined by the parameters of the `solver`.
+"""
+function step!(::AbstractSolver, state::StateVariables, globaldata) end
+
+"""
+    isdone(solver::AbstractSolver, state::StateVariables, globaldata::GlobalData)
+
+Determines if the state has reached the termination criteria of the solver
+"""
+function Base.isdone(::AbstractSolver, state::StateVariables, globaldata) end
+
+
+"""
+    should_abort(solver::AbstractSolver, state::StateVariables, globaldata::GlobalData)
+
+Determines if the solver should abort simulation (for example if it is not able to converge)
+"""
+function should_abort(::AbstractSolver{T}, state::StateVariables, globaldata) where T end
+
 function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata) where {T}
     
     starttime = time()
@@ -14,20 +37,22 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
     #Some solvers want the store the initial external force vector
     init_system_arrays!(solver, state, globaldata)
 
-    ⁿstate = deepcopy(state)
+    state_copy = deepcopy(state)
+    prev_state = deepcopy(state)
     while !isdone(solver, state, globaldata)
         state.step += 1
 
         println("**Step $(state.step)**")
 
         success = false
+        state.ntries = 0
         while true
             state.ntries += 1
 
             success = step!(solver, state, globaldata)
-            (success || should_abort()) && break
+            (success || should_abort(solver, state, globaldata)) && break
  
-            reset!()
+            transfer_state!(state, state_copy)
         end
 
         if !success
@@ -66,14 +91,13 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         @timeit "post"       post_stuff!(dh, state, globaldata)  
         @timeit "vtk export" vtk_add_state!(output, state, globaldata)
         @timeit "output"     outputs!(output, state, globaldata)
-
+        
         #Update counter
-        state.prev_partstates .= deepcopy(state.partstates)
-        ⁿstate = deepcopy(state)
-        prev_state = deepcopy(state)
-
+        transfer_state!(prev_state, state_copy)
+        transfer_state!(state_copy, state)
+        
         #Checkinput
-        @timeit "Handle IO" handle_input_interaction(output)
+        @timeit "Handle IO"  handle_input_interaction(output)
         if get_simulation_termination(output) == ABORTED_SIMULATION
             @warn("Simulation aborted by user")
             break
@@ -90,6 +114,40 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
     set_simulation_termination!(output, NORMAL_TERMINATION)
     
     return output
+end
+
+function reset!(a::StateVariables, b::StateVariables)
+    a.d .= b.d
+    a.v .= b.v
+    a.a .= b.a
+    a.t  = b.t
+    a.λ  = b.λ
+    a.L  = b.L
+
+    a.Δd .= b.Δd
+    a.Δv .= b.Δv
+    a.Δa .= b.Δa
+    a.Δt  = b.Δt
+    a.Δλ  = b.Δλ
+    a.ΔL  = b.ΔL
+
+    a.partstates .= deepcopy(b.partstates)
+    a.prev_partstates .= deepcopy(b.prev_partstates)
+    
+    a.step = b.step
+
+    a.system_arrays = deepcopy(b.system_arrays)
+
+    #Solver specific states
+    a.detK = b.detK
+    a.prev_detK = b.prev_detK
+    a.step_tries = b.step_tries
+    a.converged = b.converged
+    a.norm_residual = b.norm_residual
+    a.newton_itr = b.newton_itr
+    a.solvermode = b.solvermode
+
+
 end
 
 function init_system_arrays!(solver::AbstractSolver, state, globaldata)

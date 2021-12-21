@@ -11,6 +11,7 @@ makedocs(
         "parts.md",
         "elements.md",
         "Solvers" => [
+            "solvers/solver_overview.md",
             "solvers/crisfield_solver.md",
             "solvers/local_dissipation_solver.md",
             ],

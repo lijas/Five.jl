@@ -20,17 +20,16 @@ function should_abort(solver::NewtonSolver, state)
     return state.Δt <= solver.Δt_min
 end
 
-function step!(solver::NewtonSolver, state, globaldata)
+function step!(solver::NewtonSolver, (state, prev_state)::States, globaldata)
 
     ch = globaldata.dbc
     dh = dh
 
-    set_initial_guess(solver, state, ntries)
+    set_initial_guess(solver, (state, prev_state), ntries)
 
     #Apply boundary conditions
     update!(ch, state.t)
     apply!(state.d, ch)
-    apply_zero!(state.Δd, ch)
 
     state.newton_itr = 0
     state.norm_residual = solver.tol + 1.0
@@ -54,8 +53,7 @@ function step!(solver::NewtonSolver, state, globaldata)
         ΔΔd = K\-r
         apply_zero!(ΔΔd, ch)
 
-        state.Δd .+= ΔΔd
-        state.d  .+= ΔΔd
+        state.d .+= ΔΔd
 
         println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
 
@@ -73,11 +71,11 @@ function step!(solver::NewtonSolver, state, globaldata)
     return true
 end
 
-function set_initial_guess(solver::NewtonSolver, state::StateVariables, ntries::Int)
+function set_initial_guess(solver::NewtonSolver, (state, prev_state)::States, ntries::Int)
 
     #Initilize Δt and newton_itr depending on if 
     # this is the first step
-    ⁿΔt, newton_itr = (state.step == 1 || state.step == 2) ? (solver.Δt0, solver.optitr) : (state.Δt, state.newton_itr)
+    ⁿΔt, newton_itr = (state.step == 1 || state.step == 2) ? (solver.Δt0, solver.optitr) : (state.t - prev_state.t, state.newton_itr)
 
     if ntries == 0
         #For the first try, increase/decrease the step 
@@ -102,5 +100,5 @@ function set_initial_guess(solver::NewtonSolver, state::StateVariables, ntries::
 
     state.Δt = Δt
     state.t += Δt
-    state.d += state.Δd*factor
+    state.d += (state.d - prev_state.d)*factor
 end

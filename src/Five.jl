@@ -40,6 +40,16 @@ export SystemArrays, StateVariables, GlobalData
 
 abstract type AbstractSystemArrays{T} end
 
+"""
+    SystemArrays(T::Type, ndofs::Int)
+
+Contains global arrays, such as internal force vector and stiffness matrix.
+
+**Possible changes**
+Differnet solvers need different global arrays. For example, an static solver does need mass matrices,
+while a explicit solver does. Maybe create different <: SystemArrays depending on solver. 
+
+"""
 mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
     fⁱ::Vector{T}
     Kⁱ::SparseArrays.SparseMatrixCSC{T,Int}
@@ -67,6 +77,31 @@ end
 
 abstract type AbstractStateVariables{T} end
 
+"""
+    StateVariables(T::Type, ndofs::Int)
+
+Contains all information about the state of system (displacements, material damage etc).
+
+**Field variables:**
+* `d`: displacements 
+* `v`: velocityes
+* `a`: accelerations 
+* `t`: current time
+* `λ`: current loading factor (fᵉ = λ*f̂, used in arc-length solver) 
+* `L`: Current step length (used in arc-length solvers)
+* `Δd`, `Δv`, `Δa`, `Δt`, `Δλ`, `ΔL` - Difference between current and previous timestep of variables above
+
+* `system_arrays`: Instance of [`SystemArrays`](@ref)
+
+* `partstates`: Contains [`PartState`](@ref), one for each cell
+* `prev_partstates`: Contains [`PartState`](@ref) from previous timesteps, one for each cell
+
+* `step`: Number of steps taken up until this point
+
+**Possible changes**
+Remove all Δ-variables, and require two states instead, (previous and current) 
+
+"""
 mutable struct StateVariables{T} <: AbstractStateVariables{T}
     
     d::Vector{T}
@@ -85,19 +120,16 @@ mutable struct StateVariables{T} <: AbstractStateVariables{T}
 
     #System arrays, fint, Kint, etc
     system_arrays::SystemArrays{T}
-    #prev_system_arrays::SystemArrays
 
-    #A bit difficult to store partstates and Δpartstates,
-    # so store current and previous time of partstates instead. 
+    #
     partstates::Vector{AbstractPartState}
-    prev_partstates::Vector{AbstractPartState}
 
     step::Int
+    step_tries::Int
 
     #Solver specific states
     detK::T
     prev_detK::T
-    step_tries::Int
     converged::Bool
     norm_residual::T
     newton_itr::Int
