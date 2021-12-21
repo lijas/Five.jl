@@ -17,93 +17,58 @@ function Base.isdone(solver::NewtonSolver, state::StateVariables, globaldata)
 end
 
 function should_abort(solver::NewtonSolver, state)
-    return state.Δt <= solver.Δt_min #|| (state > solver.maxitr)
+    return state.Δt <= solver.Δt_min
 end
 
 function step!(solver::NewtonSolver, state, globaldata)
 
-    state0 = deepcopy(state)
+    ch = globaldata.dbc
+    dh = dh
 
-    conv_failed = true
-    ntries = 0
-    Δg = 0.0
-    local r
-    while conv_failed
-        
-        set_initial_guess(solver, state, ntries)
-        ntries += 1
+    set_initial_guess(solver, state, ntries)
 
-        println("Newton solver, ntries: $(ntries), prev_state.t = $(state0.t), Δt = $(state.Δt), diss: $(state.L)")
+    #Apply boundary conditions
+    update!(ch, state.t)
+    apply!(state.d, ch)
+    apply_zero!(state.Δd, ch)
 
-        #Apply boundary conditions
-        update!(globaldata.dbc, state.t)
-        apply!(state.d, globaldata.dbc)
+    state.newton_itr = 0
+    state.norm_residual = solver.tol + 1.0
+    while state.norm_residual < solver.tol
+        state.newton_itr +=1;
 
-        state.newton_itr = 0
-        while true
-            state.newton_itr +=1;
+        fill!(state.system_arrays, 0.0)
 
-            fill!(state.system_arrays, 0.0)
+        @timeit "Dissipation"      assemble_dissipation!(dh, state, globaldata)                                                                    
+        @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
+        @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
+        @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
 
-            @timeit "Dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
-            Δg = state.system_arrays.G[]
-            #Δg = 1/2 * dot(state.Δd, state0.system_arrays.q - state0.system_arrays.fᴬ)
+        r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
+        K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 
-            #Get internal force                                                                       
-            @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
-            
-            @timeit "ExternalForces" apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
-            @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
+        state.norm_residual = norm(r[free_dofs(ch)])
 
-            r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
-            K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
+        #Solve 
+        apply!(K, r, ch, true; strategy = Ferrite.APPLY_TRANSPOSE)
+        ΔΔd = K\-r
+        apply_zero!(ΔΔd, ch)
 
-            state.norm_residual = norm(r[Ferrite.free_dofs(globaldata.dbc)])
+        state.Δd .+= ΔΔd
+        state.d  .+= ΔΔd
 
-            #Solve 
-            apply_zero!(K, r, globaldata.dbc)
-            ΔΔd = K\-r
+        println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
 
-            state.Δd .+= ΔΔd
-            state.d  .+= ΔΔd
-
-            println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
-        
-            if state.norm_residual < solver.tol
-                conv_failed = false
-                break
-            end
-
-            maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
-            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
-                conv_failed = true
-                break
-            end
-
-            state.partstates .= deepcopy(state0.partstates)
+        maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
+        if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
+            return false
         end
 
-        if conv_failed 
-            if should_abort(solver, state)
-                return false
-            else
-                #Reset the state
-                copy!(state, state0)
-            end
-        else
-            break
-        end
-
+        state.partstates .= deepcopy(state.prev_partstates)
     end
     
     state.L += Δg
-
-    #@show norm(state0.system_arrays.fᴬ)
-    #state0.system_arrays.fᴬ .= 0.0
-#    assemble_fstar!(globaldata.dh, state, globaldata) 
-    #state.system_arrays.fᴬ .= state0.system_arrays.fᴬ
     state.system_arrays.q .= r
-    #@show norm(state.system_arrays.q)
 
     return true
 end

@@ -19,57 +19,64 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         state.step += 1
 
         println("**Step $(state.step)**")
-        success = step!(solver, state, globaldata)
-        
+
+        success = false
+        while true
+            state.ntries += 1
+
+            success = step!(solver, state, globaldata)
+            (success || should_abort()) && break
+ 
+            reset!()
+        end
+
         if !success
-            @warn("NO SUCCESS")
-            set_simulation_termination!(output, ERROR_TERMINATION)
             break
-        else
-            @timeit "post" post_stuff!(dh, state, globaldata)
+        end
+
+        #Currently dont have a system for adaptivity,
+        # so hack the adaptivity stuff in here:
+        if globaldata.adaptive
             
-            @timeit "vtk export" vtk_add_state!(output, state, globaldata)
-            @timeit "output" outputs!(output, state, globaldata)
+            @timeit "Commiting part" instructions = commit_stuff!(dh, state, globaldata)
 
-            #Currently dont have a system for adaptivity,
-            # so hack the adaptivity stuff in here:
-            if globaldata.adaptive
-                
-                @timeit "Commiting part" instructions = commit_stuff!(dh, state, globaldata)
+            if length(instructions) != 0
+                #Upgrade state and prev_state
+                @timeit "Update dofhandler" update_dofhandler!(dh, state, instructions)
 
-                if length(instructions) != 0
-                    #Upgrade state and prev_state
-                    @timeit "Update dofhandler" update_dofhandler!(dh, state, instructions)
+                #Upgrade dirichlet conditions
+                resize!(globaldata.dbc.free_dofs, ndofs(dh)); 
+                globaldata.dbc.free_dofs .= 1:ndofs(dh)    
 
-                    #Upgrade dirichlet conditions
-                    resize!(globaldata.dbc.free_dofs, ndofs(dh)); 
-                    globaldata.dbc.free_dofs .= 1:ndofs(dh)    
+                #Update q for dissipation solver
+                fill!(state.system_arrays, 0.0)
+                apply_external_forces!(dh, globaldata.efh, state, globaldata)
+                Ferrite.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
 
-                    #Update q for dissipation solver
-                    fill!(state.system_arrays, 0.0)
-                    apply_external_forces!(dh, globaldata.efh, state, globaldata)
-                    Ferrite.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
+                #Recalculate fᴬ for fstar
+                assemble_fstar!(globaldata.dh, state, globaldata)
 
-                    #Recalculate fᴬ for fstar
-                    assemble_fstar!(globaldata.dh, state, globaldata)
-
-                    #Restart state
-                    #state = deepcopy(prev_state)
-                    #continue
-                end
+                #Restart state
+                #state = deepcopy(prev_state)
+                #continue
             end
 
-            #Update counter
-            state.prev_partstates .= deepcopy(state.partstates)
-            ⁿstate = deepcopy(state)
-            prev_state = deepcopy(state)
+        end
+   
+        @timeit "post"       post_stuff!(dh, state, globaldata)  
+        @timeit "vtk export" vtk_add_state!(output, state, globaldata)
+        @timeit "output"     outputs!(output, state, globaldata)
 
-            #Checkinput
-            @timeit "Handle IO" handle_input_interaction(output)
-            if get_simulation_termination(output) == ABORTED_SIMULATION
-                @warn("Simulation aborted by user")
-                break
-            end
+        #Update counter
+        state.prev_partstates .= deepcopy(state.partstates)
+        ⁿstate = deepcopy(state)
+        prev_state = deepcopy(state)
+
+        #Checkinput
+        @timeit "Handle IO" handle_input_interaction(output)
+        if get_simulation_termination(output) == ABORTED_SIMULATION
+            @warn("Simulation aborted by user")
+            break
         end
     end
 

@@ -38,7 +38,9 @@ abstract type AbstractSolver{T} end
 
 export SystemArrays, StateVariables, GlobalData
 
-mutable struct SystemArrays{T}
+abstract type AbstractSystemArrays{T} end
+
+mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
     fⁱ::Vector{T}
     Kⁱ::SparseArrays.SparseMatrixCSC{T,Int}
 
@@ -63,7 +65,9 @@ function SystemArrays(T::Type, ndofs::Int)
     return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
-mutable struct StateVariables{T}
+abstract type AbstractStateVariables{T} end
+
+mutable struct StateVariables{T} <: AbstractStateVariables{T}
     
     d::Vector{T}
     v::Vector{T}
@@ -105,12 +109,16 @@ mutable struct StateVariables{T}
     Wᵏ::T
 end
 
+
 function StateVariables(T::Type, ndofs::Int)
     dofvecs1 = [zeros(T, ndofs) for _ in 1:3]
     dofvecs2 = [zeros(T, ndofs) for _ in 1:3]
     sa = SystemArrays(T, ndofs)
     return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, dofvecs2..., 0.0, 0.0, 0.0, sa, AbstractPartState[], AbstractPartState[], 0, NaN, NaN, 0, true, Inf, 0, MODE1, 0.0, 0.0, 0.0)
 end
+
+getstatevariables_type(::AbstractSolver) = StateVariables
+getsystemarrays_type(::AbstractSolver)   = SystemArrays
 
 function Base.copy!(a::StateVariables, b::StateVariables)
     a.d .= b.d
