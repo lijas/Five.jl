@@ -108,15 +108,9 @@ mutable struct StateVariables{T} <: AbstractStateVariables{T}
     v::Vector{T}
     a::Vector{T}
     t::T
+    Δt::T
     λ::T #Used in arc-length solver
     L::T #Used in dissipation solver
-
-    Δd::Vector{T}
-    Δv::Vector{T}
-    Δa::Vector{T} 
-    Δt::T
-    Δλ::T
-    ΔL::T
 
     #System arrays, fint, Kint, etc
     system_arrays::SystemArrays{T}
@@ -126,13 +120,12 @@ mutable struct StateVariables{T} <: AbstractStateVariables{T}
 
     step::Int
     step_tries::Int
+    newton_itr::Int
 
     #Solver specific states
     detK::T
-    prev_detK::T
     converged::Bool
     norm_residual::T
-    newton_itr::Int
     solvermode::SolverMode
 
     #Need these for explicit solver...
@@ -144,43 +137,35 @@ end
 
 function StateVariables(T::Type, ndofs::Int)
     dofvecs1 = [zeros(T, ndofs) for _ in 1:3]
-    dofvecs2 = [zeros(T, ndofs) for _ in 1:3]
     sa = SystemArrays(T, ndofs)
-    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, dofvecs2..., 0.0, 0.0, 0.0, sa, AbstractPartState[], AbstractPartState[], 0, NaN, NaN, 0, true, Inf, 0, MODE1, 0.0, 0.0, 0.0)
+    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, 0.0,
+                          sa, AbstractPartState[], 
+                          0, 0, 0, 
+                          Inf, true, Inf, MODE1, 
+                          0.0, 0.0, 0.0)
 end
 
 getstatevariables_type(::AbstractSolver) = StateVariables
 getsystemarrays_type(::AbstractSolver)   = SystemArrays
 
-function Base.copy!(a::StateVariables, b::StateVariables)
+function transfer_state!(a::StateVariables, b::StateVariables)
     a.d .= b.d
     a.v .= b.v
     a.a .= b.a
     a.t  = b.t
+    a.Δt  = b.Δt
     a.λ  = b.λ
     a.L  = b.L
 
-    a.Δd .= b.Δd
-    a.Δv .= b.Δv
-    a.Δa .= b.Δa
-    a.Δt  = b.Δt
-    a.Δλ  = b.Δλ
-    a.ΔL  = b.ΔL
+    a.partstates .= b.partstates #Assume is bit-types 
 
-    a.partstates .= deepcopy(b.partstates)
-    a.prev_partstates .= deepcopy(b.prev_partstates)
-    
+    a.system_arrays = deepcopy(b.system_arrays) #This copies the stiffness matrix aswell.... hmmm
+
     a.step = b.step
-
-    a.system_arrays = deepcopy(b.system_arrays)
-
-    #Solver specific states
-    a.detK = b.detK
-    a.prev_detK = b.prev_detK
-    a.step_tries = b.step_tries
-    a.converged = b.converged
-    a.norm_residual = b.norm_residual
     a.newton_itr = b.newton_itr
+    a.detK = b.detK
+    a.converged = b.converged #Not needed i think
+    a.norm_residual = b.norm_residual
     a.solvermode = b.solvermode
 end
 

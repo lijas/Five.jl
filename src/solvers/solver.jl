@@ -37,7 +37,6 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
     #Some solvers want the store the initial external force vector
     init_system_arrays!(solver, state, globaldata)
 
-    state_copy = deepcopy(state)
     prev_state = deepcopy(state)
     while !isdone(solver, state, globaldata)
         state.step += 1
@@ -45,17 +44,18 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         println("**Step $(state.step)**")
 
         success = false
-        state.ntries = 0
+        ntries = 0
         while true
-            state.ntries += 1
+            ntries += 1
 
-            success = step!(solver, state, globaldata)
+            success = step!(solver, state, globaldata, ntries)
             (success || should_abort(solver, state, globaldata)) && break
  
-            transfer_state!(state, state_copy)
+            transfer_state!(state, prev_state)
         end
 
         if !success
+            @warn("Could not take step")
             break
         end
 
@@ -93,8 +93,7 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         @timeit "output"     outputs!(output, state, globaldata)
         
         #Update counter
-        transfer_state!(prev_state, state_copy)
-        transfer_state!(state_copy, state)
+        transfer_state!(prev_state, state)
         
         #Checkinput
         @timeit "Handle IO"  handle_input_interaction(output)

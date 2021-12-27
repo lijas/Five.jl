@@ -125,7 +125,6 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     state = StateVariables(T, ndofs(dh))
     state.t = data.t0
     state.partstates = partstates
-    state.prev_partstates = deepcopy(partstates)
 
     #System Arrays
     state.system_arrays = SystemArrays(T, ndofs(dh))

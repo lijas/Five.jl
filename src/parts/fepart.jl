@@ -161,7 +161,7 @@ end
 
 function _assemble_part!(dh::Ferrite.AbstractDofHandler, 
     part::FEPart{dim},
-    (state, prev_state)::StateVariables{T},
+    state::StateVariables{T},
     assemtype::ASSEMBLETYPE) where {dim,T}
 
     assembler = start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false)
@@ -171,7 +171,7 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     ue, Δue, due, ke, fe, coords, celldofs = (part.cache.ue, part.cache.Δue, part.cache.due, 
     part.cache.ke, part.cache.fe, part.cache.coords, part.cache.celldofs)
 
-    Δt = state.t - prev_state.t
+    Δt = state.Δt
 
     for (localid,cellid) in enumerate(part.cellset)
         
@@ -186,7 +186,7 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
         Ferrite.cellcoords!(coords, dh, cellid)
         Ferrite.celldofs!(celldofs, dh, cellid)
 
-        Δue .= state.d[celldofs] - prev_state.d[celldofs]
+        Δue .= state.v[celldofs] #Dont need both Δue and (v and Δt)
         ue .= state.d[celldofs]
         due .= state.v[celldofs]
         

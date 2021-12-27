@@ -10,7 +10,6 @@ data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
 material = MatLinearElastic(
-    rho = 1.0,
     E = 1e5,
     nu = 0.3
 )
@@ -31,6 +30,15 @@ con1 = Dirichlet(
     dofs = [1,2]
 )
 push!(data.dirichlet, con1)
+
+#=
+con1 = Dirichlet(
+    set = getfaceset(data.grid, "right"),
+    func = (x,t) -> (t*1.0),
+    field = :u,
+    dofs = [2]
+)
+push!(data.dirichlet, con1)=#
 
 part = Part{2,Float64}(
     element = SolidElement{2,2,RefCube,Float64}(
@@ -73,6 +81,7 @@ vtkoutput = VTKNodeOutput(
     func = mean,
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
+
 
 force = PointForce(
     field = :u,

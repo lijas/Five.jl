@@ -20,25 +20,27 @@ function should_abort(solver::NewtonSolver, state)
     return state.Δt <= solver.Δt_min
 end
 
-function step!(solver::NewtonSolver, (state, prev_state)::States, globaldata)
+function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0)
 
     ch = globaldata.dbc
-    dh = dh
+    dh = globaldata.dh
+    partstates0 = deepcopy(state.partstates)
+    d0 = state.d
 
-    set_initial_guess(solver, (state, prev_state), ntries)
+    set_initial_guess(solver, state, ntries)
 
     #Apply boundary conditions
     update!(ch, state.t)
     apply!(state.d, ch)
+    apply_zero!(state.v, ch)
 
     state.newton_itr = 0
     state.norm_residual = solver.tol + 1.0
-    while state.norm_residual < solver.tol
-        state.newton_itr +=1;
+    while state.norm_residual > solver.tol
+        state.newton_itr += 1;
 
         fill!(state.system_arrays, 0.0)
-
-        @timeit "Dissipation"      assemble_dissipation!(dh, state, globaldata)                                                                    
+                                                                 
         @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
@@ -54,28 +56,26 @@ function step!(solver::NewtonSolver, (state, prev_state)::States, globaldata)
         apply_zero!(ΔΔd, ch)
 
         state.d .+= ΔΔd
+        state.v  .= (state.d - d0)/state.Δt
 
-        println("---->Normg: $(state.norm_residual), Δg = $(Δg)")
+        println("---->Normg: $(state.norm_residual)")
 
         maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
         if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
             return false
         end
 
-        state.partstates .= deepcopy(state.prev_partstates)
+        state.partstates .= deepcopy(partstates0)
     end
-    
-    state.L += Δg
-    state.system_arrays.q .= r
 
     return true
 end
 
-function set_initial_guess(solver::NewtonSolver, (state, prev_state)::States, ntries::Int)
+function set_initial_guess(solver::NewtonSolver,  state::StateVariables, ntries::Int)
 
     #Initilize Δt and newton_itr depending on if 
     # this is the first step
-    ⁿΔt, newton_itr = (state.step == 1 || state.step == 2) ? (solver.Δt0, solver.optitr) : (state.t - prev_state.t, state.newton_itr)
+    ⁿΔt, newton_itr = (state.step == 1 || state.step == 2) ? (solver.Δt0, solver.optitr) : (state.Δt, state.newton_itr)
 
     if ntries == 0
         #For the first try, increase/decrease the step 
@@ -100,5 +100,5 @@ function set_initial_guess(solver::NewtonSolver, (state, prev_state)::States, nt
 
     state.Δt = Δt
     state.t += Δt
-    state.d += (state.d - prev_state.d)*factor
+    state.d += (state.v*Δt) * factor
 end
