@@ -16,7 +16,7 @@ function Base.isdone(solver::NewtonSolver, state::StateVariables, globaldata)
     return state.t >= globaldata.tend
 end
 
-function should_abort(solver::NewtonSolver, state)
+function should_abort(solver::NewtonSolver, state, globaldata)
     return state.Δt <= solver.Δt_min
 end
 

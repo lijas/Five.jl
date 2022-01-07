@@ -24,8 +24,8 @@ function Base.isdone(solver::ArcLengthSolver, state::StateVariables, globaldata)
     return solver.finish_criterion(solver, state)
 end
 
-function should_abort(solver::ArcLengthSolver, ΔL, solvermode)
-    return ΔL <= solver.ΔL_min 
+function should_abort(solver::ArcLengthSolver, state::StateVariables, globaldata)
+    return state.ΔL <= solver.ΔL_min 
 end
 
 function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntries::Int = 0)
@@ -73,11 +73,9 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
         #Solve
         Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
         rₜ = state.system_arrays.fⁱ - state.system_arrays.fᵉ - state.λ*q
-        
+
         apply_zero!(Kₜ, rₜ, globaldata.dbc)
-        
-        state.detK = det(Kₜ) #Determinant will be Inf, but i think the sign will be correct...
-        
+
         δuₜ .= (Kₜ\q)
         δū  = -(Kₜ\rₜ)
 
@@ -133,8 +131,6 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
         state.partstates .= deepcopy(partstates0)
     end
 
-    #state.Δλ *= (sign(state.detK) == sign(detK0)) ? sign(state.Δλ) : -sign(state.Δλ)
-    state.prev_detK = detK0
     state.system_arrays.fᴬ .= δuₜ #reuse fᴬ
 
     return true
@@ -143,17 +139,17 @@ end
 function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, ntries)
  
     δuₜ = copy(state.system_arrays.fᴬ)
-    detK = state.detK
+    detK0 = state.detK
+    state.detK = det(state.system_arrays.Kⁱ) #This assumes that the stiffness matrix is kept untouched between steps.
 
     if ntries == 0 
         state.ΔL *= (0.5^(0.25*(state.newton_itr - solver.optitr)))
     else
-        state.ΔL /= 2
+        state.ΔL /= 2^(ntries-1)
     end
 
     #Check if determinant has changed sign
-    _sign = (sign(state.detK) == sign(state.prev_detK)) ? sign(state.Δλ) : -sign(state.Δλ)
-    @show _sign
+    _sign = (sign(state.detK) == sign(detK0)) ? sign(state.Δλ) : -sign(state.Δλ)
 
     if state.ΔL < solver.ΔL_min
         state.ΔL = solver.ΔL_min

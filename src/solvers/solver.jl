@@ -39,18 +39,19 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
 
     prev_state = deepcopy(state)
     while !isdone(solver, state, globaldata)
-        state.step += 1
 
         println("**Step $(state.step)**")
 
         success = false
         ntries = 0
         while true
+            state.step += 1
             success = step!(solver, state, globaldata, ntries)
             ntries += 1
             
             (success || should_abort(solver, state, globaldata)) && break
             
+            #Reset state to previous step...
             transfer_state!(state, prev_state)
         end
 

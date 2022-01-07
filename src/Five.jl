@@ -127,8 +127,7 @@ mutable struct StateVariables{T} <: AbstractStateVariables{T}
     newton_itr::Int
 
     #Solver specific states
-    detK::T
-    prev_detK::T
+    detK::T #Used in crisfield solver
     converged::Bool
     norm_residual::T
     solvermode::SolverMode
@@ -172,7 +171,6 @@ function transfer_state!(a::StateVariables, b::StateVariables)
     a.step = b.step
     a.newton_itr = b.newton_itr
     a.detK = b.detK
-    a.prev_detK = b.prev_detK
     a.converged = b.converged #Not needed i think
     a.norm_residual = b.norm_residual
     a.solvermode = b.solvermode

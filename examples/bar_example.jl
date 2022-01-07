@@ -43,7 +43,7 @@ midbar = Part{2,Float64}(
     material = material1,
     cellset = [3],
     element = BarElement{2}(
-        area = 1.0,
+        area = 1.0/2,
     )
 )
 push!(data.parts, midbar)
@@ -108,7 +108,7 @@ force = PointForce(
     field = :u,
     comps = [2,],
     set = getvertexset(data.grid, "topmid"),
-    func = (X,t) -> -1.0
+    func = (X,t) -> 1.0
 )
 push!(data.external_forces, force)
 
@@ -120,7 +120,7 @@ push!(data.external_forces, force)
 )=#
 
 solver = ArcLengthSolver(
-    Δλ0 = 1.0,
+    Δλ0 = -1.0,
     
     λ_max = 40.0,
     λ_min = -40.0,
@@ -128,9 +128,10 @@ solver = ArcLengthSolver(
     ΔL_max = 20.0,
     ΔL_min = 0.01,
 
-    tol = 1e-5,
-    maxsteps = 125,
-    optitr = 5
+    tol = 1e-4,
+    maxsteps = 120,
+    optitr = 10,
+    maxitr = 20
 )
 
 state, data = build_problem(data)
