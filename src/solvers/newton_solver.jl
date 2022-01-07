@@ -35,9 +35,8 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
     apply_zero!(state.v, ch)
 
     state.newton_itr = 0
-    state.norm_residual = solver.tol + 1.0
-    while state.norm_residual > solver.tol
-        state.newton_itr += 1;
+    while true
+        state.newton_itr += 1
 
         fill!(state.system_arrays, 0.0)
                                                                  
@@ -45,7 +44,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
 
-        r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
+        r = state.system_arrays.fⁱ #- state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 
         state.norm_residual = norm(r[free_dofs(ch)])
@@ -63,6 +62,10 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
         if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
             return false
+        end
+
+        if state.norm_residual < solver.tol
+            break
         end
 
         state.partstates .= deepcopy(partstates0)

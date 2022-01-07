@@ -109,39 +109,44 @@ mutable struct StateVariables{T} <: AbstractStateVariables{T}
     a::Vector{T}
     t::T
     Δt::T
-    λ::T #Used in arc-length solver
-    L::T #Used in dissipation solver
+
+    #Used in arc-length solvers
+    λ::T 
+    Δλ::T
+    L::T
+    ΔL::T
 
     #System arrays, fint, Kint, etc
     system_arrays::SystemArrays{T}
 
-    #
+    #State variables for materials
     partstates::Vector{AbstractPartState}
 
-    step::Int
+    step::Int 
     step_tries::Int
     newton_itr::Int
 
     #Solver specific states
     detK::T
+    prev_detK::T
     converged::Bool
     norm_residual::T
     solvermode::SolverMode
 
     #Need these for explicit solver...
-    Wⁱ::T
-    Wᵉ::T
-    Wᵏ::T
+    Wⁱ::T #Internal
+    Wᵉ::T #External
+    Wᵏ::T #Kinetic
 end
 
 
 function StateVariables(T::Type, ndofs::Int)
     dofvecs1 = [zeros(T, ndofs) for _ in 1:3]
     sa = SystemArrays(T, ndofs)
-    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, 0.0,
+    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                           sa, AbstractPartState[], 
                           0, 0, 0, 
-                          Inf, true, Inf, MODE1, 
+                          Inf, Inf, true, Inf, MODE1, 
                           0.0, 0.0, 0.0)
 end
 
@@ -154,7 +159,10 @@ function transfer_state!(a::StateVariables, b::StateVariables)
     a.a .= b.a
     a.t  = b.t
     a.Δt  = b.Δt
+
+    a.Δλ  = b.Δλ
     a.λ  = b.λ
+    a.ΔL = b.ΔL
     a.L  = b.L
 
     a.partstates .= b.partstates #Assume is bit-types 
@@ -164,6 +172,7 @@ function transfer_state!(a::StateVariables, b::StateVariables)
     a.step = b.step
     a.newton_itr = b.newton_itr
     a.detK = b.detK
+    a.prev_detK = b.prev_detK
     a.converged = b.converged #Not needed i think
     a.norm_residual = b.norm_residual
     a.solvermode = b.solvermode

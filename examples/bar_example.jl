@@ -120,12 +120,16 @@ push!(data.external_forces, force)
 )=#
 
 solver = ArcLengthSolver(
+    Δλ0 = 1.0,
+    
     λ_max = 40.0,
     λ_min = -40.0,
-    ΔL0 = 1.0,
+
     ΔL_max = 20.0,
-    tol = 1e-3,
-    maxsteps = 300,
+    ΔL_min = 0.01,
+
+    tol = 1e-5,
+    maxsteps = 125,
     optitr = 5
 )
 

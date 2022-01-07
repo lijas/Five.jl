@@ -28,162 +28,143 @@ function should_abort(solver::ArcLengthSolver, ΔL, solvermode)
     return ΔL <= solver.ΔL_min 
 end
 
-function step!(solver::ArcLengthSolver, state::StateVariables, globaldata)
-    λ0     = state.λ
-    q      = state.system_arrays.q
+function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntries::Int = 0)
+    ch = globaldata.dbc
+    dh = globaldata.dh
+    partstates0 = deepcopy(state.partstates)
+    Δd0 = copy(state.v) #Use v (velocity) as displacement increment
 
-    state0 = deepcopy(state)
-    converged = false
-    state.step_tries = 0
-    ΔL = state.ΔL
+    q  = state.system_arrays.q
+    δuₜ = copy(state.system_arrays.fᴬ) #Realias fᴬ
+    #prev_detK = state.detK
 
-    δuₜ = zeros(ndofs(globaldata.dh))
-
-    while !converged
-        ΔL = set_initial_guess!(solver, state, globaldata, ΔL, state.step_tries)
+    if state.step == 1
+        Kₜ = state.system_arrays.Kⁱ
+        _q = copy(q)
         
-        state.newton_itr = 0
-        state.step_tries += 1
-        
-        println("Solver: ntries: $(state.step_tries), λ = $(state.λ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
-        while true
-            state.newton_itr += 1
+        apply!(Kₜ, _q, ch, true; strategy = Ferrite.APPLY_TRANSPOSE)
+        δuₜ .= Kₜ\_q
+        apply_zero!(δuₜ, ch)
 
-            fill!(state.system_arrays, 0.0)
-
-            #Get internal force                                                                       
-            assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
-            apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)
-            
-            #Solve
-            Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
-            rₜ = state.system_arrays.fⁱ - state.system_arrays.fᵉ - state.λ*q
-            
-            apply_zero!(Kₜ, rₜ, globaldata.dbc)
-            
-            state.detK = det(Kₜ)
-            
-            δuₜ .= (Kₜ\q)
-            δū  = -(Kₜ\rₜ)
-
-            #Solve arcleanth eq
-            ψ = solver.ψ
-            α1 = dot(δuₜ,δuₜ) + ψ*dot(q,q)
-            α2 = 2*dot( (state.Δd + δū) , δuₜ) + 2*ψ^2 * state.Δλ * dot(q,q)
-            α3 = dot( (state.Δd + δū), (state.Δd + δū) ) + ψ^2 * state.Δλ^2*dot(q,q) - ΔL^2
-
-            _p = α2/α1; _q = α3/α1; 
-            local δλ1, δλ2
-            try 
-                δλ1 = -_p/2 + sqrt((_p/2)^2 - _q)
-                δλ2 = -_p/2 - sqrt((_p/2)^2 - _q)
-            catch DomainError
-                converged = false
-                break
-            end
-
-            #Choose equation
-            δu₁ = δū + δλ1*δuₜ
-            δu₂ = δū + δλ2*δuₜ
-
-            prev_Δd = state.step == 1 ? state.Δd : state0.Δd
-            θ₁ = dot(state.Δd + δu₁, prev_Δd)
-            θ₂ = dot(state.Δd + δu₂, prev_Δd) 
-
-            δλ = θ₁ > θ₂ ? δλ1 : δλ2
-
-            #Update d
-            δd = δū + δλ*δuₜ
-            state.Δd += δd
-            state.Δλ += δλ
-            state.d  += δd
-            state.λ  += δλ
-
-            #Check convergance
-            if norm(state.λ*q) <= 1e-10
-                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])
-            else
-                state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
-            end
-            println("------>Normg: $(state.norm_residual), Δλ = $(state.Δλ)")
-            
-            #Check convergence
-            if state.norm_residual < solver.tol
-                converged = true
-                break
-            end
-
-            maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
-            if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
-                converged = false
-                break
-            end
-
-            #Reset partstates
-            state.partstates .= deepcopy(state0.partstates)
-        end
-
-        if !converged 
-            if should_abort(solver, ΔL, state.solvermode)
-                return false
-            else
-                #Reset the state
-                copy!(state, state0)
-            end
-        end
+        state.ΔL = abs(solver.Δλ0) * sqrt(dot(δuₜ,δuₜ))
+        state.newton_itr = solver.optitr
+        state.Δλ = solver.Δλ0
+        state.system_arrays.fᴬ .= δuₜ
+        state.detK  = det(Kₜ)
+        state.prev_detK = det(Kₜ)
     end
-    
+
+    set_initial_guess!(solver, state, ntries)
+
+    ΔL = state.ΔL
+    detK0 = state.detK
+    Δd = state.v #Realias the velocity to Δd
+    println("Step: $(state.step), λ: $(state.λ), Δλ: $(state.Δλ), ΔL: $(state.ΔL)")
+
+    state.newton_itr = 0
+    while true
+        state.newton_itr += 1
+
+        fill!(state.system_arrays, 0.0)
+
+        @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
+        @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
+        
+        #Solve
+        Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
+        rₜ = state.system_arrays.fⁱ - state.system_arrays.fᵉ - state.λ*q
+        
+        apply_zero!(Kₜ, rₜ, globaldata.dbc)
+        
+        state.detK = det(Kₜ) #Determinant will be Inf, but i think the sign will be correct...
+        
+        δuₜ .= (Kₜ\q)
+        δū  = -(Kₜ\rₜ)
+
+        #Solve arcleanth eq
+        ψ = solver.ψ
+        α1 =  dot(δuₜ,δuₜ)  + ψ*dot(q,q)
+        α2 =2*dot( (Δd + δū) , δuₜ)  + 2*ψ^2 * state.Δλ * dot(q,q)
+        α3 =  dot( (Δd + δū), (Δd + δū) )  + ψ^2 * state.Δλ^2*dot(q,q) - ΔL^2
+
+        _p = α2/α1; _q = α3/α1; 
+        local δλ1, δλ2
+        try 
+            δλ1 = -_p/2 + sqrt((_p/2)^2 - _q)
+            δλ2 = -_p/2 - sqrt((_p/2)^2 - _q)
+        catch DomainError
+            return false
+        end
+
+        #Choose equation
+        δu₁ = δū .+ δλ1*δuₜ
+        δu₂ = δū .+ δλ2*δuₜ
+
+        θ₁ = dot(Δd + δu₁, state.step == 1 ? Δd : Δd0)
+        θ₂ = dot(Δd + δu₂, state.step == 1 ? Δd : Δd0) 
+        #@show (δλ1, θ₁), (δλ2, θ₂)
+        
+        δλ = θ₁ > θ₂ ? δλ1 : δλ2
+
+        #Update d
+        δd = δū .+ δλ*δuₜ
+        state.d  .+= δd
+        state.Δλ += δλ
+        Δd .+= δd
+        state.λ  += δλ
+
+        #Check convergance
+        if norm(state.λ*q) <= 1e-10
+            state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])
+        else
+            state.norm_residual = norm(rₜ[Ferrite.free_dofs(globaldata.dbc)])/norm(state.λ*q)
+        end
+        println("------>Normg: $(state.norm_residual), λ: $(state.λ), Δλ = $(state.Δλ)")
+
+        maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
+        if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
+            return false
+        end
+
+        if state.norm_residual < solver.tol
+            break
+        end
+
+        state.partstates .= deepcopy(partstates0)
+    end
+
+    #state.Δλ *= (sign(state.detK) == sign(detK0)) ? sign(state.Δλ) : -sign(state.Δλ)
+    state.prev_detK = detK0
     state.system_arrays.fᴬ .= δuₜ #reuse fᴬ
-    state.prev_detK = state0.detK
 
     return true
 end
 
-function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, globaldata, ΔL, ntries)
-
-    prev_newton_itr = state.newton_itr
+function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, ntries)
+ 
+    δuₜ = copy(state.system_arrays.fᴬ)
     detK = state.detK
-    detK0 = state.prev_detK
-    δuₜ = copy(state.system_arrays.fᴬ) #Reuse fs for ut
-    Δλ0 = state.Δλ
-    ⁿΔL = ΔL
 
-    if state.step == 1
-        prev_newton_itr = solver.optitr
-        
-        Δλ0 = solver.Δλ0
-
-        Kₜ = copy(state.system_arrays.Kⁱ - state.system_arrays.Kᵉ)
-        _q = copy(state.system_arrays.q)
-        
-        apply_zero!(Kₜ, _q, globaldata.dbc)
-        δuₜ .= Kₜ\_q
-
-        ⁿΔL = 0.0
-        ΔL = Δλ0*sqrt(dot(δuₜ,δuₜ))
-        detK = detK0 = det(Kₜ)
+    if ntries == 0 
+        state.ΔL *= (0.5^(0.25*(state.newton_itr - solver.optitr)))
     else
-        if ntries == 0 
-            ΔL *= (0.5^(0.25*(prev_newton_itr-solver.optitr)))
-        else
-            ΔL /= 2
-        end
+        state.ΔL /= 2
     end
 
-    _sign = (sign(detK0) == sign(detK)) ? sign(Δλ0) : -sign(Δλ0)
-    
-    if ΔL < solver.ΔL_min
-        ΔL = solver.ΔL_min
-    elseif ΔL > solver.ΔL_max
-        ΔL = solver.ΔL_max
+    #Check if determinant has changed sign
+    _sign = (sign(state.detK) == sign(state.prev_detK)) ? sign(state.Δλ) : -sign(state.Δλ)
+    @show _sign
+
+    if state.ΔL < solver.ΔL_min
+        state.ΔL = solver.ΔL_min
+    elseif state.ΔL > solver.ΔL_max
+        state.ΔL = solver.ΔL_max
     end
 
-    state.ΔL = ΔL
-    state.Δλ = _sign*ΔL/sqrt(dot(δuₜ,δuₜ))
-    state.Δd = state.Δλ*δuₜ
+    state.Δλ = _sign*state.ΔL/sqrt(dot(δuₜ,δuₜ))
+    state.v .= state.Δλ*δuₜ # ./Δt
 
     state.λ += state.Δλ
-    state.d += state.Δd 
+    state.d .+= state.v # *.Δt 
     
-    return ΔL
 end

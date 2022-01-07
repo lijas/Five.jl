@@ -46,11 +46,11 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
         success = false
         ntries = 0
         while true
-            ntries += 1
-
             success = step!(solver, state, globaldata, ntries)
+            ntries += 1
+            
             (success || should_abort(solver, state, globaldata)) && break
- 
+            
             transfer_state!(state, prev_state)
         end
 

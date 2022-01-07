@@ -26,8 +26,7 @@ has_constant_massmatrix(::BarElement) = true
 
 get_fields(e::BarElement) = return e.fields
 
-function integrate_massmatrix!(element::BarElement{dim}, elstate::AbstractElementState, material::AbstractMaterial, cell::CellIterator, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim}
-
+function integrate_massmatrix!(element::BarElement{dim}, elstate::AbstractElementState, material::AbstractMaterial, X::Vector{Vec{dim,T}}, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim,T}
     
 end
 
