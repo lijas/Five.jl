@@ -145,7 +145,7 @@ function StateVariables(T::Type, ndofs::Int)
     return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                           sa, AbstractPartState[], 
                           0, 0, 0, 
-                          Inf, Inf, true, Inf, MODE1, 
+                          Inf, true, Inf, MODE1, 
                           0.0, 0.0, 0.0)
 end
 

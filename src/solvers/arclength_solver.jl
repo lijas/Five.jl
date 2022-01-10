@@ -36,7 +36,6 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
 
     q  = state.system_arrays.q
     δuₜ = copy(state.system_arrays.fᴬ) #Realias fᴬ
-    #prev_detK = state.detK
 
     if state.step == 1
         Kₜ = state.system_arrays.Kⁱ
@@ -51,7 +50,6 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
         state.Δλ = solver.Δλ0
         state.system_arrays.fᴬ .= δuₜ
         state.detK  = det(Kₜ)
-        state.prev_detK = det(Kₜ)
     end
 
     set_initial_guess!(solver, state, ntries)

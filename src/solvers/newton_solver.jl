@@ -25,14 +25,13 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
     ch = globaldata.dbc
     dh = globaldata.dh
     partstates0 = deepcopy(state.partstates)
-    d0 = state.d
+    d0 = copy(state.d)
 
     set_initial_guess(solver, state, ntries)
 
     #Apply boundary conditions
     update!(ch, state.t)
     apply!(state.d, ch)
-    apply_zero!(state.v, ch)
 
     state.newton_itr = 0
     while true
@@ -44,7 +43,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
 
-        r = state.system_arrays.fⁱ #- state.system_arrays.fᵉ
+        r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
 
         state.norm_residual = norm(r[free_dofs(ch)])
@@ -55,9 +54,9 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         apply_zero!(ΔΔd, ch)
 
         state.d .+= ΔΔd
-        state.v  .= (state.d - d0)/state.Δt
+        state.v  .= (state.d .- d0)./state.Δt
 
-        println("---->Normg: $(state.norm_residual)")
+        println("---->Normg: $(state.norm_residual), t = $(state.t)")
 
         maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
         if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual
