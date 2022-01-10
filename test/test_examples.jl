@@ -9,11 +9,10 @@ module BeamExample
     end
 end
 
-#=module CurvedCantileverBeam
-    using Test
+module BeamExample
     mktempdir() do dir
         cd(dir) do
-            include(joinpath(@__DIR__, "../examples/stress_rec/curved_cantilever_beam/curved_cantilever_beam.jl"))
+            include(joinpath(@__DIR__, "../docs/src/literate/bar_example.jl"))
         end
     end
-end=#
+end
