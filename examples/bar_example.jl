@@ -112,24 +112,17 @@ force = PointForce(
 )
 push!(data.external_forces, force)
 
-#=solver = NewtonSolver(
-    Δt0 = 0.01,
-    Δt_max = 0.01,
-    Δt_min = 0.001,
-    tol = 1e-4
-)=#
-
 solver = ArcLengthSolver(
     Δλ0 = -1.0,
     
     λ_max = 40.0,
     λ_min = -40.0,
 
-    ΔL_max = 20.0,
+    ΔL_max = 5.0,
     ΔL_min = 0.01,
 
     tol = 1e-4,
-    maxsteps = 120,
+    maxsteps = 30,
     optitr = 10,
     maxitr = 20
 )
@@ -140,4 +133,8 @@ result = solvethis(solver, state, data)
 
 u = getproperty.(result.outputdata["reactionforce"].data, :displacement)
 f = getproperty.(result.outputdata["reactionforce"].data, :fint)
-#plot(u,f, mark=:o)
+
+using Test
+@test last(u) ≈ 82.26348529886634
+@test last(f) ≈ 9.3196516507723
+# plot(u,f, mark=:o)
