@@ -57,7 +57,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::BarElement{dim},
     ε = log(λ);
 
     ε_tensor = SymmetricTensor{2,1,T,1}((ε,))
-    τ, Et, new_state = constitutive_driver(material, ε_tensor, materialstate[1])
+    τ, Et, new_state = material_response(material, ε_tensor, materialstate[1])
     materialstate[1] = new_state
 
     dT = exp(-2*ε)*(A/L) * ( (Et - 2*τ[1])*(n⊗n) + τ[1]*ones(Tensor{2,dim,T}) );

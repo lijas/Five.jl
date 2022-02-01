@@ -1,13 +1,13 @@
 using Five
 
 data = ProblemData(
-    dim = 2,
+    dim = 3,
     tend = 1.0
 )
 
-data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+data.grid = generate_grid(Hexahedron, (10,5,5), Vec((0.0, 0.0, 0.0)), Vec((10.0, 1.0, 1.0)))
 
-addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
+addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0 && x[3] == 1.0)
 
 E = 1e5
 ν = 0.3
@@ -34,9 +34,9 @@ material = LinearElastic(
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
-    func = (x,t) -> (0.0, 0.0),
+    func = (x,t) -> (0.0, 0.0,0.0),
     field = :u,
-    dofs = [1,2]
+    dofs = [1,2,3]
 )
 push!(data.dirichlet, con1)
 
@@ -49,11 +49,11 @@ con1 = Dirichlet(
 )
 push!(data.dirichlet, con1)=#
 
-part = Part{2,Float64}(
-    element = SolidElement{2,2,RefCube,Float64}(
-        celltype = Ferrite.Quadrilateral,
-        qr_order = 4,
-        dimension = PlaneStrain()
+part = Part{3,Float64}(
+    element = SolidElement{3,1,RefCube,Float64}(
+        celltype = Ferrite.Hexahedron,
+        qr_order = 2,
+        dimension = Five.ThreeD()
     ),
     material = material,
     cellset = collect(1:getncells(data.grid)),
@@ -69,7 +69,7 @@ data.output[] = Output(
 output = OutputData(
     type = DofValueOutput(
         field = :u,
-        dofs = [2]
+        dofs = [3]
     ),
     interval = 0.1,
     set = getvertexset(data.grid, "topright")
@@ -95,15 +95,16 @@ Five.push_vtkoutput!(data.output[], vtkoutput)
 
 force = PointForce(
     field = :u,
-    comps = [2],
+    comps = [3],
     set = getvertexset(data.grid, "topright"),
-    func = (X,t) -> -10.0*t
+    func = (X,t) -> -1.0*t
 )
 push!(data.external_forces, force)
 
 solver = NewtonSolver(
     Δt0 = 0.1,
     Δt_max = 0.1,
+    tol = 1e-5
 )
 
 state, data = build_problem(data)

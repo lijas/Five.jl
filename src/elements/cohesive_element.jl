@@ -77,7 +77,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
         Ĵ = R'⋅J
         
         #constitutive_driver
-        t̂, ∂t∂Ĵ, new_matstate = constitutive_driver(material, Ĵ, materialstate[qp])
+        t̂, ∂t∂Ĵ, new_matstate = material_response(material, Ĵ, materialstate[qp])
         materialstate[qp] = new_matstate
 
         t = R ⋅ t̂
@@ -129,7 +129,7 @@ function integrate_fstar!(element::CohesiveElement{dim_s,CV},
         Ĵ = R'⋅J
         
         #constitutive_driver
-        t̂, ∂t∂Ĵ, _ = constitutive_driver(material, Ĵ, materialstate[qp])
+        t̂, ∂t∂Ĵ, _ = material_response(material, Ĵ, materialstate[qp])
 
         #if iszero(t̂)
         #    continue
@@ -225,7 +225,7 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
         Ĵ = R'⋅J
         
         #constitutive_driver
-        t̂, _, new_matstate = constitutive_driver(material, Ĵ, materialstate[qp])
+        t̂, _, new_matstate = material_response(material, Ĵ, materialstate[qp])
         materialstate[qp] = new_matstate
 
         t = R ⋅ t̂

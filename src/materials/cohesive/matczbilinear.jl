@@ -11,7 +11,7 @@ Camanho, P., & Davila, C. G. (2002). Mixed-Mode Decohesion Finite Elements in fo
 
 """
 
-struct MatCZBilinear{T} <: AbstractCohesiveMaterial
+struct MatCZBilinear{T} <: MaterialModels.AbstractMaterial
     K::T #Initial stiffness
     Gᴵ::NTuple{3,T} #Fracture toughness
     τᴹᵃˣ::NTuple{3,T} #Streanghts 
@@ -20,7 +20,7 @@ struct MatCZBilinear{T} <: AbstractCohesiveMaterial
     η::T
 end
 
-struct MatCZBilinearState{T} <: AbstractMaterialState
+struct MatCZBilinearState{T} <: MaterialModels.AbstractMaterialState
     δᴹᵃˣₘ::T
     d::T
     t::Vec{3,T}
@@ -37,7 +37,7 @@ function MatCZBilinear(; K::T, Gᴵ::NTuple{3,T}, τᴹᵃˣ::NTuple{3,T}, η::T
     return MatCZBilinear{T}(K, Gᴵ, τᴹᵃˣ, δ⁰, δᶠ, η)
 end
 
-function getmaterialstate(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
+function MaterialModels.initial_material_state(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
     t = zero(Vec{3,T}) 
     J = zero(Vec{3,T})
 
@@ -48,11 +48,7 @@ function getmaterialstate(mp::MatCZBilinear{T}, d::T=zero(T)) where {T}
     return MatCZBilinearState(δᴹᵃˣₘ, d,t,J, 0.0, zero(Vec{3,T}))
 end
 
-get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T}
-
-is_dissipative(::MatCZBilinear) = true
-
-function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
+function MaterialModels.material_response(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
     
     t, δᴹᵃˣₘ, d, _ = _constitutive_driver(mp, J, prev_state)
     dt::Tensor{2,3,T,9}, t::Vec{3,T} = Tensors.gradient(J -> _constitutive_driver(mp, J, prev_state)[1], J, :all)
@@ -63,7 +59,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatC
     return t, dt, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
 end
 
-function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState) where {T}
+function MaterialModels.material_response(mp::MatCZBilinear{T}, J::Vec{3,T}, prev_state::MatCZBilinearState, extras::Symbol) where {T}
     
     J_dual = Tensors._load(J, nothing)
     _, _, _, g_res = _constitutive_driver(mp, J_dual, prev_state)
@@ -72,7 +68,7 @@ function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J::Vec{3,T}, prev
 end
 
 #2D
-function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
+function MaterialModels.material_response(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
     
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))
@@ -90,7 +86,7 @@ function constitutive_driver(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::Ma
     return t2d, dt2d, MatCZBilinearState(δᴹᵃˣₘ,d,t,J, g, dgdJ)
 end
 
-function constitutive_driver_dissipation(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState) where {T}
+function MaterialModels.material_response(mp::MatCZBilinear{T}, J2d::Vec{2,T}, prev_state::MatCZBilinearState, extras::Symbol) where {T}
     
     #Pad with zero
     J = Vec{3,T}((J2d[1], zero(T), J2d[2]))

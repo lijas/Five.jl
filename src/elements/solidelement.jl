@@ -10,6 +10,8 @@ struct SolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
     celltype::Type{<:Cell}
     cv::CV
     field::Field
+
+    dimension::AbstractDim
 end
 
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
@@ -21,7 +23,7 @@ has_constant_massmatrix(::SolidElement) = true
 
 get_fields(e::SolidElement{dim,order,shape,T}) where {dim,order,shape,T} = return [e.field]
 
-function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
+function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}, dimension = ThreeD()) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
@@ -29,7 +31,7 @@ function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, c
     qr = QuadratureRule{dim, refshape}(qr_order)
 
     cv = CellVectorValues(qr, ip, geom_ip)
-    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
+    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim), dimension)
 end
 
 function calculate_minimum_timestep(element::SolidElement{2,1,RefCube,T,M}, material::AbstractMaterial, cell::CellIterator, ue::Vector, due::Vector) where {T,M}
@@ -99,7 +101,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
             F = one(∇u) + ∇u
             E = symmetric(1/2 * (F' ⋅ F - one(F)))
     
-            S, _, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+            S, _, new_matstate = material_response(material.dimension, material, F, materialstate[qp])
             materialstate[qp] = new_matstate
 
             for i in 1:ndofs
@@ -157,7 +159,9 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
         F = one(∇u) + ∇u
         E = symmetric(1/2 * (F' ⋅ F - one(F)))
 
-        S, ∂S∂E, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+        #assume output is S and ∂S∂E for now
+        C = tdot(F)
+        S, dSdE, new_matstate = material_response(element.dimension, ∂S∂E(), material, F, materialstate[qp])
         materialstate[qp] = new_matstate
         #U = sqrt(C)
         #R = F⋅inv(U)
@@ -175,7 +179,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
             δFi = shape_gradient(cv, qp, i)
             δu = shape_value(cv, qp, i)
             fe[i] += (δE[i] ⊡ S) * dΩ
-            δE∂S∂E = δE[i] ⊡ ∂S∂E
+            δE∂S∂E = δE[i] ⊡ dSdE
             S∇δu = S ⋅ δFi'
             for j in 1:ndofs
                 δ∇uj = shape_gradient(cv, qp, j)
@@ -226,22 +230,4 @@ function integrate_dissipation!(
             fe[i] += (∂g∂C ⊡ δCi) * dΩ
         end
     end
-end
-
-function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial
-    C = tdot(F)
-    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
-    return S, 2*∂S∂C, new_matstate
-end
-
-function solid_constitutive_driver(material::T, F, materialstate) where T <: HyperElasticMaterial
-    C = tdot(F)
-    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
-    return S, 2*∂S∂C, new_matstate
-end
-
-function solid_constitutive_driver(material::T, F, materialstate) where T <: AbstractMaterial
-    E = symmetric(1/2 * (F' ⋅ F - one(F)))
-    S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate)
-    return S, ∂S∂E, new_matstate
 end

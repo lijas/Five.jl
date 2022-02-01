@@ -25,6 +25,8 @@ using JLD2
 
 @reexport using Ferrite
 @reexport using Tensors
+@reexport using MaterialModels
+density(::MaterialModels.AbstractMaterial) = 0.0
 
 LOG = Logging.global_logger()
 

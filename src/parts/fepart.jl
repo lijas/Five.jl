@@ -65,8 +65,6 @@ end
 
 getmaterialstate(partstate::PartState, field::Symbol) =  getproperty.(partstate.materialstates, field)
 
-get_partstate_type(part::Part{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
-
 get_fields(part::FEPart) = get_fields(part.element)
 get_cellset(part::FEPart) = part.cellset
 
@@ -75,7 +73,7 @@ function construct_partstates(part::FEPart)
     ncells = length(part.cellset)
     nqp = getnquadpoints(part.element)
 
-    materialtype = get_material_state_type(part.material)
+    materialtype = initial_material_state(part.material) |> typeof
     ElementStateType = get_elementstate_type(part.element)
 
     states = Vector{PartState{ElementStateType,materialtype}}(undef, ncells)
@@ -85,7 +83,7 @@ function construct_partstates(part::FEPart)
 
         _materialstates = Vector{materialtype}(undef, nqp)
         for j in 1:nqp
-            _materialstates[j] = getmaterialstate(part.material)
+            _materialstates[j] = initial_material_state(part.material)
         end
 
         states[i] = PartState(_cellstate, _materialstates)
@@ -175,7 +173,7 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
 
     for (localid,cellid) in enumerate(part.cellset)
         
-        partstate::get_partstate_type(part) = state.partstates[cellid]
+        partstate = state.partstates[cellid]
 
         materialstate = partstate.materialstates
         cellstate     = partstate.elementstate
@@ -227,7 +225,7 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::FEPart, stat
         
         fill!(me, 0.0)
 
-        partstate::get_partstate_type(part) = state.partstates[cellid]
+        partstate = state.partstates[cellid]
 
         materialstate = partstate.materialstates
         cellstate     = partstate.elementstate
