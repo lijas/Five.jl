@@ -335,6 +335,7 @@ end=#
 
 
 #Overwrite Ferrite.function_value for scalar cellvalues to interpolate any type
+#=
 function Ferrite.function_value(fe_v::Ferrite.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
     n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
     #isa(fe_v, VectorValues) && (n_base_funcs *= dim)
@@ -394,7 +395,7 @@ function Ferrite.spatial_coordinate(fe_v::Ferrite.ScalarValues{dim_p}, q_point::
     return vec
 end
 ##
-
+=#
 
 function facedofs(dh::Ferrite.AbstractDofHandler, fieldhandler::FieldHandler, faceindx::FaceIndex; field_name::Symbol = :all, components::Vector{Int} = [])
 

@@ -71,9 +71,9 @@ function _update!(dh::MixedDofHandler, state::StateVariables, instr::FieldDimUpg
         state.d[nodedofs] = instr.extended_ue[i][1:current_fielddim]
         state.d[dofs]     = instr.extended_ue[i][(1:length(dofs)) .+ current_fielddim]
 
-        resize!(state.Δd, nextdof-1)
-        state.Δd[nodedofs] = instr.extended_Δue[i][1:current_fielddim]
-        state.Δd[dofs]     = instr.extended_Δue[i][(1:length(dofs)) .+ current_fielddim]
+        resize!(state.v, nextdof-1)
+        state.v[nodedofs] = instr.extended_Δue[i][1:current_fielddim]
+        state.v[dofs]     = instr.extended_Δue[i][(1:length(dofs)) .+ current_fielddim]
 
         dh.cell_dofs.length[instr.cellid] += Δ
     end

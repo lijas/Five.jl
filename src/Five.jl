@@ -164,7 +164,7 @@ function transfer_state!(a::StateVariables, b::StateVariables)
     a.ΔL = b.ΔL
     a.L  = b.L
 
-    a.partstates .= b.partstates #Assume is bit-types 
+    a.partstates .= deepcopy(b.partstates) #Assume is bit-types 
 
     a.system_arrays = deepcopy(b.system_arrays) #This copies the stiffness matrix aswell.... hmmm
 
@@ -200,7 +200,7 @@ include("outputs/energy_output.jl")
 include("solvers/solver_utils.jl")
 include("solvers/solver.jl")
 # include("solvers/dissipation_solver.jl")
-# include("solvers/local_dissipation_solver.jl")
+include("solvers/local_dissipation_solver.jl")
 include("solvers/newton_solver.jl")
 include("solvers/arclength_solver.jl")
 # include("solvers/explicit_solver.jl")

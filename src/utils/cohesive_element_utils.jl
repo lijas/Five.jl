@@ -68,6 +68,7 @@ struct SurfaceVectorValues{dim_p,dim_s,T<:Real,M2,refshape<:Ferrite.AbstractRefS
     covar_base::Vector{Tensor{2,dim_s,T}}
 end
 
+Ferrite.getnquadpoints(cv::SurfaceVectorValues) = length(cv.qr_weights)
 
 function SurfaceVectorValues(quad_rule::QuadratureRule, func_interpol::CohesiveZoneInterpolation, geom_interpol::CohesiveZoneInterpolation=func_interpol)
     SurfaceVectorValues(Float64, quad_rule, func_interpol, geom_interpol)
