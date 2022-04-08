@@ -4,12 +4,21 @@ SolidElement{dim,order,shape,T,CV<:Ferrite.Values}
 
 """
 
-struct SolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
+struct SolidElement{
+        dim,
+        order,
+        shape,
+        T          <: AbstractFloat,
+        CV         <: Ferrite.Values,
+        DIM       <: MaterialModels.AbstractDim
+    } <: AbstractElement
+
     thickness::T #used in 2d
 
     celltype::Type{<:Cell}
     cv::CV
     field::Field
+    dimstate::DIM
 end
 
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
@@ -21,7 +30,7 @@ has_constant_massmatrix(::SolidElement) = true
 
 get_fields(e::SolidElement{dim,order,shape,T}) where {dim,order,shape,T} = return [e.field]
 
-function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
+function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}, dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
@@ -29,7 +38,7 @@ function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, c
     qr = QuadratureRule{dim, refshape}(qr_order)
 
     cv = CellVectorValues(qr, ip, geom_ip)
-    return SolidElement{dim,order,refshape,T,typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
+    return SolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
 
 function calculate_minimum_timestep(element::SolidElement{2,1,RefCube,T,M}, material::AbstractMaterial, cell::CellIterator, ue::Vector, due::Vector) where {T,M}
@@ -99,7 +108,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
             F = one(∇u) + ∇u
             E = symmetric(1/2 * (F' ⋅ F - one(F)))
     
-            S, _, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+            S, _, new_matstate = material_response(element.dimstate, material, F, materialstate[qp])
             materialstate[qp] = new_matstate
 
             for i in 1:ndofs
@@ -156,14 +165,10 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
         # strain and stress + tangent
         F = one(∇u) + ∇u
         E = symmetric(1/2 * (F' ⋅ F - one(F)))
-
-        S, ∂S∂E, new_matstate = solid_constitutive_driver(material, F, materialstate[qp])
+        
+        #@assert( strainmeasure(material) == MaterialModels.GreenLagrange() )
+        S, ∂S∂E, new_matstate = material_response(element.dimstate, material, E, materialstate[qp])
         materialstate[qp] = new_matstate
-        #U = sqrt(C)
-        #R = F⋅inv(U)
-
-        #∂S∂E = otimesu(R,R) ⊡ _∂S∂E ⊡ otimesu(R',R')
-        #S = R ⋅ _S ⋅R'
 
         # Hoist computations of δE
         for i in 1:ndofs
@@ -226,22 +231,4 @@ function integrate_dissipation!(
             fe[i] += (∂g∂C ⊡ δCi) * dΩ
         end
     end
-end
-
-function solid_constitutive_driver(material::Material2D{T}, F, materialstate) where T<:HyperElasticMaterial
-    C = tdot(F)
-    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
-    return S, 2*∂S∂C, new_matstate
-end
-
-function solid_constitutive_driver(material::T, F, materialstate) where T <: HyperElasticMaterial
-    C = tdot(F)
-    S, ∂S∂C, new_matstate = constitutive_driver(material, C, materialstate)
-    return S, 2*∂S∂C, new_matstate
-end
-
-function solid_constitutive_driver(material::T, F, materialstate) where T <: AbstractMaterial
-    E = symmetric(1/2 * (F' ⋅ F - one(F)))
-    S, ∂S∂E, new_matstate = constitutive_driver(material, E, materialstate)
-    return S, ∂S∂E, new_matstate
 end

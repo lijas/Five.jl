@@ -5,13 +5,13 @@ export MatTransvLinearElastic, MatTransvLinearElasticState
 
 Standart material used for composites
 """
-struct MatTransvLinearElastic <: AbstractMaterial
+struct MatTransvLinearElastic <: MaterialModels.AbstractMaterial
     C::SymmetricTensor{4,3,Float64,36}
     α::Float64
     density::Float64
 end
 
-struct MatTransvLinearElasticState <: AbstractMaterialState
+struct MatTransvLinearElasticState <: MaterialModels.AbstractMaterialState
     σ::SymmetricTensor{2,3,Float64,6}
 end
 
@@ -19,7 +19,7 @@ end
 # Constructors
 # # # # # # #
 
-function getmaterialstate(::MatTransvLinearElastic)
+function MaterialModels.initial_material_state(::MatTransvLinearElastic)
     σ = zero(SymmetricTensor{2,3,Float64})
     return MatTransvLinearElasticState(σ)
 end
@@ -70,7 +70,7 @@ function _constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,
     return C, σ
 end
 
-function constitutive_driver(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState = getmaterialstate(mp)) where {dim,T,M}
+function MaterialModels.material_response(mp::MatTransvLinearElastic, ε::SymmetricTensor{2,dim,T,M}, ::MatTransvLinearElasticState, Δt=nothing; cache=nothing, options=nothing) where {dim,T,M}
 
     #dσ::SymmetricTensor{4,3,Float64,36}, σ::SymmetricTensor{2,3,Float64,6} = Tensors.gradient(e -> _constitutive_driver(mp, e), ε, :all)
     

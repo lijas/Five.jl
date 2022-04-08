@@ -25,6 +25,7 @@ using JLD2
 
 @reexport using Ferrite
 @reexport using Tensors
+@reexport using MaterialModels
 
 LOG = Logging.global_logger()
 

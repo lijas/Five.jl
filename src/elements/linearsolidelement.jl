@@ -4,12 +4,21 @@ LinearSolidElement
 
 """
 
-struct LinearSolidElement{dim,order,shape,T,CV<:Ferrite.Values} <: AbstractElement
+struct LinearSolidElement{
+        dim,
+        order,
+        shape,
+        T          <: AbstractFloat,
+        CV         <: Ferrite.Values,
+        DIM       <: MaterialModels.AbstractDim
+    } <: AbstractElement
+
     thickness::T #used in 2d
 
     celltype::Type{<:Cell}
     cv::CV
     field::Field
+    dimstate::DIM
 end
 
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
@@ -21,7 +30,7 @@ has_constant_massmatrix(::LinearSolidElement) = true
 
 get_fields(e::LinearSolidElement) = return [e.field]
 
-function LinearSolidElement{dim, order, refshape, T}(; thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}) where {dim, order, refshape, T}
+function LinearSolidElement{dim, order, refshape, T}(; thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}, dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
@@ -29,7 +38,7 @@ function LinearSolidElement{dim, order, refshape, T}(; thickness = 1.0, qr_order
     qr = QuadratureRule{dim, refshape}(qr_order)
 
     cv = CellVectorValues(qr, ip, geom_ip)
-    return LinearSolidElement{dim, order, refshape, T, typeof(cv)}(thickness, celltype, cv, Field(:u, ip, dim))
+    return LinearSolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{dim, order, shape, T}, 
@@ -64,7 +73,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{
         #Δɛ = symmetric(Δ∇u) 
 
         #MatLinearElasticState(zero(SymmetricTensor{2,dim,T}))
-        σ, ∂σ∂ɛ, new_matstate = constitutive_driver(material, ɛ, materialstate[q_point])
+        σ, ∂σ∂ɛ, new_matstate = material_response(element.dimstate, material, ɛ, materialstate[q_point])
         materialstate[q_point] = new_matstate
 
         for i in 1:n_basefuncs
@@ -86,4 +95,22 @@ function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{
     end
     
     return V
+end
+
+function integrate_massmatrix!(element::LinearSolidElement{dim, order, shape, T, M}, elstate::AbstractElementState, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim, order, shape, T, M}
+
+    cv = element.cv
+    reinit!(cv, cell)
+    ndofs = Ferrite.ndofs(element)
+
+    for qp in 1:getnquadpoints(cv)
+        dV = getdetJdV(cv, qp) * element.thickness
+        for i in 1:ndofs
+            Ni = shape_value(cv, qp, i)
+            for j in 1:ndofs
+                Nj = shape_value(cv, qp, j)
+                me[i, j] += density(material)*Ni⋅Nj*dV;
+            end
+        end
+    end
 end

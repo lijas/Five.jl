@@ -65,7 +65,7 @@ end
 
 getmaterialstate(partstate::PartState, field::Symbol) =  getproperty.(partstate.materialstates, field)
 
-get_partstate_type(part::Part{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
+get_partstate_type(part::Part{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), typeof(initial_material_state(part.material))}
 
 get_fields(part::FEPart) = get_fields(part.element)
 get_cellset(part::FEPart) = part.cellset
@@ -75,7 +75,7 @@ function construct_partstates(part::FEPart)
     ncells = length(part.cellset)
     nqp = getnquadpoints(part.element)
 
-    materialtype = get_material_state_type(part.material)
+    materialtype = typeof( initial_material_state(part.material) )
     ElementStateType = get_elementstate_type(part.element)
 
     states = Vector{PartState{ElementStateType,materialtype}}(undef, ncells)
@@ -85,7 +85,7 @@ function construct_partstates(part::FEPart)
 
         _materialstates = Vector{materialtype}(undef, nqp)
         for j in 1:nqp
-            _materialstates[j] = getmaterialstate(part.material)
+            _materialstates[j] = initial_material_state(part.material)
         end
 
         states[i] = PartState(_cellstate, _materialstates)
