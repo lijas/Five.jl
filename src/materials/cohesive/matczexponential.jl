@@ -122,12 +122,12 @@ end
 
 function MaterialModels.material_response(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState, Δt=nothing; cache=nothing, options=nothing) 
 
-    J = Vec{3,Float64}((_J[1], _J[2], 0.0))
+    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
     _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = material_response(m, J, ms)
-    
+
     #Remove third direction
-    T = Vec{2,Float64}((_T[1], _T[2]))
-    dTdΔ = Tensor{2,2,Float64,4}((_dTdΔ[1,1], _dTdΔ[2,1], _dTdΔ[1,2], _dTdΔ[2,2]))
+    T = Vec{2,Float64}((_T[1], _T[3]))
+    dTdΔ = Tensor{2,2,Float64,4}((_dTdΔ[1,1], _dTdΔ[3,1], _dTdΔ[1,3], _dTdΔ[3,3]))
     
     return T, dTdΔ, new_state
 end
@@ -143,8 +143,8 @@ function constitutive_driver_dissipation(mp::MatCZKolluri, J::Vec{3}, prev_state
 end
 
 function constitutive_driver_dissipation(mp::MatCZKolluri, _J::Vec{2}, prev_state::MatCZKolluriState)
-    J = Vec{3,Float64}((_J[1], _J[2], 0.0, ))
+    J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
     _ΔD, _dΔDdJ::Vec{3,Float64} = constitutive_driver_dissipation(mp, J, prev_state)
 
-    return _ΔD, Vec{2,Float64}((_dΔDdJ[1], _dΔDdJ[2]))
+    return _ΔD, Vec{2,Float64}((_dΔDdJ[1], _dΔDdJ[3]))
 end
