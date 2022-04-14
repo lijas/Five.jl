@@ -156,7 +156,7 @@ function get_rotation_matrix(cv::CellVectorValues{2,T}, qp::Int, x::Vector{Vec{2
             E1 += cv.dMdξ[j,qp][d] * x[j]
         end
     end
-    D = cross(E1) 
+    D   = cross(E1) 
     E1 /= norm(E1)
     D  /= norm(D)
 
