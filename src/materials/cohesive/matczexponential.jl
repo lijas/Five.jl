@@ -120,7 +120,7 @@ function  MaterialModels.material_response(m::MatCZKolluri, J::Vec, ms::MatCZKol
 end
 
 
-function MaterialModels.material_response(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState) 
+function MaterialModels.material_response(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState, Δt=nothing; cache=nothing, options=nothing) 
 
     J = Vec{3,Float64}((_J[1], _J[2], 0.0))
     _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = material_response(m, J, ms)

@@ -77,7 +77,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
         Ĵ = R'⋅J
         
         #constitutive_driver
-        t̂, ∂t∂Ĵ, new_matstate = material_response(PlaneStrain(), material, Ĵ, materialstate[qp])
+        t̂, ∂t∂Ĵ, new_matstate = material_response(material, Ĵ, materialstate[qp])
         materialstate[qp] = new_matstate
 
         t = R ⋅ t̂
