@@ -131,6 +131,8 @@ function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, e
     end
 end
 
+#=
+OLD SLOW
 function get_rotation_matrix(cv::CellVectorValues{dim,T}, qp::Int, x::Vector{Vec{dim,T}}) where {dim,T}
 
     E = zeros(Vec{dim,T},dim-1)
@@ -143,6 +145,22 @@ function get_rotation_matrix(cv::CellVectorValues{dim,T}, qp::Int, x::Vector{Vec
     _R = hcat((E./norm.(E))..., D/norm(D))
 
     return Tensor{2,dim,T}(_R)
+
+end
+=#
+function get_rotation_matrix(cv::CellVectorValues{2,T}, qp::Int, x::Vector{Vec{2,T}}) where {T}
+
+    E1 = zero(Vec{2,T})
+    for j in 1:Ferrite.getngeobasefunctions(cv)
+        for d in 1:1
+            E1 += cv.dMdξ[j,qp][d] * x[j]
+        end
+    end
+    D = cross(E1) 
+    E1 /= norm(E1)
+    D  /= norm(D)
+
+    return Tensor{2,2,T}( (E1[1], E1[2], D[1], D[2]) )
 
 end
 

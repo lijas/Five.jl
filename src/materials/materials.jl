@@ -142,6 +142,7 @@ end
 function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_state::AbstractMaterialState) where T
 
     ε = SymmetricTensor{2,3,T,6}((ε_2d[1,1], T(0.0), ε_2d[1,2], T(0.0), T(0.0), ε_2d[2,2]))
+    #ε = SymmetricTensor{2,3,T,6}((ε_2d[1,1], ε_2d[1,2], T(0.0), ε_2d[2,2], T(0.0), T(0.0)))
 
     local σ::SymmetricTensor{2,3,Float64,6}
     local C::SymmetricTensor{4,3,Float64,36}
@@ -192,6 +193,9 @@ function constitutive_driver(m::Material2D, ε_2d::SymmetricTensor{2,2,T}, prev_
     σ_2d = SymmetricTensor{2,2,T,3}((σ[1,1],σ[1,3],σ[3,3]))
     C_2d = SymmetricTensor{4,2,T,9}((C[1,1,1,1], C[3,1,1,1], C[3,3,1,1], C[1,1,3,1], C[3,1,3,1], C[3,3,3,1], C[1,1,3,3], C[3,1,3,3], C[3,3,3,3]))
 
+    #σ_2d = SymmetricTensor{2,2,T,3}((σ[1,1],σ[1,2],σ[2,2]))
+    #C_2d = SymmetricTensor{4,2,T,9}((C[1,1,1,1], C[2,1,1,1], C[2,2,1,1], C[1,1,2,1], C[2,1,2,1], C[2,2,2,1], C[1,1,2,2], C[2,1,2,2], C[2,2,2,2]))
+    
     return σ_2d, C_2d, state
 end
 
