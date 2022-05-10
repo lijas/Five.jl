@@ -17,7 +17,7 @@ include("mattransverseisotropic2.jl")
 
 
 #include("cohesive/cohesive.jl")
-#include("cohesive/matczbilinear.jl")
+include("cohesive/matczbilinear.jl")
 #include("cohesive/matczbilinear_singlemode.jl")
 include("cohesive/matczexponential.jl")
 #include("cohesive/mat_temp.jl")
