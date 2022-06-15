@@ -32,7 +32,7 @@ LOG = Logging.global_logger()
 abstract type AbstractPart{dim} end
 abstract type AbstractPartState end
 
-@enum SolverMode MODE1 MODE2
+@enum SolverMode MODE1 MODE2 MODE3
 @enum SimulationTermination NORMAL_TERMINATION ERROR_TERMINATION ABORTED_SIMULATION _NO_TERMINATION
 
 abstract type AbstractSolver{T} end

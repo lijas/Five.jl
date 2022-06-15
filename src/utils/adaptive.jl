@@ -28,7 +28,7 @@ function update_dofhandler!(dh::MixedDofHandler, state::StateVariables{T}, instr
     state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
 
     #Resize the velocites anc accelerations since they are not used
-    resize!(state.v, ndofs(dh))
+    #resize!(state.v, ndofs(dh))
     resize!(state.a, ndofs(dh))
 
 end

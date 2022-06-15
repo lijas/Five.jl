@@ -51,6 +51,7 @@ function apply_external_force!(force::PointForce, state::StateVariables, globald
         X = Vec((0.0,0.0)) # TODO: position
         state.system_arrays.fᵉ[dofs] .= force.func(X, state.t)
     end
+    @show sum(state.system_arrays.fᵉ)
 end
 
 
@@ -66,7 +67,7 @@ struct TractionForce{FV<:Ferrite.Values} <: AbstractExternalForce
     facevalues::FV
 end
 
-function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:Ferrite.Values}
+function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables{T}, globaldata) where {T, FV<:Ferrite.Values}
     
     fv = ef.facevalues
     ndofs = getnbasefunctions(fv)
@@ -88,7 +89,7 @@ function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::TractionForce
         
         area = _compute_external_traction_force!(fv, coords, faceid, ef.traction, fe, state.t)
         total_area +=area
-        system_arrays.fᵉ[celldofs] += fe
+        state.system_arrays.fᵉ[celldofs] += fe
     end
     @show total_area
 end
@@ -102,7 +103,7 @@ function _compute_external_traction_force!(fv::Ferrite.Values{dim,T}, cellcoords
         dΓ = getdetJdV(fv, q_point)
 
         X = spatial_coordinate(fv, q_point, cellcoords)
-        t =traction(X,time)
+        t = traction(X,t)
 
         dA += dΓ
         for i in 1:getnbasefunctions(fv)

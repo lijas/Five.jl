@@ -146,7 +146,8 @@ function _check_input(data::ProblemData{dim,T}) where {dim,T}
 
         !issorted(part.cellset) && error("The cellset for the parts must be sorted.")
     end
-
+    @show length(all_cellsets)
+    @show  getncells(data.grid)
     length(all_cellsets) < getncells(data.grid) && error("Not all cells are included in a part.")
 
 end

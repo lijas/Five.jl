@@ -60,6 +60,10 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
             break
         end
 
+        @timeit "post"       post_stuff!(dh, state, globaldata)  
+        @timeit "vtk export" vtk_add_state!(output, state, globaldata)
+        @timeit "output"     outputs!(output, state, globaldata)
+
         #Currently dont have a system for adaptivity,
         # so hack the adaptivity stuff in here:
         if globaldata.adaptive
@@ -80,18 +84,14 @@ function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata)
                 Ferrite.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
 
                 #Recalculate fᴬ for fstar
-                assemble_fstar!(globaldata.dh, state, globaldata)
+                #assemble_fstar!(globaldata.dh, state, globaldata)
 
                 #Restart state
-                #state = deepcopy(prev_state)
+                prev_state = deepcopy(state)
                 #continue
             end
 
         end
-   
-        @timeit "post"       post_stuff!(dh, state, globaldata)  
-        @timeit "vtk export" vtk_add_state!(output, state, globaldata)
-        @timeit "output"     outputs!(output, state, globaldata)
         
         #Update counter
         transfer_state!(prev_state, state)
@@ -154,8 +154,11 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
    
     fill!(state.system_arrays, 0.0)
 
-    assemble_massmatrix!(globaldata.dh, state, globaldata)
-    assemble_lumped_massmatrix!(globaldata.dh, state, globaldata)
+    #TODO: Activate for time dependent solvers
+    if false# !(solver isa LocalDissipationSolver) #if solver is not a ExplicitSolver
+        assemble_massmatrix!(globaldata.dh, state, globaldata)
+        assemble_lumped_massmatrix!(globaldata.dh, state, globaldata)
+    end
 
     apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
     assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)
