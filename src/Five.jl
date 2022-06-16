@@ -45,11 +45,6 @@ abstract type AbstractSystemArrays{T} end
     SystemArrays(T::Type, ndofs::Int)
 
 Contains global arrays, such as internal force vector and stiffness matrix.
-
-**Possible changes**
-Differnet solvers need different global arrays. For example, an static solver does need mass matrices,
-while a explicit solver does. Maybe create different <: SystemArrays depending on solver. 
-
 """
 mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
     fⁱ::Vector{T}

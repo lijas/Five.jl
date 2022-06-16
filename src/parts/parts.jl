@@ -15,7 +15,6 @@ get_fields
 
 """
     init_part!
-
 """
 init_part!
 
@@ -34,12 +33,6 @@ assemble_forcevector!
 """
 assemble_dissipation!
 
-"""
-bigtest!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
-"""
-function bigtest()
-
-end
 
 include("fepart.jl")
 include("cohesive_part.jl")
