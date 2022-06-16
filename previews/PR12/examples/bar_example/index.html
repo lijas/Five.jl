@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Bar example · Five</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Five</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../essentials/">Essentials</a></li><li><a class="tocitem" href="../../parts/">Parts</a></li><li><span class="tocitem">Elements</span><ul><li><a class="tocitem" href="../../elements/elements_overview/">Elements overview</a></li><li><a class="tocitem" href="../../elements/solid_element/">Solid element</a></li></ul></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../../solvers/solver_overview/">Solver overview</a></li><li><a class="tocitem" href="../../solvers/crisfield_solver/">Crisfield arc-length solver</a></li><li><a class="tocitem" href="../../solvers/local_dissipation_solver/">-</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>Bar example</a></li><li><a class="tocitem" href="../beam_example/">Beam example</a></li><li><a class="tocitem" href="../enf_example/">ENF example</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Bar example</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Bar example</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/lijas/Five.jl/blob/master/docs/src/literate/bar_example.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Bar-example"><a class="docs-heading-anchor" href="#Bar-example">Bar example</a><a id="Bar-example-1"></a><a class="docs-heading-anchor-permalink" href="#Bar-example" title="Permalink"></a></h1><pre><code class="language-">using Five
+
+const α = pi/3;
+const Δ = 200.0
+const P = -30
+
+data = ProblemData(
+    dim = 2,
+    tend = 1.0
+)
+
+function generate_bars()
+    L = 0.5Δ/cos(α)
+    nodecoords = [Vec(0.0,0.0), Vec(0.5Δ, 0.5Δ/tan(α)), Vec(Δ,0.0), Vec(0.5Δ, 0.5Δ/tan(α) + L)]
+
+    nodes = [Node{2,Float64}(x) for x in nodecoords]
+    cells = [Line2D((1,2)), Line2D((2,3)), Line2D((2,4))]
+    grid = Grid(cells,nodes)
+
+    addvertexset!(grid, &quot;left&quot;, (x)-&gt; x[1] ≈ 0.0)
+    addvertexset!(grid, &quot;right&quot;, (x)-&gt; x[1] ≈ Δ)
+    addvertexset!(grid, &quot;topmid&quot;, (x)-&gt; x[1] ≈ Δ/2 &amp;&amp; x[2] ≈ 0.5Δ/tan(α)+L)
+    addvertexset!(grid, &quot;midmid&quot;, (x)-&gt; x[1] ≈ Δ/2)# &amp;&amp; x[2] ≈ 0.5Δ/tan(α)+L)
+end
+
+data.grid = generate_bars()
+
+material1 = MatLinearElastic(
+    E = 210.0,
+    nu = 0.3
+)
+
+bar1 = Part{2,Float64}(
+    material = material1,
+    cellset = [1, 2],
+    element = BarElement{2}(
+        area = 1.0,
+    )
+)
+push!(data.parts, bar1)
+
+midbar = Part{2,Float64}(
+    material = material1,
+    cellset = [3],
+    element = BarElement{2}(
+        area = 1.0/2,
+    )
+)
+push!(data.parts, midbar)
+
+con = Dirichlet(
+    set = getvertexset(data.grid, &quot;left&quot;),
+    func = (x,t) -&gt; (0.0, 0.0),
+    field = :u,
+    dofs = [1,2]
+)
+push!(data.dirichlet, con)
+
+con = Dirichlet(
+    set =  getvertexset(data.grid, &quot;right&quot;) ,
+    func = (x,t) -&gt; (0.0, 0.0),
+    field = :u,
+    dofs = [1,2]
+)
+push!(data.dirichlet, con)
+
+con3 = Dirichlet(
+    set =  Set([first(getvertexset(data.grid, &quot;midmid&quot;))]),
+    func = (x,t) -&gt; (0.0),
+    field = :u,
+    dofs = [1,]
+)
+push!(data.dirichlet, con3)
+
+con3 = Dirichlet(
+    set =  Set([first(getvertexset(data.grid, &quot;topmid&quot;))]),
+    func = (x,t) -&gt; (0.0),
+    field = :u,
+    dofs = [1,]
+)
+push!(data.dirichlet, con3)
+
+
+data.output[] = Output(
+    runname = &quot;barexample&quot;,
+    savepath = &quot;.&quot;,
+    interval = 0.0,
+)
+
+output = OutputData(
+    type = DofValueOutput(
+        field = :u,
+        dofs = [2,]
+    ),
+    interval = 0.00,
+    set = getvertexset(data.grid, &quot;topmid&quot;)
+)
+data.outputdata[&quot;reactionforce&quot;] = output
+
+#=output = VTKPointData(
+    type = MaterialOutput(
+        field = :σ,
+    ),
+    part = bars
+)=#
+
+force = PointForce(
+    field = :u,
+    comps = [2,],
+    set = getvertexset(data.grid, &quot;topmid&quot;),
+    func = (X,t) -&gt; 1.0
+)
+push!(data.external_forces, force)
+
+solver = ArcLengthSolver(
+    Δλ0 = -1.0,
+
+    λ_max = 40.0,
+    λ_min = -40.0,
+
+    ΔL_max = 5.0,
+    ΔL_min = 0.01,
+
+    tol = 1e-4,
+    maxsteps = 30,
+    optitr = 10,
+    maxitr = 20
+)
+
+state, data = build_problem(data)
+
+result = solvethis(solver, state, data)
+
+u = getproperty.(result.outputdata[&quot;reactionforce&quot;].data, :displacement)
+f = getproperty.(result.outputdata[&quot;reactionforce&quot;].data, :fint)
+
+using Test
+@test last(u) ≈ 82.26348529886634
+@test last(f) ≈ 9.3196516507723</code></pre><p>plot(u,f, mark=:o)</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../solvers/local_dissipation_solver/">« -</a><a class="docs-footer-nextpage" href="../beam_example/">Beam example »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 16 June 2022 12:13">Thursday 16 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
