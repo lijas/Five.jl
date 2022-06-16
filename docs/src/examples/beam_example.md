@@ -1,5 +1,10 @@
-# # Beam example
+```@meta
+EditURL = "<unknown>/docs/src/literate/beam_example.jl"
+```
 
+# Beam example
+
+```@example beam_example
 using Five
 
 data = ProblemData(
@@ -103,6 +108,9 @@ state, data = build_problem(data)
 output = solvethis(solver, state, data)
 
 d = output.outputdata["reactionforce"].data[end].displacement
+```
 
-using Test                         #src
-@test abs(d) ≈ 0.44438080510979344 #src
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+

@@ -66,7 +66,6 @@ integrate_fstar!
 
 include("solidelement.jl")
 include("bar_element.jl")
-include("blt_shell_element.jl")
 include("linearsolidelement.jl")
 
 #Cohesive
@@ -88,5 +87,3 @@ const SolidElementQuad = SolidElement{2,1,RefCube,Float64}
 const SolidElementHexa = SolidElement{3,1,RefCube,Float64}
 const SolidElementTria = SolidElement{2,1,RefTetrahedron,Float64}
 const SolidElementTetra = SolidElement{3,1,RefTetrahedron,Float64}
-
-const BLTShell = BelytschkoLinTsayShellElement{Float64}

@@ -10,3 +10,8 @@ The arc-length constraint is defined as
 ```
 
 where $\Delta L$ is a user-defined parameter limiting the step size.
+
+
+```@docs
+Five.ArcLengthSolver
+```

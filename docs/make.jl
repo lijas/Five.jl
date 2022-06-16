@@ -1,6 +1,14 @@
 using Documenter
 using Five
 
+include("generate.jl")
+
+GENERATEDEXAMPLES = [joinpath("examples", f) for f in (
+    "bar_example.md",
+    "beam_example.md",
+    "enf_example.md"
+    )]
+
 makedocs(
     sitename = "Five",
     format = Documenter.HTML(),
@@ -9,12 +17,16 @@ makedocs(
         "Home" => "index.md",
         "essentials.md",
         "parts.md",
-        "elements.md",
+        "Elements"  => [
+            "elements/elements_overview.md",
+            "elements/solid_element.md"
+            ],
         "Solvers" => [
             "solvers/solver_overview.md",
             "solvers/crisfield_solver.md",
             "solvers/local_dissipation_solver.md",
             ],
+        "Examples" => GENERATEDEXAMPLES,
     ]
 )
 

@@ -20,6 +20,24 @@ export ArcLengthSolver
     finish_criterion::Function = finish_criterion
 end
 
+
+"""
+    ArcLengthSolver{T}
+
+Arguments:
+    - `Δλ0`: Initial size of load parameter
+    - `λ_max`: 
+    - `λ_min`: 
+    - `ψ`: 
+    - `maxsteps`: Maximum number of steps
+    - `max_residual`: Maximum value of the residual before aborting a step
+    - `optitr`: 
+    - `maxitr`: 
+    - `maxitr_first_step`: 
+    - `finish_criterion`: Function 
+"""
+ArcLengthSolver
+
 function Base.isdone(solver::ArcLengthSolver, state::StateVariables, globaldata)
     return solver.finish_criterion(solver, state)
 end

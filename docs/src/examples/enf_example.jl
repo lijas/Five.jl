@@ -1,25 +1,19 @@
-# # ENF example
-
 using Five
 using Ferrite
 
 function generate_enf_grid(nelx, nely, L, h, a0, SolidCellType, CohesiveCellType)
 
-    #
     grid1 = generate_grid(SolidCellType,(nelx,nely),Vec((0.0,0.0)),Vec((L,h)))
     grid2 = generate_grid(SolidCellType,(nelx,nely),Vec((0.0,h)),Vec((L,h*2)))
     grid = gridmerge(grid1,grid2)
 
-    #
     addvertexset!(grid, "mid", (x)-> x[1] ≈ L/2 && x[2] ≈ h*2)
     @assert(length(getvertexset(grid, "mid")) == 2)
     addvertexset!(grid, "botleft", (x)-> x[1] ≈ 0.0 && x[2] ≈ 0.0)
     addvertexset!(grid, "botright", (x)-> x[1] ≈ L && x[2] ≈ 0.0)
 
-    #
     construct_interfacer_cells!(grid, "top1", "bottom2", CohesiveCellType)
 
-    #
     solid_cells = collect(1:nelx*nely*2)
     cz_cells = collect((1:nelx) .+ 2*nelx*nely)
 
@@ -36,7 +30,7 @@ end
 
 function construct_interfacer_cells!(grid, setname1::String, setname2::String, CohesiveCellType)
 
-    
+
     grid2_bottom_faceset = collect(getfaceset(grid, setname2))
     grid1_top_faceset = collect(getfaceset(grid, setname1))
     function sortby(f1)
@@ -51,11 +45,11 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String, C
         minB = min(grid.nodes[n1].x,grid.nodes[n1].x)
         return minA<minB
     end
-    
+
     grid1_top_faceset = sort(grid1_top_faceset, lt = myless)
     grid2_bottom_faceset = sort(grid2_bottom_faceset, lt = myless)
-    
-    
+
+
     ncells = getncells(grid)
     for (i,topface_index) in enumerate(grid1_top_faceset)
         botface_index = grid2_bottom_faceset[i]
@@ -78,7 +72,7 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String, C
         if CohesiveCellType === CohesiveCell{2,6,2}
             push!(cz_nodes, botcell.nodes[5])
         end
-        
+
         #cell_nodes = [topface[2], topface[1], botface[1], botface[2]]
         new_cell = CohesiveCellType(Tuple(cz_nodes))
         push!(grid.cells, new_cell)
@@ -90,7 +84,7 @@ end
 a0 = 16.9
 
 #Celltype
-CohesiveCellType = CohesiveCell{2,4,2} 
+CohesiveCellType = CohesiveCell{2,4,2}
 SolidCellType = Ferrite.Quadrilateral
 
 #Dimension
@@ -112,27 +106,26 @@ data = ProblemData(
 #grid
 data.grid = generate_enf_grid(NELX, NELY, L, h, a0, SolidCellType, CohesiveCellType)
 
-interfacematerial = 
+interfacematerial =
 MatCZBilinear(
     K    = 1.0e5,
     Gᴵ   = (0.5, 0.5, 0.5),
     τᴹᵃˣ = (50.0, 50.0, 50.0),
     η    = 1.0
-) 
+)
 
-material = 
+material =
 MatTransvLinearElastic(
     E1 = 126.0e3,
     E2 = 10.0e3,
-    ν_12 = 0.29, 
-    G_12 = 8.0e3, 
+    ν_12 = 0.29,
+    G_12 = 8.0e3,
     α = 0.0
 )
 
-#
 part = Part{2,Float64}(
     element  = SolidElement{2,1,RefCube,Float64}(
-        thickness = b, 
+        thickness = b,
         qr_order = 2,
         celltype = SolidCellType,
         dimstate = PlaneStrain()
@@ -142,7 +135,6 @@ part = Part{2,Float64}(
 )
 push!(data.parts, part)
 
-#
 part = Part{2,Float64}(
     element = CohesiveElement(
         order = 1,
@@ -161,7 +153,6 @@ for cellid in getcellset(data.grid, "precracked")
     data.materialstates[cellid] = [Five.initial_material_state(interfacematerial, 1.0) for i in 1:nqp]
 end
 
-#
 dbc1 = Ferrite.Dirichlet(
     field = :u,
     set = getvertexset(data.grid, "botleft"),
@@ -178,8 +169,6 @@ dbc1 = Ferrite.Dirichlet(
 )
 push!(data.dirichlet, dbc1)
 
-
-#
 force = PointForce(
     field = :u,
     comps = [2],
@@ -188,14 +177,12 @@ force = PointForce(
 )
 push!(data.external_forces, force)
 
-#
 data.output[] = Output(
     interval = 0.0,
     runname = "enf_a0$(floor(Int,a0))_locdis_",
     savepath = "."
 )
 
-#
 output = OutputData(
     type = DofValueOutput(
         field = :u,
@@ -239,3 +226,6 @@ output = solvethis(solver, state, globaldata)
 
 d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
 f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
+
+# This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
+

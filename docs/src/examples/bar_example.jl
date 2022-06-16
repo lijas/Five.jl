@@ -1,5 +1,3 @@
-# # Bar example
-
 using Five
 
 const α = pi/3;
@@ -18,7 +16,7 @@ function generate_bars()
     nodes = [Node{2,Float64}(x) for x in nodecoords]
     cells = [Line2D((1,2)), Line2D((2,3)), Line2D((2,4))]
     grid = Grid(cells,nodes)
-    
+
     addvertexset!(grid, "left", (x)-> x[1] ≈ 0.0)
     addvertexset!(grid, "right", (x)-> x[1] ≈ Δ)
     addvertexset!(grid, "topmid", (x)-> x[1] ≈ Δ/2 && x[2] ≈ 0.5Δ/tan(α)+L)
@@ -116,7 +114,7 @@ push!(data.external_forces, force)
 
 solver = ArcLengthSolver(
     Δλ0 = -1.0,
-    
+
     λ_max = 40.0,
     λ_min = -40.0,
 
@@ -139,4 +137,6 @@ f = getproperty.(result.outputdata["reactionforce"].data, :fint)
 using Test
 @test last(u) ≈ 82.26348529886634
 @test last(f) ≈ 9.3196516507723
-# plot(u,f, mark=:o)
+
+# This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
+

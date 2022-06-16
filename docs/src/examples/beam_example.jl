@@ -1,5 +1,3 @@
-# # Beam example
-
 using Five
 
 data = ProblemData(
@@ -104,5 +102,5 @@ output = solvethis(solver, state, data)
 
 d = output.outputdata["reactionforce"].data[end].displacement
 
-using Test                         #src
-@test abs(d) ≈ 0.44438080510979344 #src
+# This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
+
