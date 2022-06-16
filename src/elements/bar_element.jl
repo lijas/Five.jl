@@ -1,4 +1,3 @@
-export BarElement, BarElementState, BarInfo
 """
 BarElement
 
@@ -17,17 +16,12 @@ end
 
 Ferrite.getnquadpoints(e::BarElement) = 1
 Ferrite.ndofs(e::BarElement{dim}) where {dim} = dim*2
-Ferrite.getcelltype(e::BarElement) = e.celltype
 getncoords(::BarElement) = 2
-
-getcelltype(el::BarElement{2}) = Cell{2,2,1}
-
 has_constant_massmatrix(::BarElement) = true
-
 get_fields(e::BarElement) = return e.fields
 
 function integrate_massmatrix!(element::BarElement{dim}, elstate::AbstractElementState, material::AbstractMaterial, X::Vector{Vec{dim,T}}, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim,T}
-    
+    error("Not implemented")
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(element::BarElement{dim}, 
@@ -57,7 +51,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::BarElement{dim},
     ε = log(λ);
 
     ε_tensor = SymmetricTensor{2,1,T,1}((ε,))
-    τ, Et, new_state = constitutive_driver(material, ε_tensor, materialstate[1])
+    τ, Et, new_state = material_response(UniaxialStress(), material, ε_tensor, materialstate[1])
     materialstate[1] = new_state
 
     dT = exp(-2*ε)*(A/L) * ( (Et - 2*τ[1])*(n⊗n) + τ[1]*ones(Tensor{2,dim,T}) );

@@ -1,7 +1,5 @@
-export SolidElement
 """
 SolidElement{dim,order,shape,T,CV<:Ferrite.Values}
-
 """
 
 struct SolidElement{
@@ -25,12 +23,14 @@ Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::SolidElement) = e.celltype
 getncoords(s::SolidElement) = Ferrite.getngeobasefunctions(s.cv)
-
 has_constant_massmatrix(::SolidElement) = true
+get_fields(e::SolidElement)= return [e.field]
 
-get_fields(e::SolidElement{dim,order,shape,T}) where {dim,order,shape,T} = return [e.field]
-
-function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}, dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
+function SolidElement{dim,order,refshape,T}(;
+        thickness::Float64 = 1.0, 
+        qr_order::Int=2, 
+        celltype::Type{<:Cell}, #Todo: Should be obtained from the grid instead...
+        dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
@@ -39,32 +39,6 @@ function SolidElement{dim,order,refshape,T}(;thickness = 1.0, qr_order::Int=2, c
 
     cv = CellVectorValues(qr, ip, geom_ip)
     return SolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
-end
-
-function calculate_minimum_timestep(element::SolidElement{2,1,RefCube,T,M}, material::AbstractMaterial, cell::CellIterator, ue::Vector, due::Vector) where {T,M}
-    
-    L1 = norm(cell.coords[1] - cell.coords[2])
-    L2 = norm(cell.coords[2] - cell.coords[3])
-    L3 = norm(cell.coords[3] - cell.coords[4])
-    L4 = norm(cell.coords[4] - cell.coords[1])
-
-    Area = 0.5*(cell.coords[1][1]*cell.coords[2][2] + 
-                cell.coords[2][1]*cell.coords[3][2] + 
-                cell.coords[3][1]*cell.coords[4][2] + 
-                cell.coords[4][1]*cell.coords[1][2] - 
-                cell.coords[2][1]*cell.coords[1][2] - 
-                cell.coords[3][1]*cell.coords[2][2] -
-                cell.coords[4][1]*cell.coords[3][2] - 
-                cell.coords[1][1]*cell.coords[4][2])
-
-    characteristic_length = Area = max(L1,L2,L3,L4)
-
-    density = density(material)
-    stiffness = linear_stiffness(material.E)
-
-    wave_speed = sqrt(stiffness/density)
-    min_timestep = characteristic_length/wave_speed
-    return min_timestep 
 end
 
 function integrate_fstar!(element::SolidElement{dim, order, shape, T}, 
@@ -94,38 +68,45 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
         Δt::T) where {dim, order, shape, T}
 
 
-        cv = element.cv
-        reinit!(cv, cell)
-        ndofs = Ferrite.ndofs(element)
-    
-        δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
-    
-        for qp in 1:getnquadpoints(cv)
-            ∇u = function_gradient(cv, qp, ue)
-            dΩ = getdetJdV(cv, qp) * element.thickness
-    
-            # strain and stress + tangent
-            F = one(∇u) + ∇u
-            E = symmetric(1/2 * (F' ⋅ F - one(F)))
-    
-            S, _, new_matstate = material_response(element.dimstate, material, F, materialstate[qp])
-            materialstate[qp] = new_matstate
-
-            for i in 1:ndofs
-                δFi = shape_gradient(cv, qp, i)
-                δE[i] = symmetric(1/2*(δFi'⋅F + F'⋅δFi))
-            end
-    
-            for i in 1:ndofs
-                fe[i] += (δE[i] ⊡ S) * dΩ
-            end
-        end
-end
-
-function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, elstate::AbstractElementState, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim, order, shape, T, M}
-
     cv = element.cv
     reinit!(cv, cell)
+    ndofs = Ferrite.ndofs(element)
+
+    δE = zeros(SymmetricTensor{2, dim, eltype(ue)}, ndofs)
+
+    for qp in 1:getnquadpoints(cv)
+        ∇u = function_gradient(cv, qp, ue)
+        dΩ = getdetJdV(cv, qp) * element.thickness
+
+        # strain and stress + tangent
+        F = one(∇u) + ∇u
+        E = symmetric(1/2 * (F' ⋅ F - one(F)))
+
+        S, ∂S∂E, new_matstate = material_response(element.dimstate, material, E, materialstate[qp])
+        materialstate[qp] = new_matstate
+
+        for i in 1:ndofs
+            δFi = shape_gradient(cv, qp, i)
+            δE[i] = symmetric(1/2*(δFi'⋅F + F'⋅δFi))
+        end
+
+        for i in 1:ndofs
+            fe[i] += (δE[i] ⊡ S) * dΩ
+        end
+    end
+end
+
+function integrate_massmatrix!(
+    element::SolidElement{dim, order, shape, T, M}, 
+    elstate::AbstractElementState, 
+    material::AbstractMaterial, 
+    coords, 
+    me::Matrix, 
+    ue::AbstractVector, 
+    due::AbstractVector) where {dim, order, shape, T, M}
+
+    cv = element.cv
+    reinit!(cv, coords)
     ndofs = Ferrite.ndofs(element)
 
     for qp in 1:getnquadpoints(cv)
@@ -134,7 +115,7 @@ function integrate_massmatrix!(element::SolidElement{dim, order, shape, T, M}, e
             Ni = shape_value(cv, qp, i)
             for j in 1:ndofs
                 Nj = shape_value(cv, qp, j)
-                me[i, j] += density(material)*Ni⋅Nj*dV;
+                me[i, j] += 1.0*Ni⋅Nj*dV;
             end
         end
     end
@@ -204,11 +185,6 @@ function integrate_dissipation!(
     due           :: Vector,
     Δt            :: T
     ) where {dim_p,dim_s,CV,T}
-    
-
-    #if !is_dissipative(material)
-    #    return
-    #end
 
     cv = element.cv
     reinit!(cv, coords)

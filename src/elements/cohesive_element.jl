@@ -17,21 +17,16 @@ end
 
 Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
-Ferrite.getcelltype(e::CohesiveElement) = e.celltype
-
 has_constant_massmatrix(::CohesiveElement) = true
 getncoords(s::CohesiveElement) = Ferrite.getngeobasefunctions(s.cv)
-
 get_fields(e::CohesiveElement) = return [e.field]
 
-
-#TODO: Remove this constructor becuase it assumes CohesiveZone-type
 function CohesiveElement(;
-    thickness::Float64 = 1.0, 
-    order::Int, 
-    nqp::Int = order+1,
-    celltype::Type{<:CohesiveCell{dim_s}}
-    ) where {dim_s}
+        thickness::Float64 = 1.0, 
+        order::Int, 
+        nqp::Int = order+1,
+        celltype::Type{<:CohesiveCell{dim_s}}
+        ) where {dim_s}
 
     ip = CohesiveZoneInterpolation(Lagrange{dim_s-1,RefCube,order}())
     
@@ -43,17 +38,18 @@ function CohesiveElement(;
     return CohesiveElement{dim_s,typeof(cv)}(thickness, Field(:u, ip, dim_s), celltype, cv)
 end
 
-function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim_s,CV}, 
-    elementstate::AbstractElementState, 
-    material::AbstractMaterial, 
-    materialstate::AbstractArray{<:AbstractMaterialState}, 
-    ke::AbstractMatrix, 
-    fe::Vector{T}, 
-    cell, 
-    Δue::Vector,
-    ue::Vector,
-    due::Vector,
-    Δt::T) where {dim_s,CV,T}
+function integrate_forcevector_and_stiffnessmatrix!(
+        element::CohesiveElement{dim_s,CV}, 
+        elementstate::AbstractElementState, 
+        material::AbstractMaterial, 
+        materialstate::AbstractArray{<:AbstractMaterialState}, 
+        ke::AbstractMatrix, 
+        fe::Vector{T}, 
+        cell, 
+        Δue::Vector,
+        ue::Vector,
+        due::Vector,
+        Δt::T) where {dim_s,CV,T}
     
     cv = element.cv
     
@@ -93,20 +89,21 @@ function integrate_forcevector_and_stiffnessmatrix!(element::CohesiveElement{dim
             end
         end
     end
-    return A
+
 end
 
 function integrate_fstar!(element::CohesiveElement{dim_s,CV}, 
-    elementstate::AbstractElementState, 
-    material::AbstractMaterial, 
-    materialstate::AbstractArray{<:AbstractMaterialState}, 
-    fe::Vector{T}, 
-    cell, 
-    Δue::Vector,
-    ue::Vector,
-    due::Vector,
-    Δt::T) where {dim_s,CV,T}
+        elementstate::AbstractElementState, 
+        material::AbstractMaterial, 
+        materialstate::AbstractArray{<:AbstractMaterialState}, 
+        fe::Vector{T}, 
+        cell, 
+        Δue::Vector,
+        ue::Vector,
+        due::Vector,
+        Δt::T) where {dim_s,CV,T}
     
+    error("Needs fixing")
     cv = element.cv
     
     ndofs = Ferrite.ndofs(element)
@@ -129,7 +126,7 @@ function integrate_fstar!(element::CohesiveElement{dim_s,CV},
         Ĵ = R'⋅J
         
         #constitutive_driver
-        t̂, ∂t∂Ĵ, _ = constitutive_driver(material, Ĵ, materialstate[qp])
+        t̂, ∂t∂Ĵ, _ = material_response(material, Ĵ, materialstate[qp])
 
         #if iszero(t̂)
         #    continue
@@ -144,7 +141,6 @@ function integrate_fstar!(element::CohesiveElement{dim_s,CV},
         end
     end
 
-    return A
 end
 
 function integrate_dissipation!(element::CohesiveElement{dim_s,CV}, 
@@ -225,17 +221,14 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
         Ĵ = R'⋅J
         
         #constitutive_driver
-        t̂, _, new_matstate = constitutive_driver(material, Ĵ, materialstate[qp])
+        t̂, _, new_matstate = material_response(material, Ĵ, materialstate[qp])
         materialstate[qp] = new_matstate
 
         t = R ⋅ t̂
-
-
         for i in 1:ndofs
             δui = shape_value(cv, qp, i)
 
             fe[i] += (t ⋅ δui) * dΓ
-
         end
     end
 

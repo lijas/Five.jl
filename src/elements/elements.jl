@@ -11,11 +11,28 @@ EmptyElementState(::AbstractElement) = EmptyElementState()
 get_elementstate_type(::AbstractElement) = EmptyElementState
 
 """
+    getnquadpoints(::AbstractElement)
+
+Returns the number of quadrature points in the element
+Used for allocating arrays for the material states
+"""
+getnquadpoints
+
+"""
     get_fields(::AbstractElement)
 
 Returns a list with all fields used by the element, e.g :u, :T, :θ 
+Required for distributing dofs.
 """
 get_fields
+
+"""
+    ndofs(::AbstractElement)
+
+Returns the number of dofs in the element
+Used for pre-allocating element matrices, internal force matrices etc.
+"""
+
 
 """
     Returns a boolean depending on if the massmatrix is constant or not
@@ -37,11 +54,15 @@ integrate_massmatrix!
 """
 integrate_forcevector_and_stiffnessmatrix!
 
+"""
+    Return the dissipation and the gradient of the dissipation (used in LocalDissipationSolver)
+"""
+integrate_dissipation!
 
-getcelltype(el::AbstractElement) = el.celltype
-Ferrite.nnodes(el::AbstractElement) = nnodes(getcelltype(el))
-Ferrite.nfaces(el::AbstractElement) = nfaces(getcelltype(el))
-Ferrite.getdim(el::AbstractElement) = Ferrite.getdim(getcelltype(el))
+"""
+    Returns the fstar vector, used in the DissipationSolver
+"""
+integrate_fstar!
 
 include("solidelement.jl")
 include("bar_element.jl")

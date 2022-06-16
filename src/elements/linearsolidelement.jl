@@ -8,8 +8,8 @@ struct LinearSolidElement{
         dim,
         order,
         shape,
-        T          <: AbstractFloat,
-        CV         <: Ferrite.Values,
+        T         <: AbstractFloat,
+        CV        <: Ferrite.Values,
         DIM       <: MaterialModels.AbstractDim
     } <: AbstractElement
 
@@ -23,14 +23,15 @@ end
 
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
-Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
-getncoords(s::LinearSolidElement) = Ferrite.getngeobasefunctions(s.cv)
-
 has_constant_massmatrix(::LinearSolidElement) = true
-
 get_fields(e::LinearSolidElement) = return [e.field]
 
-function LinearSolidElement{dim, order, refshape, T}(; thickness = 1.0, qr_order::Int=2, celltype::Type{<:Cell}, dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
+function LinearSolidElement{dim, order, refshape, T}(;
+        thickness = 1.0, 
+        qr_order::Int=2, 
+        celltype::Type{<:Cell}, 
+        dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()
+        ) where {dim, order, refshape, T}
     
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
@@ -41,17 +42,18 @@ function LinearSolidElement{dim, order, refshape, T}(; thickness = 1.0, qr_order
     return LinearSolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
 
-function integrate_forcevector_and_stiffnessmatrix!(element::LinearSolidElement{dim, order, shape, T}, 
-    elementstate::AbstractElementState, 
-    material::AbstractMaterial, 
-    materialstate::AbstractVector{<:AbstractMaterialState},
-    ke::AbstractMatrix, 
-    fe::Vector, 
-    cell, 
-    Δue::Vector,
-    ue::Vector,
-    due::Vector,
-    dt::T) where {dim, order, shape, T}
+function integrate_forcevector_and_stiffnessmatrix!(
+        element::LinearSolidElement{dim, order, shape, T}, 
+        elementstate::AbstractElementState, 
+        material::AbstractMaterial, 
+        materialstate::AbstractVector{<:AbstractMaterialState},
+        ke::AbstractMatrix, 
+        fe::Vector, 
+        cell, 
+        Δue::Vector,
+        ue::Vector,
+        due::Vector,
+        dt::T) where {dim, order, shape, T}
 
     cellvalues = element.cv
   
