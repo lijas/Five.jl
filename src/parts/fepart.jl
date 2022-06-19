@@ -55,7 +55,7 @@ end
 const FEPart{dim} = Union{IGAPart{dim}, Part{dim}}# where dim
 
 function Part{dim,T}(material::M, cellset::AbstractVector{Int}, element::E) where {dim,T,E,M}
-    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), getncoords(element)), PartVTKExport{dim,T}())
+    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), Ferrite.nnodes(element)), PartVTKExport{dim,T}())
 end
 
 struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState
@@ -317,7 +317,7 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
     #qp_order = convert(Int, nqp^(1/dim))
     qr = QuadratureRule{dim, refshape}(2)#qp_order)
     cellvalues = CellScalarValues(qr, geom_ip)
-    projector = L2Projector(cellvalues, geom_ip, globaldata.grid, part.cellset)
+    projector = L2Projector(geom_ip, globaldata.grid; set = part.cellset)
 
     #Extract field to interpolate
     data = Vector{FieldDataType==Float64 ? Vec{1,T} : FieldDataType}[]
@@ -331,15 +331,18 @@ function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialSta
         end
     end
 
-    data_nodes = project(data, projector)
+    data_nodes = project(projector, data, qr; project_to_nodes=true); # TODO: this should be default.
+
     nvtknodes = length(part.vtkexport.nodeid_mapper)
-    vtk_node_data = Matrix{T}(undef, ncomp, nvtknodes)
+    vtk_node_data = zeros(FieldDataType, nvtknodes)# Matrix{T}(undef, ncomp, nvtknodes)
     for (ic,cellid) in enumerate(part.cellset)
         for nodeid in globaldata.grid.cells[cellid].nodes
             vtknodeid = part.vtkexport.nodeid_mapper[nodeid]
-            vtk_node_data[:,vtknodeid] .= reinterpret(T, data_nodes[nodeid])
+            vtk_node_data[vtknodeid] = data_nodes[nodeid]
+            
         end
     end
+    @show eltype(vtk_node_data)
     return vtk_node_data
 end
 

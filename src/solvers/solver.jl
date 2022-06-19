@@ -21,9 +21,9 @@ function Base.isdone(::AbstractSolver, state::StateVariables, globaldata) end
 
 Determines if the solver should abort simulation (for example if it is not able to converge)
 """
-function should_abort(::AbstractSolver{T}, state::StateVariables, globaldata) where T end
+should_abort(::AbstractSolver, state::StateVariables, globaldata)
 
-function solvethis(solver::AbstractSolver{T}, state::StateVariables, globaldata) where {T}
+function solvethis(solver::AbstractSolver, state::StateVariables, globaldata) 
     
     starttime = time()
     reset_timer!()

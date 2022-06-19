@@ -22,6 +22,7 @@ struct LinearSolidElement{
 end
 
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
+Ferrite.nnodes(e::LinearSolidElement) = Ferrite.getngeobasefunctions(e.cv)
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
 has_constant_massmatrix(::LinearSolidElement) = true
 get_fields(e::LinearSolidElement) = return [e.field]

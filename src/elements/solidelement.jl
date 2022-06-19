@@ -22,7 +22,7 @@ end
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::SolidElement) = e.celltype
-getncoords(s::SolidElement) = Ferrite.getngeobasefunctions(s.cv)
+Ferrite.nnodes(s::SolidElement) = Ferrite.getngeobasefunctions(s.cv)
 has_constant_massmatrix(::SolidElement) = true
 get_fields(e::SolidElement)= return [e.field]
 
