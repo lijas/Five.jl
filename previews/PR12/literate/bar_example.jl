@@ -27,15 +27,15 @@ end
 
 data.grid = generate_bars()
 
-material1 = MatLinearElastic(
+material1 = LinearElastic(
     E = 210.0,
-    nu = 0.3
+    ν = 0.3
 )
 
 bar1 = Part{2,Float64}(
     material = material1,
     cellset = [1, 2],
-    element = BarElement{2}(
+    element = Five.BarElement{2}(
         area = 1.0,
     )
 )
@@ -44,7 +44,7 @@ push!(data.parts, bar1)
 midbar = Part{2,Float64}(
     material = material1,
     cellset = [3],
-    element = BarElement{2}(
+    element = Five.BarElement{2}(
         area = 1.0/2,
     )
 )

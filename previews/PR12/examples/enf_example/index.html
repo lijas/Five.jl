@@ -1,77 +1,8 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>ENF example · Five</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Five</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../essentials/">Essentials</a></li><li><a class="tocitem" href="../../parts/">Parts</a></li><li><span class="tocitem">Elements</span><ul><li><a class="tocitem" href="../../elements/elements_overview/">Elements overview</a></li><li><a class="tocitem" href="../../elements/solid_element/">Solid element</a></li></ul></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../../solvers/solver_overview/">Solver overview</a></li><li><a class="tocitem" href="../../solvers/crisfield_solver/">Crisfield arc-length solver</a></li><li><a class="tocitem" href="../../solvers/local_dissipation_solver/">-</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../bar_example/">Bar example</a></li><li><a class="tocitem" href="../beam_example/">Beam example</a></li><li class="is-active"><a class="tocitem" href>ENF example</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>ENF example</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>ENF example</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/lijas/Five.jl/blob/master/docs/src/literate/enf_example.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="ENF-example"><a class="docs-heading-anchor" href="#ENF-example">ENF example</a><a id="ENF-example-1"></a><a class="docs-heading-anchor-permalink" href="#ENF-example" title="Permalink"></a></h1><pre><code class="language-">using Five
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>ENF example · Five</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Five</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../essentials/">Essentials</a></li><li><a class="tocitem" href="../../parts/">Parts</a></li><li><span class="tocitem">Elements</span><ul><li><a class="tocitem" href="../../elements/elements_overview/">Elements overview</a></li><li><a class="tocitem" href="../../elements/solid_element/">Solid element</a></li></ul></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../../solvers/solver_overview/">Solver overview</a></li><li><a class="tocitem" href="../../solvers/crisfield_solver/">Crisfield arc-length solver</a></li><li><a class="tocitem" href="../../solvers/local_dissipation_solver/">-</a></li></ul></li><li><span class="tocitem">Outputs</span><ul><li><a class="tocitem" href="../../outputs/DofValueOutput/">DofValueOutputs</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../bar_example/">Bar example</a></li><li><a class="tocitem" href="../beam_example/">Beam example</a></li><li class="is-active"><a class="tocitem" href>ENF example</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>ENF example</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>ENF example</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/lijas/Five.jl/blob/master/docs/src/literate/enf_example.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="ENF-example"><a class="docs-heading-anchor" href="#ENF-example">ENF example</a><a id="ENF-example-1"></a><a class="docs-heading-anchor-permalink" href="#ENF-example" title="Permalink"></a></h1><pre><code class="language-julia">using Five
 using Ferrite
 
-function generate_enf_grid(nelx, nely, L, h, a0, SolidCellType, CohesiveCellType)</code></pre><pre><code class="language-">    grid1 = generate_grid(SolidCellType,(nelx,nely),Vec((0.0,0.0)),Vec((L,h)))
-    grid2 = generate_grid(SolidCellType,(nelx,nely),Vec((0.0,h)),Vec((L,h*2)))
-    grid = gridmerge(grid1,grid2)</code></pre><pre><code class="language-">    addvertexset!(grid, &quot;mid&quot;, (x)-&gt; x[1] ≈ L/2 &amp;&amp; x[2] ≈ h*2)
-    @assert(length(getvertexset(grid, &quot;mid&quot;)) == 2)
-    addvertexset!(grid, &quot;botleft&quot;, (x)-&gt; x[1] ≈ 0.0 &amp;&amp; x[2] ≈ 0.0)
-    addvertexset!(grid, &quot;botright&quot;, (x)-&gt; x[1] ≈ L &amp;&amp; x[2] ≈ 0.0)</code></pre><pre><code class="language-">    construct_interfacer_cells!(grid, &quot;top1&quot;, &quot;bottom2&quot;, CohesiveCellType)</code></pre><pre><code class="language-">    solid_cells = collect(1:nelx*nely*2)
-    cz_cells = collect((1:nelx) .+ 2*nelx*nely)
-
-    addcellset!(grid, &quot;solid_cells&quot;, solid_cells)
-    addcellset!(grid, &quot;cz_cells&quot;, cz_cells)
-
-    addcellset!(grid, &quot;temp_precraced&quot;, (x)-&gt; x[1]&gt;L-a0)
-    precracked_cells = setdiff(getcellset(grid, &quot;temp_precraced&quot;), solid_cells)
-
-    addcellset!(grid, &quot;precracked&quot;, precracked_cells)
-
-    return grid
-end
-
-function construct_interfacer_cells!(grid, setname1::String, setname2::String, CohesiveCellType)
-
-
-    grid2_bottom_faceset = collect(getfaceset(grid, setname2))
-    grid1_top_faceset = collect(getfaceset(grid, setname1))
-    function sortby(f1)
-        n1,n2 = Ferrite.faces(grid.cells[f1[1]])[f1[2]]
-        return min(n1,n2)
-    end
-    function myless(f1,f2)
-        n1,n2 = Ferrite.faces(grid.cells[f1[1]])[f1[2]]
-        minA = min(grid.nodes[n1].x,grid.nodes[n1].x)
-
-        n1,n2 = Ferrite.faces(grid.cells[f2[1]])[f2[2]]
-        minB = min(grid.nodes[n1].x,grid.nodes[n1].x)
-        return minA&lt;minB
-    end
-
-    grid1_top_faceset = sort(grid1_top_faceset, lt = myless)
-    grid2_bottom_faceset = sort(grid2_bottom_faceset, lt = myless)
-
-
-    ncells = getncells(grid)
-    for (i,topface_index) in enumerate(grid1_top_faceset)
-        botface_index = grid2_bottom_faceset[i]
-
-        topcell = grid.cells[topface_index[1]]
-        botcell = grid.cells[botface_index[1]]
-        #topface = Ferrite.faces(grid.cells[topface_index[1]])[topface_index[2]]
-        #botface = Ferrite.faces(grid.cells[botface_index[1]])[botface_index[2]]
-        cz_nodes = Int[]
-        for j in [4, 3]
-            push!(cz_nodes, topcell.nodes[j])
-        end
-        for j in [1, 2]
-            push!(cz_nodes, botcell.nodes[j])
-        end
-
-        if CohesiveCellType === CohesiveCell{2,6,2}
-            push!(cz_nodes, topcell.nodes[7])
-        end
-        if CohesiveCellType === CohesiveCell{2,6,2}
-            push!(cz_nodes, botcell.nodes[5])
-        end
-
-        #cell_nodes = [topface[2], topface[1], botface[1], botface[2]]
-        new_cell = CohesiveCellType(Tuple(cz_nodes))
-        push!(grid.cells, new_cell)
-    end
-
-end
+include(&quot;enf_grid_generator.jl&quot;)
 
 #Crack length
 a0 = 16.9
@@ -108,14 +39,14 @@ MatCZBilinear(
 )
 
 material =
-MatTransvLinearElastic(
-    E1 = 126.0e3,
-    E2 = 10.0e3,
-    ν_12 = 0.29,
-    G_12 = 8.0e3,
-    α = 0.0
-)</code></pre><pre><code class="language-">part = Part{2,Float64}(
-    element  = SolidElement{2,1,RefCube,Float64}(
+Five.TransverseIsotropicEngineeringConstants(
+    E_L = 126e3,
+    E_T = 10e3,
+    G_LT = 8e3,
+    ν_LT = 0.29,
+    ν_TT = 0.45
+)</code></pre><pre class="documenter-example-output">TransverseIsotropic(5868.769894977975, 5403.886539087225, 129134.25419267059, 3448.2758620689656, 8000.0, 0.0)</pre><pre><code class="language-julia">solidpart = Part{2,Float64}(
+    element  = Five.SolidElement{2,1,RefCube,Float64}(
         thickness = b,
         qr_order = 2,
         celltype = SolidCellType,
@@ -124,7 +55,8 @@ MatTransvLinearElastic(
     material = material,
     cellset  = getcellset(data.grid, &quot;solid_cells&quot;) |&gt; collect |&gt; sort
 )
-push!(data.parts, part)</code></pre><pre><code class="language-">part = Part{2,Float64}(
+push!(data.parts, solidpart)</code></pre><pre class="documenter-example-output">1-element Vector{Five.AbstractPart{2}}:
+ Part{2, Float64, SolidElementQuad{CellVectorValues{2, Float64, RefCube, 4}, PlaneStrain{2}}, TransverseIsotropic}(TransverseIsotropic(5868.769894977975, 5403.886539087225, 129134.25419267059, 3448.2758620689656, 8000.0, 0.0), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10  …  343, 344, 345, 346, 347, 348, 349, 350, 351, 352], SolidElementQuad{CellVectorValues{2, Float64, RefCube, 4}, PlaneStrain{2}}(20.0, Quadrilateral, CellVectorValues{2, Float64, RefCube, 4}(Vec{2, Float64}[[0.6220084679281462, 0.0] [0.16666666666666669, 0.0] [0.16666666666666669, 0.0] [0.044658198738520456, 0.0]; [0.0, 0.6220084679281462] [0.0, 0.16666666666666669] [0.0, 0.16666666666666669] [0.0, 0.044658198738520456]; … ; [0.16666666666666669, 0.0] [0.044658198738520456, 0.0] [0.6220084679281462, 0.0] [0.16666666666666669, 0.0]; [0.0, 0.16666666666666669] [0.0, 0.044658198738520456] [0.0, 0.6220084679281462] [0.0, 0.16666666666666669]], Tensor{2, 2, Float64, 4}[[NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN]; [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN]; … ; [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN]; [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN] [NaN NaN; NaN NaN]], Tensor{2, 2, Float64, 4}[[-0.39433756729740643 -0.39433756729740643; 0.0 0.0] [-0.39433756729740643 -0.10566243270259357; 0.0 0.0] [-0.10566243270259357 -0.39433756729740643; 0.0 0.0] [-0.10566243270259357 -0.10566243270259357; 0.0 0.0]; [0.0 0.0; -0.39433756729740643 -0.39433756729740643] [0.0 0.0; -0.39433756729740643 -0.10566243270259357] [0.0 0.0; -0.10566243270259357 -0.39433756729740643] [0.0 0.0; -0.10566243270259357 -0.10566243270259357]; … ; [-0.10566243270259357 0.39433756729740643; 0.0 0.0] [-0.10566243270259357 0.10566243270259357; 0.0 0.0] [-0.39433756729740643 0.39433756729740643; 0.0 0.0] [-0.39433756729740643 0.10566243270259357; 0.0 0.0]; [0.0 0.0; -0.10566243270259357 0.39433756729740643] [0.0 0.0; -0.10566243270259357 0.10566243270259357] [0.0 0.0; -0.39433756729740643 0.39433756729740643] [0.0 0.0; -0.39433756729740643 0.10566243270259357]], [NaN, NaN, NaN, NaN], [0.6220084679281462 0.16666666666666669 0.16666666666666669 0.044658198738520456; 0.16666666666666669 0.6220084679281462 0.044658198738520456 0.16666666666666669; 0.044658198738520456 0.16666666666666669 0.16666666666666669 0.6220084679281462; 0.16666666666666669 0.044658198738520456 0.6220084679281462 0.16666666666666669], Vec{2, Float64}[[-0.39433756729740643, -0.39433756729740643] [-0.39433756729740643, -0.10566243270259357] [-0.10566243270259357, -0.39433756729740643] [-0.10566243270259357, -0.10566243270259357]; [0.39433756729740643, -0.10566243270259357] [0.39433756729740643, -0.39433756729740643] [0.10566243270259357, -0.10566243270259357] [0.10566243270259357, -0.39433756729740643]; [0.10566243270259357, 0.10566243270259357] [0.10566243270259357, 0.39433756729740643] [0.39433756729740643, 0.10566243270259357] [0.39433756729740643, 0.39433756729740643]; [-0.10566243270259357, 0.39433756729740643] [-0.10566243270259357, 0.10566243270259357] [-0.39433756729740643, 0.39433756729740643] [-0.39433756729740643, 0.10566243270259357]], [0.9999999999999996, 0.9999999999999996, 0.9999999999999996, 0.9999999999999996]), Field(:u, Lagrange{2, RefCube, 1}(), 2), PlaneStrain{2}()), Five.PartCache{2, Float64}([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; … ; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [0, 0, 0, 0, 0, 0, 0, 0], Vec{2, Float64}[[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]), Five.PartVTKExport{2, Float64}(Dict{Int64, Int64}(), MeshCell[], Vec{2, Float64}[]))</pre><pre><code class="language-julia">part = Part{2,Float64}(
     element = CohesiveElement(
         order = 1,
         thickness = b,
@@ -136,11 +68,17 @@ push!(data.parts, part)</code></pre><pre><code class="language-">part = Part{2,F
 )
 push!(data.parts, part)
 
-#Change initial states
+#Change initial states of interface damage
 for cellid in getcellset(data.grid, &quot;precracked&quot;)
     nqp = 2 #Hardcoded
     data.materialstates[cellid] = [Five.initial_material_state(interfacematerial, 1.0) for i in 1:nqp]
-end</code></pre><pre><code class="language-">dbc1 = Ferrite.Dirichlet(
+end
+
+#Add material directions for composite material
+for cellid in solidpart.cellset
+    nqp = 4 #hardcoded
+    data.materialstates[cellid] = [Five.initial_material_state(material, Vec((1.0,0.0,0.0))) for i in 1:nqp]
+end</code></pre><pre><code class="language-julia">dbc1 = Ferrite.Dirichlet(
     field = :u,
     set = getvertexset(data.grid, &quot;botleft&quot;),
     func = (x,t)-&gt;[0.0, 0.0],
@@ -154,17 +92,24 @@ dbc1 = Ferrite.Dirichlet(
     func   = (x,t)-&gt;[0.0],
     dofs  = [2]
 )
-push!(data.dirichlet, dbc1)</code></pre><pre><code class="language-">force = PointForce(
+push!(data.dirichlet, dbc1)</code></pre><pre class="documenter-example-output">2-element Vector{Dirichlet}:
+ Dirichlet(Main.ex-enf_example.var&quot;#15#16&quot;(), Set(VertexIndex[VertexIndex((1, 1))]), :u, [1, 2], Int64[], Int64[])
+ Dirichlet(Main.ex-enf_example.var&quot;#17#18&quot;(), Set(VertexIndex[VertexIndex((176, 2))]), :u, [2], Int64[], Int64[])</pre><pre><code class="language-julia">force = PointForce(
     field = :u,
     comps = [2],
     set = [first(getvertexset(data.grid, &quot;mid&quot;))],
     func = (X,t) -&gt; -1.0
 )
-push!(data.external_forces, force)</code></pre><pre><code class="language-">data.output[] = Output(
+push!(data.external_forces, force)</code></pre><pre class="documenter-example-output">1-element Vector{Five.AbstractExternalForce}:
+ PointForce(:u, [2], VertexIndex[VertexIndex((264, 3))], Main.ex-enf_example.var&quot;#19#20&quot;(), FieldHandler(Field[], Set([0])))</pre><pre><code class="language-julia">data.output[] = Output(
     interval = 0.0,
     runname = &quot;enf_a0$(floor(Int,a0))_locdis_&quot;,
     savepath = &quot;.&quot;
-)</code></pre><pre><code class="language-">output = OutputData(
+)</code></pre><pre class="documenter-example-output">Output{Float64}(&quot;.&quot;, &quot;enf_a016_locdis_&quot;, Five._NO_TERMINATION, VTKOutput(WriteVTK.CollectionFile(&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;VTKFile type=&quot;Collection&quot; version=&quot;1.0&quot; byte_order=&quot;LittleEndian&quot; compressor=&quot;vtkZLibDataCompressor&quot;&gt;
+  &lt;Collection/&gt;
+&lt;/VTKFile&gt;
+, &quot;./enf_a016_locdis_.pvd&quot;, String[]), 0.0, VTKCellOutput[], VTKNodeOutput[], Base.RefValue{Float64}(-Inf)), Dict{String, Five.AbstractOutput}())</pre><pre><code class="language-">output = OutputData(
     type = DofValueOutput(
         field = :u,
         dofs = 1:2
@@ -174,11 +119,22 @@ push!(data.external_forces, force)</code></pre><pre><code class="language-">data
 )
 data.outputdata[&quot;reactionforce&quot;] = output
 
+vtkoutput = VTKNodeOutput(
+    type = Five.StressOutput(),
+    func = mean,
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
 vtkoutput = VTKCellOutput(
     type = MaterialStateOutput(
         field = :d
     ),
     func = mean,
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
+vtkoutput = VTKNodeOutput(
+    type = Five.StressOutput(),
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
 
@@ -196,7 +152,7 @@ solver = LocalDissipationSolver(
     optitr       = 8,
     maxitr       = 13,
     maxitr_first_step = 50,
-    maxsteps     = 200,
+    maxsteps     = 100,
     λ_max        = 1200.0,
     λ_min        = -100.0,
     tol          = 1e-5,
@@ -206,4 +162,4 @@ solver = LocalDissipationSolver(
 output = solvethis(solver, state, globaldata)
 
 d = [output.outputdata[&quot;reactionforce&quot;].data[i].displacement for i in 1:length(output.outputdata[&quot;reactionforce&quot;].data)]
-f = [output.outputdata[&quot;reactionforce&quot;].data[i].fint for i in 1:length(output.outputdata[&quot;reactionforce&quot;].data)]</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../beam_example/">« Beam example</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 16 June 2022 12:13">Thursday 16 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+f = [output.outputdata[&quot;reactionforce&quot;].data[i].fint for i in 1:length(output.outputdata[&quot;reactionforce&quot;].data)]</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../beam_example/">« Beam example</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 18 July 2022 16:35">Monday 18 July 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

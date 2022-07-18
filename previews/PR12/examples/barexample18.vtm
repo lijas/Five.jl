@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<VTKFile type="vtkMultiBlockDataSet" version="1.0" byte_order="LittleEndian">
+  <vtkMultiBlockDataSet>
+    <DataSet index="0" file="barexample18_1.vtu"/>
+    <DataSet index="1" file="barexample18_2.vtu"/>
+  </vtkMultiBlockDataSet>
+</VTKFile>
