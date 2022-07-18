@@ -1,5 +1,5 @@
 ```@meta
-EditURL = "<unknown>/docs/src/literate/beam_example.jl"
+EditURL = "<unknown>/src/literate/beam_example.jl"
 ```
 
 # Beam example
@@ -16,9 +16,19 @@ data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0
 
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
-material = MatLinearElastic(
+#=material = MatLinearElastic(
     E = 1e5,
     nu = 0.3
+)=#
+
+material = MatTransvLinearElastic(;
+    E1 = 100.0,
+    E2 = 100.0,
+
+    ν_12 = 0.3,
+    G_12 = 100.0/(2(1.3)),
+    ρ = 1.0,
+    α =0.0
 )
 
 #= material = MatHyperElasticPlastic(
@@ -48,9 +58,11 @@ con1 = Dirichlet(
 push!(data.dirichlet, con1)=#
 
 part = Part{2,Float64}(
-    element = SolidElement{2,2,RefCube,Float64}(
-        celltype = Ferrite.Quadrilateral,
-        qr_order = 4
+    element  = Five.LinearSolidElement{2,1,RefCube,Float64}(
+        thickness = 1.0,
+        qr_order = 2,
+        celltype = Quadrilateral,
+        dimstate = PlaneStrain()
     ),
     material = material,
     cellset = collect(1:getncells(data.grid))
@@ -73,21 +85,21 @@ output = OutputData(
 )
 data.outputdata["reactionforce"] = output
 
-vtkoutput = VTKCellOutput(
+vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
-        field = :ϵᵖ
+        field = :σ
     ),
     func = mean,
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
 
-vtkoutput = VTKNodeOutput(
+#=vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
         field = :ϵᵖ
     ),
     func = mean,
 )
-Five.push_vtkoutput!(data.output[], vtkoutput)
+Five.push_vtkoutput!(data.output[], vtkoutput)=#
 
 
 force = PointForce(

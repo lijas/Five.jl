@@ -37,6 +37,8 @@ function Ferrite.value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) w
     return sign*Ferrite.value(ip.interpolation, i, ξ)
 end
 
+Ferrite._mass_qr(::CohesiveZoneInterpolation{2,1,Lagrange{1,RefCube,1}}) = QuadratureRule{1,RefCube}(1)
+
 """
 
 """
@@ -71,11 +73,11 @@ struct SurfaceVectorValues{dim_p,dim_s,T<:Real,M2,refshape<:Ferrite.AbstractRefS
     detJdA::Vector{T}
     M::Matrix{T}  # Shape values for geometric interp
     dMdξ::Matrix{Vec{dim_p,T}}
-    qr_weights::Vector{T}
+    qr::QuadratureRule{dim_p,refshape,T}
     covar_base::Vector{Tensor{2,dim_s,T}}
 end
 
-Ferrite.getnquadpoints(cv::SurfaceVectorValues) = length(cv.qr_weights)
+Ferrite.getnquadpoints(cv::SurfaceVectorValues) = length(cv.qr.weights)
 
 function SurfaceVectorValues(quad_rule::QuadratureRule, func_interpol::CohesiveZoneInterpolation, geom_interpol::CohesiveZoneInterpolation=func_interpol)
     SurfaceVectorValues(Float64, quad_rule, func_interpol, geom_interpol)
@@ -130,20 +132,21 @@ function SurfaceVectorValues(::Type{T},
     detJdA = fill(T(NaN), n_qpoints)
     R = fill(zero(Tensor{2,dim_s,T}) *T(NaN), n_qpoints)
     MM = Tensors.n_components(Tensors.get_base(eltype(R)))
-    SurfaceVectorValues{dim_p,dim_s,T,MM,RefCube}(N, dNdξ, dNdX, R, detJdA, M, dMdξ, quad_rule.weights, covar_base)
+    SurfaceVectorValues{dim_p,dim_s,T,MM,RefCube}(N, dNdξ, dNdX, R, detJdA, M, dMdξ, quad_rule, covar_base)
 end
 
 Ferrite.getn_scalarbasefunctions(cv::SurfaceVectorValues{dim,dim_s}) where {dim,dim_s} = size(cv.N, 1) ÷ dim_s
 
 @inline getdetJdA(cv::SurfaceVectorValues, q_point::Int) = cv.detJdA[q_point]
+@inline Ferrite.getdetJdV(cv::SurfaceVectorValues, q_point::Int) = getdetJdA(cv, q_point)
 
 function Ferrite.reinit!(cv::SurfaceVectorValues{dim_p,dim_s}, x::AbstractVector{Vec{dim_s,T}}) where {dim_p,dim_s,T}
     n_geom_basefuncs = Ferrite.getngeobasefunctions(cv)
     @assert length(x) == n_geom_basefuncs
 
 
-    @inbounds for i in 1:length(cv.qr_weights)
-        w = cv.qr_weights[i]
+    @inbounds for i in 1:length(cv.qr.weights)
+        w = cv.qr.weights[i]
 
         E = zeros(Vec{dim_s,T},dim_p)
         for j in 1:n_geom_basefuncs

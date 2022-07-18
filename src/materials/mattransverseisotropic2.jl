@@ -1,9 +1,9 @@
-export MatTransvIsotropic, MatTransvIsotropicState
+export TransverseIsotropic, TransverseIsotropicState
 
 """
-    MatTransvIsotropic()
+    TransverseIsotropic()
 """
-struct MatTransvIsotropic <: MaterialModels.AbstractMaterial
+struct TransverseIsotropic <: MaterialModels.AbstractMaterial
     L⊥::Float64
     L₌::Float64
     M₌::Float64
@@ -12,7 +12,7 @@ struct MatTransvIsotropic <: MaterialModels.AbstractMaterial
     density::Float64
 end
 
-function MatTransvIsotropicEngineeringConstants(; 
+function TransverseIsotropicEngineeringConstants(; 
     E_L::T, 
     E_T::T, 
     G_LT::T,
@@ -26,11 +26,10 @@ function MatTransvIsotropicEngineeringConstants(;
     G⊥ = E_T/(2*(ν_TT + 1))
     G₌ = G_LT
 
-    return MatTransvIsotropic(L⊥, L₌, M₌, G⊥, G₌, ρ)
+    return TransverseIsotropic(L⊥, L₌, M₌, G⊥, G₌, ρ)
 end
 
-struct MatTransvIsotropicState <: MaterialModels.AbstractMaterialState
-    σ::SymmetricTensor{2,3,Float64,6}
+struct TransverseIsotropicState <: MaterialModels.AbstractMaterialState
     a3::Vec{3,Float64}
 end
 
@@ -38,9 +37,8 @@ end
 # Constructors
 # # # # # # #
 
-function MaterialModels.initial_material_state(::MatTransvIsotropic, a3::Vec{3,Float64} = zero(Vec{3,Float64}))
-    σ = zero(SymmetricTensor{2,3,Float64})
-    return MatTransvIsotropicState(σ,a3)
+function MaterialModels.initial_material_state(::TransverseIsotropic, a3::Vec{3,Float64} = zero(Vec{3,Float64}))
+    return TransverseIsotropicState(a3)
 end
 
 
@@ -48,7 +46,8 @@ end
 # Drivers
 # # # # # # #
 
-function MaterialModels.material_response(m::MatTransvIsotropic, ε::SymmetricTensor{2,3,T,M}, state::MatTransvIsotropicState, Δt=nothing; cache=nothing, options=nothing) where {T,M}
+function MaterialModels.material_response(m::TransverseIsotropic, ε::SymmetricTensor{2,3,T,M}, state::TransverseIsotropicState, Δt=nothing; cache=nothing, options=nothing) where {T,M}
+    @assert(!iszero(state.a3))
 
     a3 = state.a3
     I = one(ε)
@@ -69,5 +68,5 @@ function MaterialModels.material_response(m::MatTransvIsotropic, ε::SymmetricTe
     #@assert( isminorsymmetric(E) )
     σ = E ⊡ ε
 
-    return σ, E, MatTransvIsotropicState(σ, state.a3)
+    return σ, E, TransverseIsotropicState(state.a3)
 end

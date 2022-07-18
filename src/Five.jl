@@ -172,6 +172,7 @@ function transfer_state!(a::StateVariables, b::StateVariables)
     a.solvermode = b.solvermode
 end
 
+#TODO: change to fillzero!()
 function Base.fill!(sa::SystemArrays{T}, v::T) where T
     fill!(sa.fⁱ, v)
     fill!(sa.Kⁱ, v)
@@ -243,6 +244,6 @@ mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     adaptive::Bool
 end
 
-
+export get_fields
 
 end

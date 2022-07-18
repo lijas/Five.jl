@@ -115,7 +115,7 @@ function Output(; savepath=raw".", runname::String, interval::T) where {T}
     return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, Dict{String, OutputData}())
 end
 
-function Ferrite.close!(output::Output, dh::MixedDofHandler)
+function Ferrite.close!(output::Output, dh)
     for (key, outp) in output.outputdata
         #Overwright with new data
         output.outputdata[key] = build_outputdata(outp, dh)

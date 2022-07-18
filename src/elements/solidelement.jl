@@ -19,6 +19,7 @@ struct SolidElement{
     dimstate::DIM
 end
 
+getquadraturerule(e::SolidElement) = e.cv.qr
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::SolidElement) = e.celltype
@@ -125,6 +126,8 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
     elementstate::AbstractElementState, 
     material::AbstractMaterial, 
     materialstate::AbstractVector{<:AbstractMaterialState},
+    stresses::Vector{<:SymmetricTensor{2,3,T}},
+    strains::Vector{<:SymmetricTensor{2,3,T}},
     ke::AbstractMatrix, 
     fe::Vector, 
     cell, 
@@ -150,6 +153,10 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
         #@assert( strainmeasure(material) == MaterialModels.GreenLagrange() )
         S, ∂S∂E, new_matstate = material_response(element.dimstate, material, E, materialstate[qp])
         materialstate[qp] = new_matstate
+
+        #Store stress and strain (always as 3d)
+        stresses[qp] = dim==3 ? S : MaterialModels.increase_dim(S)
+        strains[qp] = dim==3 ? S : MaterialModels.increase_dim(E)
 
         # Hoist computations of δE
         for i in 1:ndofs

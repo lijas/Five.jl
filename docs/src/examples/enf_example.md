@@ -1,5 +1,5 @@
 ```@meta
-EditURL = "<unknown>/docs/src/literate/enf_example.jl"
+EditURL = "<unknown>/src/literate/enf_example.jl"
 ```
 
 # ENF example
@@ -141,7 +141,7 @@ MatTransvLinearElastic(
 
 ```@example enf_example
 part = Part{2,Float64}(
-    element  = SolidElement{2,1,RefCube,Float64}(
+    element  = Five.SolidElement{2,1,RefCube,Float64}(
         thickness = b,
         qr_order = 2,
         celltype = SolidCellType,
@@ -220,11 +220,16 @@ output = OutputData(
 )
 data.outputdata["reactionforce"] = output
 
-vtkoutput = VTKCellOutput(
+vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
-        field = :d
+        field = :σ
     ),
     func = mean,
+)
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
+vtkoutput = VTKCellOutput(
+    type = Five.StressOutput(),
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
 

@@ -3,6 +3,10 @@ export PlaneStressMaterial, PlaneStrainMaterial
 
 density(m::M) where M <: MaterialModels.AbstractMaterial = m.density
 
+#@generated function materialstate_type(::Type{T}) where {T<:AbstractMaterial}
+#
+#end
+
 """
     is_dissipative
 """

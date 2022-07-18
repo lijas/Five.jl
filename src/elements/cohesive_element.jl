@@ -15,11 +15,14 @@ struct CohesiveElement{dim_s,CV} <: AbstractElement
     cv::CV
 end
 
+getquadraturerule(e::CohesiveElement) = e.cv.qr
 Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
+Ferrite.getcelltype(e::CohesiveElement) = e.celltype
+Ferrite.nnodes(e::CohesiveElement) = Ferrite.nnodes(e.celltype)
 has_constant_massmatrix(::CohesiveElement) = true
-getncoords(s::CohesiveElement) = Ferrite.getngeobasefunctions(s.cv)
 get_fields(e::CohesiveElement) = return [e.field]
+
 
 function CohesiveElement(;
         thickness::Float64 = 1.0, 
@@ -43,6 +46,8 @@ function integrate_forcevector_and_stiffnessmatrix!(
         elementstate::AbstractElementState, 
         material::AbstractMaterial, 
         materialstate::AbstractArray{<:AbstractMaterialState}, 
+        stresses::Vector{<:SymmetricTensor{2,3,T}},
+        strains::Vector{<:SymmetricTensor{2,3,T}},
         ke::AbstractMatrix, 
         fe::Vector{T}, 
         cell, 
@@ -75,6 +80,8 @@ function integrate_forcevector_and_stiffnessmatrix!(
         #constitutive_driver
         t̂, ∂t∂Ĵ, new_matstate = material_response(material, Ĵ, materialstate[qp])
         materialstate[qp] = new_matstate
+        #stresses[q_point] = t
+        #strains[q_point] = J
 
         t = R ⋅ t̂
         ∂t∂J = R ⋅ ∂t∂Ĵ ⋅ R'

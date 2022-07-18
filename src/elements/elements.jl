@@ -8,7 +8,7 @@ abstract type AbstractElementState end
 struct EmptyElementState <: AbstractElementState end
 
 EmptyElementState(::AbstractElement) = EmptyElementState() 
-get_elementstate_type(::AbstractElement) = EmptyElementState
+elementstate_type(::Type{T}) where {T<:AbstractElement} = EmptyElementState
 
 """
     getnquadpoints(::AbstractElement)
@@ -21,10 +21,9 @@ getnquadpoints
 """
     get_fields(::AbstractElement)
 
-Returns a list with all fields used by the element, e.g :u, :T, :θ 
-Required for distributing dofs.
+Returns a list with fields of element, e.g :u, :T, :θ 
 """
-get_fields
+function get_fields(::AbstractElement) end
 
 """
     ndofs(::AbstractElement)

@@ -94,11 +94,11 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     update!(vbc, 0.0)=#
 
     #
-    ef = ExternalForceHandler{T}()
+    ef = ExternalForceHandler{T}(dh)
     for d in data.external_forces
         push!(ef.external_forces, d)
     end
-    close!(ef, dh)
+    close!(ef)
     #
     ch = Constraints()
     for d in data.constraints
@@ -106,10 +106,11 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     end
     close!(ch, dh)
 
+    #output = Output(dh)
     for (name, o) in data.outputdata
         push_output!(data.output[], name, o)
     end
-    close!(data.output[], dh)
+    close!(data.output[], dh) 
 
     contact = Contact_Node2Segment{dim,T}()# not used
 

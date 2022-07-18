@@ -27,6 +27,14 @@ function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDof
     resize!(part.cache.coords, Ferrite.nnodes(celltype))
 end
 
+function get_vtk_celldata(part::Part{dim,T,<:CohesiveElement}, output::VTKCellOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
+    return nothing
+end
+
+function get_vtk_nodedata(part::Part{dim,T,<:CohesiveElement}, output::VTKNodeOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
+    return nothing
+end
+
 function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables) where {dim,T}
     @assert(length(get_fields(part.element)) == 1 && get_fields(part.element)[1].name == :u)
 

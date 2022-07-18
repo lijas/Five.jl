@@ -26,6 +26,7 @@ makedocs(
             "solvers/crisfield_solver.md",
             "solvers/local_dissipation_solver.md",
             ],
+        "Outputs" => ["outputs/DofValueOutput.md"],
         "Examples" => GENERATEDEXAMPLES,
     ]
 )

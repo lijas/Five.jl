@@ -4,7 +4,7 @@
 Element API
 
 ```@docs
-Five.get_fields
+Five.get_fields(::Five.AbstractElement)
 Five.integrate_forcevector!
 Five.integrate_forcevector_and_stiffnessmatrix!
 Five.integrate_massmatrix!

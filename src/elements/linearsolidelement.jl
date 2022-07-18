@@ -21,8 +21,10 @@ struct LinearSolidElement{
     dimstate::DIM
 end
 
+getquadraturerule(e::LinearSolidElement) = e.cv.qr
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.nnodes(e::LinearSolidElement) = Ferrite.getngeobasefunctions(e.cv)
+Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
 has_constant_massmatrix(::LinearSolidElement) = true
 get_fields(e::LinearSolidElement) = return [e.field]
@@ -48,6 +50,8 @@ function integrate_forcevector_and_stiffnessmatrix!(
         elementstate::AbstractElementState, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
+        stresses::Vector{<:SymmetricTensor{2,3,T}},
+        strains::Vector{<:SymmetricTensor{2,3,T}},
         ke::AbstractMatrix, 
         fe::Vector, 
         cell, 
@@ -78,6 +82,8 @@ function integrate_forcevector_and_stiffnessmatrix!(
         #MatLinearElasticState(zero(SymmetricTensor{2,dim,T}))
         σ, ∂σ∂ɛ, new_matstate = material_response(element.dimstate, material, ɛ, materialstate[q_point])
         materialstate[q_point] = new_matstate
+        stresses[q_point] = dim==3 ? σ : MaterialModels.increase_dim(σ)
+        strains[q_point] = dim==3 ? ɛ : MaterialModels.increase_dim(ɛ)
 
         for i in 1:n_basefuncs
             δɛ[i] = symmetric(shape_gradient(cellvalues, q_point, i)) 
