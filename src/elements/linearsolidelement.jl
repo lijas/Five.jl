@@ -23,7 +23,6 @@ end
 
 getquadraturerule(e::LinearSolidElement) = e.cv.qr
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
-Ferrite.nnodes(e::LinearSolidElement) = Ferrite.getngeobasefunctions(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
 has_constant_massmatrix(::LinearSolidElement) = true

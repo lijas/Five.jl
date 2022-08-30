@@ -19,6 +19,14 @@ Used for allocating arrays for the material states
 getnquadpoints
 
 """
+    getquadraturerule(::AbstractElement)
+
+Returns the number of quadrature rule used by the element
+Used for postprocessing and L2Projection
+"""
+getquadraturerule
+
+"""
     get_fields(::AbstractElement)
 
 Returns a list with fields of element, e.g :u, :T, :θ 
@@ -31,30 +39,38 @@ function get_fields(::AbstractElement) end
 Returns the number of dofs in the element
 Used for pre-allocating element matrices, internal force matrices etc.
 """
+ndofs
+
+"""
+    getcelltype(::AbstractElement)
+
+Returns the celltype (Ferrite.AbstractCell) of the element
+"""
+getcelltype
 
 
 """
-    Returns a boolean depending on if the massmatrix is constant or not
+    Returns true if the massmatrix is constant or not
 """
 has_constant_massmatrix
 
 """
-    Return the internal forcevector of element
+    Returns the internal forcevector of element
 """
 integrate_forcevector!
 
 """
-    Return the mass matrix of the element
+    Returns the mass matrix of the element
 """
 integrate_massmatrix!
  
 """
-    Return the internal forcevector and the element stiffness matrix of element
+    Returns the internal forcevector and the element stiffness matrix of element
 """
 integrate_forcevector_and_stiffnessmatrix!
 
 """
-    Return the dissipation and the gradient of the dissipation (used in LocalDissipationSolver)
+    Returns the dissipation and the gradient of the dissipation (used in LocalDissipationSolver)
 """
 integrate_dissipation!
 

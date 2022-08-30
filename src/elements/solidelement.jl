@@ -23,9 +23,8 @@ getquadraturerule(e::SolidElement) = e.cv.qr
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::SolidElement) = e.celltype
-Ferrite.nnodes(s::SolidElement) = Ferrite.getngeobasefunctions(s.cv)
 has_constant_massmatrix(::SolidElement) = true
-get_fields(e::SolidElement)= return [e.field]
+get_fields(e::SolidElement) = [e.field]
 
 function SolidElement{dim,order,refshape,T}(;
         thickness::Float64 = 1.0, 

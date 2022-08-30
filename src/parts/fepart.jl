@@ -54,7 +54,7 @@ end
 
 
 function Part{dim,T}(material::M, cellset::AbstractVector{Int}, element::E) where {dim,T,E,M}
-    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), Ferrite.nnodes(element)), PartVTKExport{dim,T}())
+    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), Ferrite.nnodes(getcelltype(element))), PartVTKExport{dim,T}())
 end
 
 struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState

@@ -19,7 +19,6 @@ getquadraturerule(e::CohesiveElement) = e.cv.qr
 Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::CohesiveElement) = e.celltype
-Ferrite.nnodes(e::CohesiveElement) = Ferrite.nnodes(e.celltype)
 has_constant_massmatrix(::CohesiveElement) = true
 get_fields(e::CohesiveElement) = return [e.field]
 

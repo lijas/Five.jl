@@ -18,7 +18,6 @@ end
 #getquadraturerule(e::SolidElement) = QuadratureRule{1,RefCube}(1)
 Ferrite.getnquadpoints(::BarElement) = 1
 Ferrite.ndofs(::BarElement{dim}) where {dim} = dim*2
-Ferrite.nnodes(::BarElement) = 2
 Ferrite.getcelltype(::BarElement{dim}) where dim = Cell{dim,2, dim==3 ? 0 : 1}()
 has_constant_massmatrix(::BarElement) = true
 get_fields(e::BarElement) = return e.fields
