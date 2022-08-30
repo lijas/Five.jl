@@ -164,8 +164,8 @@ solver = LocalDissipationSolver(
 
 output = solvethis(solver, state, globaldata)
 
-d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
-f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
+d = [output.outputdata["reactionforce"].data[i].displacement[2] for i in 1:length(output.outputdata["reactionforce"].data)]
+f = [output.outputdata["reactionforce"].data[i].fint[2] for i in 1:length(output.outputdata["reactionforce"].data)]
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

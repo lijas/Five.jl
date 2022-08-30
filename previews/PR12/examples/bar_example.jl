@@ -135,8 +135,8 @@ u = getproperty.(result.outputdata["reactionforce"].data, :displacement)
 f = getproperty.(result.outputdata["reactionforce"].data, :fint)
 
 using Test
-@test last(u) ≈ 82.26348529886634
-@test last(f) ≈ 9.3196516507723
+@test isapprox( last(u)[1], -82.2, atol = 1e-1)
+@test isapprox( last(f)[1], 9.3, atol = 1e-1)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 
