@@ -191,8 +191,6 @@ include("contact/contact.jl") #Needs reviving
 include("outputs/output.jl")
 include("outputs/dof_value.jl")
 include("outputs/material_output.jl")
-include("outputs/solverstats_output.jl")
-include("outputs/energy_output.jl")
 
 include("solvers/solver_utils.jl")
 include("solvers/solver.jl")
@@ -208,6 +206,7 @@ include("assembling.jl")
 
 include("externalforce/external_forces.jl")
 include("constraints/Constraints.jl")
+include("utils/follower_constraint.jl")
 #include("constraints/linearconstraints.jl)
 
 include("utils/utils.jl")

@@ -21,6 +21,8 @@ struct LinearSolidElement{
     dimstate::DIM
 end
 
+initial_element_state(::LinearSolidElement) = EmptyElementState()
+
 getquadraturerule(e::LinearSolidElement) = e.cv.qr
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
@@ -46,7 +48,7 @@ end
 
 function integrate_forcevector_and_stiffnessmatrix!(
         element::LinearSolidElement{dim, order, shape, T}, 
-        elementstate::AbstractElementState, 
+        elementstate::AbstractVector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
         stresses::Vector{<:SymmetricTensor{2,3,T}},
@@ -105,7 +107,7 @@ function integrate_forcevector_and_stiffnessmatrix!(
     return V
 end
 
-function integrate_massmatrix!(element::LinearSolidElement{dim, order, shape, T, M}, elstate::AbstractElementState, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim, order, shape, T, M}
+function integrate_massmatrix!(element::LinearSolidElement{dim, order, shape, T, M}, ::AbstractVector{<:AbstractElementState}, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim, order, shape, T, M}
 
     cv = element.cv
     reinit!(cv, cell)

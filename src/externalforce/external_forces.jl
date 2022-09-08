@@ -52,7 +52,6 @@ function apply_external_force!(force::PointForce, state::StateVariables, globald
         X = Vec((0.0,0.0)) # TODO: position
         state.system_arrays.fᵉ[dofs] .= force.func(X, state.t)
     end
-    @show sum(state.system_arrays.fᵉ)
 end
 
 

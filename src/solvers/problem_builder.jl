@@ -3,7 +3,7 @@ export ProblemData, build_problem
 mutable struct ProblemData{dim,T}
     grid::Ferrite.AbstractGrid
     parts::Vector{Five.AbstractPart{dim}}
-    dirichlet::Vector{Ferrite.Dirichlet}
+    dirichlet::Vector{Union{Ferrite.Dirichlet, Five.FollowerConstraint}}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints::Vector{Five.AbstractExternalForce}
     output::Base.RefValue{Output{T}}
@@ -18,7 +18,7 @@ end
 function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
     
     parts = Five.AbstractPart{dim}[]
-    dbc   = Ferrite.Dirichlet[]
+    dbc   = Union{Ferrite.Dirichlet, Five.FollowerConstraint}[]
     exfor = Five.AbstractExternalForce[]
     output = Base.RefValue{Output{T}}()
     outputdata = Dict{String, Five.OutputData}()
@@ -129,7 +129,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
 
     #System Arrays
     state.system_arrays = SystemArrays(T, ndofs(dh))
-    state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
+    state.system_arrays.Kⁱ = create_sparsity_pattern(dh, dch)
 
     return state, globaldata
 end

@@ -181,9 +181,11 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; f
         coords = reshape(reinterpret(T, coords), (dim, length(coords)))
         vtkfile = WriteVTK.vtk_grid(vtmfile, coords, cells)
         
-        #Displacements 
-        @timeit "disp" node_coords = get_vtk_displacements(dh, part, state)
-        vtkfile["u"] = reshape_vtk_coords(node_coords)
+        #Export Fields, such :u, etc
+        @timeit "fielddata" for field in get_fields(part)
+            data = get_vtk_field(dh, part, state, field.name)
+            vtkfile[string(field.name)] = data
+        end
 
         @timeit "nodedata" for nodeoutput in output.vtkoutput.nodeoutputs
             data = get_vtk_nodedata(part, nodeoutput, state, globaldata)

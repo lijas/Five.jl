@@ -38,23 +38,24 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         state.newton_itr += 1
 
         fill!(state.system_arrays, 0.0)
-                                                                 
+
         @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
 
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
-        K = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
+        K = state.system_arrays.Kⁱ #- state.system_arrays.Kᵉ
 
-        state.norm_residual = norm(r[free_dofs(ch)])
-
+        
         #Solve 
         apply!(K, r, ch, true; strategy = Ferrite.APPLY_TRANSPOSE)
         ΔΔd = K\-r
         apply_zero!(ΔΔd, ch)
+        
+        state.norm_residual = norm(r[free_dofs(ch)])
 
         state.d .+= ΔΔd
-        state.v  .= (state.d .- d0)./state.Δt
+        state.v .+= ΔΔd # (state.d .- d0)#./state.Δt
 
         println("---->Normg: $(state.norm_residual), t = $(state.t)")
 
@@ -69,7 +70,6 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
 
         state.partstates .= deepcopy(partstates0)
     end
-
     return true
 end
 
@@ -102,5 +102,5 @@ function set_initial_guess(solver::NewtonSolver,  state::StateVariables, ntries:
 
     state.Δt = Δt
     state.t += Δt
-    state.d += (state.v*Δt) * factor
+    state.d += state.v#(state.v*Δt) * factor
 end

@@ -11,9 +11,19 @@ function build_simple_problem()
     addvertexset!(data.grid, "topright", (x) -> x[1] == 2.0 && x[2] == 2.0 && x[3] == 4.0)
     addcellset!(data.grid, "all", (x) -> true)
     
-    material = LinearElastic(
+    #=material = LinearElastic(
         E = 100.0,
         ν = 0.3,
+    )=#
+
+    material = Plastic(
+        E = 100.0,
+        ν = 0.3,
+        H = 10.0,
+        σ_y = 100.0,
+        r = 0.5,
+        κ_∞ = 10.0,
+        α_∞ = 10.0,
     )
     
     con1 = Dirichlet(
@@ -50,6 +60,18 @@ function build_simple_problem()
     )
     push!(data.parts, part)
     
+    #Change initial states of interface damage
+    for cellid in getcellset(data.grid, "all")
+        nqp = 2^3 #Hardcoded
+        state = MaterialModels.PlasticState(
+            one(SymmetricTensor{2,3}),   #ε
+            0.0,                         #κ  
+            zero(SymmetricTensor{2,3}),  #α
+            0.0                          #μ
+        )                             
+        data.materialstates[cellid] = [state for i in 1:nqp]
+    end
+
     data.output[] = Output(
         interval = -0.1,
         runname = "Beamexample",
@@ -137,8 +159,7 @@ end
     @test sum(output.data[1].fint) ≈ 1.337 * 9 #9 nodes
     @test sum(output.data[1].fext) ≈ 13.337 * 9 #9 nodes
 
-    #MaterialStateOutput
-
+    #StressOutput
     output = OutputData(
         type = Five.StressOutput(),
         interval = 0.1,
@@ -152,4 +173,15 @@ end
     @test length(getcellset(globaldata.grid, "all")) == length(output.data[1])
     @test all(iszero.(output.data[1]))
 
+    #MaterialStateOutput
+    output = OutputData(
+        type = Five.MaterialStateOutput(field=:εᵖ),
+        interval = 0.1,
+        set = getcellset(globaldata.grid, "all")
+    )
+
+    output = Five.build_outputdata(output, globaldata.dh)
+    Five.collect_output!(output, state, globaldata)
+
+    @test all(isone.(output.data[1]))
 end

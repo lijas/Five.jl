@@ -75,12 +75,12 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
         @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
         
         #Normal stiffness matrix
-        Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
+        Kₜ = state.system_arrays.Kⁱ# - state.system_arrays.Kᵉ
         rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
         
-        apply_zero!(Kₜ, rₜ, globaldata.dbc)
-
+        apply!(Kₜ, rₜ, globaldata.dbc, true; strategy = Ferrite.APPLY_TRANSPOSE)
         @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, Δd0, λ0, state.ΔL, state.solvermode)
+        apply_zero!(ΔΔd, globaldata.dbc)
         
         if !_success
             @info "Failed here"
@@ -215,7 +215,6 @@ function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariable
             # based on the number of newton_iteration in the previeus 
             # converged solution
             ΔP *= (0.5^(0.1*(state.newton_itr-solver.optitr)))
-            @show ΔP
         else
             #If the previous newton loop failed (ie ntries != 0),
             # half the step size
@@ -230,7 +229,6 @@ function set_initial_guess!(solver::LocalDissipationSolver, state::StateVariable
     end
 
     factor = ΔP / ⁿΔP
-    @show factor
 
     if state.solvermode == DissipationSolverModes.DISSIPATION
         state.ΔL = ΔP

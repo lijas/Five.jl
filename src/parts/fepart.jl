@@ -58,7 +58,7 @@ function Part{dim,T}(material::M, cellset::AbstractVector{Int}, element::E) wher
 end
 
 struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState
-    elementstate::S #Currently not used anywhere, but some elements might need it 
+    elementstate::Vector{S}
     materialstates::Vector{M}
     stresses::Vector{SymmetricTensor{2,3,Float64,6}}
     strains::Vector{SymmetricTensor{2,3,Float64,6}}
@@ -78,14 +78,15 @@ function construct_partstates(part::Part{dim,T,ET,MT}) where {dim,T,ET,MT}
     states = Vector{PartState{ElementStateType,MaterialStateType}}(undef, ncells)
 
     for i in 1:ncells
-        _cellstate = ElementStateType(part.element)
-
+        #@show MaterialStateType,ElementStateType
         _materialstates = Vector{MaterialStateType}(undef, nqp)
+        _elementstates = Vector{ElementStateType}(undef, nqp)
         for j in 1:nqp
             _materialstates[j] = initial_material_state(part.material)
+            _elementstates[j] = initial_element_state(part.element)
         end
 
-        states[i] = PartState(_cellstate, _materialstates, zeros(SymmetricTensor{2,3,Float64,6}, nqp), zeros(SymmetricTensor{2,3,Float64,6}, nqp))
+        states[i] = PartState(_elementstates, _materialstates, zeros(SymmetricTensor{2,3,Float64,6}, nqp), zeros(SymmetricTensor{2,3,Float64,6}, nqp))
     end
     return states
 end
@@ -148,9 +149,9 @@ function assemble_dissipation!(dh::Ferrite.AbstractDofHandler,
     part::Part,
     state::StateVariables)
 
-    if !(part.material |> is_dissipative)
-        return 
-    end
+    #if !(part.material |> is_dissipative)
+        #return 
+    #end
 
     _assemble_part!(dh, part, state, DISSI)
 
@@ -258,6 +259,7 @@ function commit_part!(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVa
     return nothing
 end
 
+#=
 function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
     @assert(length(get_fields(part.element)) == 1 && get_fields(part.element)[1].name == :u)
 
@@ -278,6 +280,46 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}
     end
     
     return node_coords
+end=#
+
+function get_vtk_field(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
+    fh = FieldHandler(get_fields(part), Set([1]))
+    fieldidx = Ferrite.find_field(fh, field_name)
+    @assert(fieldidx !== nothing)
+
+    offset = Ferrite.field_offset(fh, field_name)
+    fdim   = fh.fields[fieldidx].dim 
+
+    n_vtk_nodes = length(part.vtkexport.vtknodes)
+    #Special case displacement (it needs 3 datapoints)
+    if field_name == :u
+        data = zeros(T, (dim == 2 ? 3 : dim), n_vtk_nodes)
+    else
+        data = zeros(T, fdim, n_vtk_nodes)
+    end
+    _get_vtk_field!(data, dh, part, state, offset, fdim)
+    return data
+end
+
+function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
+
+    celldofs = part.cache.celldofs
+
+    for cellid in part.cellset
+        cell = dh.grid.cells[cellid]
+        
+        celldofs!(celldofs, dh, cellid)
+        ue = state.d[celldofs]
+        counter = 1
+        for (i,nodeid) in enumerate(cell.nodes)
+            local_id = part.vtkexport.nodeid_mapper[nodeid]
+            for d in 1:nvars
+                data[d, local_id] = ue[counter + offset]
+                counter += 1
+            end
+        end
+    end
+    
 end
 
 
