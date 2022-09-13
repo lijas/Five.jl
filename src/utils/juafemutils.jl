@@ -480,7 +480,7 @@ function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
             for nodeid in nodeset
                 push!(tmp_nodeset, nodeid + nodeoffset)
             end
-            nodeset_new[nodesetname * String(igrid)] =  tmp_nodeset
+            nodeset_new[nodesetname * string(igrid)] =  tmp_nodeset
         end
 
         for (setname, cellset) in grid.cellsets
@@ -488,7 +488,7 @@ function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
             for cellid in cellset
                 push!(tmp_nodeset, cellid + celloffset)
             end
-            cellset_new[setname * String(igrid)] =  tmp_nodeset
+            cellset_new[setname * string(igrid)] =  tmp_nodeset
         end
 
     end

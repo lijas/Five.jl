@@ -15,7 +15,23 @@ function should_abort(solver::ExplicitSolver, state)
     return false
 end
 
-function step!(solver::ExplicitSolver, state, globaldata) 
+function init_system_arrays!(solver::ExplicitSolver, state, globaldata)
+   
+    fill!(state.system_arrays, 0.0)
+
+    assemble_massmatrix!(globaldata.dh, state, globaldata)
+    assemble_lumped_massmatrix!(globaldata.dh, state, globaldata)
+
+    apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
+    assemble_forcevector!(globaldata.dh, state, globaldata)
+    apply_constraints!(globaldata.dh, globaldata.constraints, state,  globaldata)
+    
+    state.system_arrays.q .= state.system_arrays.fᵉ
+    state.x0 .= get_x0(globaldata.dh)
+    #state.prev_detK = state.detK = det(state.system_arrays.Kⁱ - state.system_arrays.Kᵉ)
+end
+
+function step!(solver::ExplicitSolver, state, globaldata, ntires=0) 
 
     #
     M = state.system_arrays.Mᵈⁱᵃᵍ
@@ -37,8 +53,8 @@ function step!(solver::ExplicitSolver, state, globaldata)
     apply!(vᵢ₊₀₅ , globaldata.dbc)
 
     #Update nodal disp
-    state.Δd .= Δtᵢ₊₀₅ .* vᵢ₊₀₅ 
-    state.d .+= state.Δd 
+    stateΔd = Δtᵢ₊₀₅ .* vᵢ₊₀₅ 
+    state.d .+= stateΔd 
 
     @show tᵢ₊₁
     @show maximum(abs.(state.d))
@@ -52,12 +68,14 @@ function step!(solver::ExplicitSolver, state, globaldata)
     @timeit "ExternalForces" apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
     @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
 
+    contact!(globaldata.contact, state, globaldata)
+
     #Compute aᵢ₊₁ 
     update!(globaldata.dbc,tᵢ₊₁)
     
     #Assabmle mass matrix each iteration due to rigid bodies have non-constant mass matrix
     # @timeit "Update massmatrix" update_massmatrix!(dh, parts, materials, cellstates, elementinfos, M, dᵢ₊₁, vᵢ₊₀₅)
-    f =state.system_arrays.fᵉ - state.system_arrays.fⁱ
+    f = state.system_arrays.fᵉ - state.system_arrays.fⁱ
     #apply_zero!(M, f, globaldata.dbc)
     @timeit "Solve" state.a .= M\f
 
@@ -69,8 +87,8 @@ function step!(solver::ExplicitSolver, state, globaldata)
     apply!(state.v , globaldata.dbc)
     
     #Check energy balance 
-    state.Wⁱ = 0.5*(state.Δd)'*(ⁿfⁱ + state.system_arrays.fⁱ)
-    state.Wᵉ = 0.5*(state.Δd)'*(ⁿfᵉ + state.system_arrays.fᵉ)
+    state.Wⁱ = 0.5*(stateΔd)'*(ⁿfⁱ + state.system_arrays.fⁱ)
+    state.Wᵉ = 0.5*(stateΔd)'*(ⁿfᵉ + state.system_arrays.fᵉ)
     state.Wᵏ = 0.5*state.v'*M*state.v 
 
     return true

@@ -17,7 +17,6 @@ end
 
 struct Buckets{dim,T,obj}
     objects::Vector{Vector{obj}}
-    #buckets::Vector{Bucket{dim,T,obj}}
     worldbounds::AABB{dim,T}
     nbuckets::NTuple{dim,Int}
 end

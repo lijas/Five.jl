@@ -6,16 +6,19 @@ nodeset_to_vertexset(grid::AbstractGrid, nodeset::Set{Int})
 
 Given a nodeset, convert it to a vertexset
 """
-function nodeset_to_vertexset(grid::Ferrite.AbstractGrid, nodeset::Set{Int}) 
-    vertexset = Set{VertexIndex}()
+function nodeset_to_vertexset(grid::Ferrite.AbstractGrid, nodeset) 
+    vertexset = VertexIndex[]
     for nodeid in nodeset
         for (cellid, cell) in enumerate(grid.cells)
+            break2 = false
             for (i, nodeid2) in enumerate(cell.nodes)
                 if nodeid == nodeid2
                     push!(vertexset, VertexIndex(cellid,i))
+                    break2 = true
                     break
                 end    
             end
+            break2 && break
         end
     end
     return vertexset
@@ -93,7 +96,7 @@ end
 #Gets all initial coordinates (:u and :xyθ)
 function get_x0(dh::Ferrite.AbstractDofHandler)
 
-    T = getT(dh)
+    T = Float64
     dim = Ferrite.getdim(dh)
 
     nnodes = getnnodes(dh.grid)

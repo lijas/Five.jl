@@ -227,11 +227,14 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state:
     ue, due, me, fe, coords, celldofs = (part.cache.ue, part.cache.due, 
     part.cache.ke, part.cache.fe, part.cache.coords, part.cache.celldofs)
 
+    #ElementState = elementstate_type(ET)
+    #MaterialState = typeof( initial_material_state(part.material) )#materialstate_type(MT)
+
     for (localid,cellid) in enumerate(part.cellset)
         
         fill!(me, 0.0)
 
-        partstate::get_partstate_type(part) = state.partstates[cellid]
+        partstate = state.partstates[cellid]
 
         materialstate = partstate.materialstates
         cellstate     = partstate.elementstate

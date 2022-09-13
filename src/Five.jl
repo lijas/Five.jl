@@ -112,6 +112,9 @@ mutable struct StateVariables{T} <: AbstractStateVariables{T}
     L::T
     ΔL::T
 
+    #
+    x0::Vector{T}
+
     #System arrays, fint, Kint, etc
     system_arrays::SystemArrays{T}
 
@@ -138,7 +141,7 @@ end
 function StateVariables(T::Type, ndofs::Int)
     dofvecs1 = [zeros(T, ndofs) for _ in 1:3]
     sa = SystemArrays(T, ndofs)
-    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    return StateVariables(dofvecs1..., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, zeros(T,ndofs),
                           sa, AbstractPartState[], 
                           0, 0, 0, 
                           Inf, true, Inf, MODE1, 
@@ -186,7 +189,9 @@ end
 include("materials/materials.jl")
 include("elements/elements.jl")
 
+include("contact/buckets.jl")
 include("contact/contact.jl") #Needs reviving
+include("contact/contact4.jl")
 
 include("outputs/output.jl")
 include("outputs/dof_value.jl")
@@ -198,7 +203,7 @@ include("solvers/solver.jl")
 include("solvers/local_dissipation_solver.jl")
 include("solvers/newton_solver.jl")
 include("solvers/arclength_solver.jl")
-# include("solvers/explicit_solver.jl")
+include("solvers/explicit_solver.jl")
 # include("solvers/implicit_solver.jl")
 
 include("parts/parts.jl")

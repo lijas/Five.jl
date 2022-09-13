@@ -19,6 +19,8 @@ struct SolidElement{
     dimstate::DIM
 end
 
+initial_element_state(::SolidElement) = EmptyElementState()
+
 getquadraturerule(e::SolidElement) = e.cv.qr
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
@@ -57,7 +59,7 @@ function integrate_fstar!(element::SolidElement{dim, order, shape, T},
 end
 
 function integrate_forcevector!(element::SolidElement{dim, order, shape, T}, 
-        elementstate::AbstractElementState, 
+        elementstate::Vector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
         fe::Vector, 
@@ -98,7 +100,7 @@ end
 
 function integrate_massmatrix!(
     element::SolidElement{dim, order, shape, T, M}, 
-    elstate::AbstractElementState, 
+    elstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     coords, 
     me::Matrix, 
@@ -122,7 +124,7 @@ function integrate_massmatrix!(
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
-    elementstate::AbstractElementState, 
+    elementstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     materialstate::AbstractVector{<:AbstractMaterialState},
     stresses::Vector{<:SymmetricTensor{2,3,T}},

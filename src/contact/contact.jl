@@ -6,20 +6,19 @@ abstract type AbstractContactTreatment end
 #Maybe change name to abstract geometric entity?
 abstract type AbstractContactEntity end
 
-#=
+
 struct RigidContactEntity{T} <: AbstractContactEntity
     dofs::Vector{Int}
     segments::Vector{Tuple{Vec{2,T},Vec{2,T}}}
 end
 
 #Generic contact entity for all finite elements
-struct FaceContactEntity{dim,T,I,N} <: AbstractContactEntity
+struct FaceContactEntity{dim,I,N} <: AbstractContactEntity
     faceinterpolation::I
-    #faceindex::FaceIndex
-    dofs::NTuple{N,Vec{dim,Int}} #N basefunctions
+    dofs::NTuple{N,NTuple{dim,Int}} # N basefunctions
 end
 
-function getAABB(a::FaceContactEntity{2,T,I,N}, x) where {T,I,N} 
+function getAABB(a::FaceContactEntity{2,I,N}, x::Vector{T}) where {I,T,N} 
     maxx = maxy = T(-Inf)
     minx = miny = T(Inf)
     for n in 1:N
@@ -35,7 +34,7 @@ function getAABB(a::FaceContactEntity{2,T,I,N}, x) where {T,I,N}
     return AABB(Vec{2,T}((minx,miny)), Vec{2,T}((maxx-minx, maxy-miny)))
 end
 
-function getAABB(a::FaceContactEntity{3,T,I,N}, x) where {T,I,N} 
+function getAABB(a::FaceContactEntity{3,I,N}, x::Vector{T}) where {T,I,N} 
     maxx = maxy = maxz = T(-Inf)
     minx = miny = minz = T(Inf)
     for n in 1:N
@@ -55,7 +54,7 @@ function getAABB(a::FaceContactEntity{3,T,I,N}, x) where {T,I,N}
     return AABB(Vec{3,T}((minx,miny,minz)), Vec{3,T}((maxx-minx, maxy-miny, maxz-minz)))
 end
 
-function getAABB(a::FaceContactEntity{3,T,Lagrange{2,RefTetrahedron,1}}, x) where T
+function getAABB(a::FaceContactEntity{3,Lagrange{2,RefTetrahedron,1}}, x::Vector{T}) where T
  n1 = x[a.dofs[1]]#assume
  n2 = x[a.dofs[2]]
  n3 = x[a.dofs[3]]
@@ -95,16 +94,16 @@ struct StaticPlaneContactEntity <: AbstractContactEntity
 end
 
 struct NodeContactEntity{dim} <: AbstractContactEntity
-    #dofs::NTuple{dim,Int}
-    dofs::Vec{dim,Int}
+    dofs::NTuple{dim,Int}
+    #dofs::Vec{dim,Int}
 end
 
 function getAABB(a::NodeContactEntity{dim}, x::AbstractVector{T}) where {dim,T}
  pos = x[a.dofs]#Tuple([x[a.dofs[d]] for d in 1:dim])
  return AABB(pos, zero(Vec{dim,T}))
-end=#
+end
 
-
+#=
 mutable struct Contact_Node2Segment{dim,T} <: AbstractContactSearchAlgorithm
 	
 	#slaves::Vector{AbstractContactEntity}
@@ -120,7 +119,7 @@ mutable struct Contact_Node2Segment{dim,T} <: AbstractContactSearchAlgorithm
     #masterbuckets::Buckets{dim,T,Int}
 
 end
-
+=#
 struct ContactOutput{S,M,dim,T}
     slave::S
     master::M
@@ -131,151 +130,6 @@ struct ContactOutput{S,M,dim,T}
     seg_len2::T
     dir1::Vec{dim,T}
     dir2::Vec{dim,T}
-end
-
-#=
-function Contact_Node2Segment(dim, T)#Matrix{Int}()
-	return Contact_Node2Segment{dim,T}(Vector{AbstractContactEntity}(), Vector{AbstractContactEntity}(), AABB{dim,T}[], AABB{dim,T}[], zeros(Int,3,3), Int[], Buckets(Int,AABB(zero(Vec{dim,T}),zero(Vec{dim,T})), ntuple(i->-1, dim)), Buckets(Int,AABB(zero(Vec{dim,T}),zero(Vec{dim,T})), ntuple(i->-1, dim)));
-end
-
-
-function add_slave!(contact::Contact_Node2Segment, slave)
-	push!(contact.slaves, slave)
-end
-
-function add_master!(contact::Contact_Node2Segment, master)
-    push!(contact.masters, master)
-end
-
-function close_contact!(c::Contact_Node2Segment{dim,T}) where {dim,T}
-    c.contact_cache = ones(Int,length(c.slaves))*-1
-    for i in 1:length(c.slaves)
-        push!(c.slave_aabb, AABB(zero(Vec{dim,T}), zero(Vec{dim,T})))
-    end
-    for i in 1:length(c.masters)
-        push!(c.master_aabb, AABB(zero(Vec{dim,T}), zero(Vec{dim,T})))
-    end
-end
-
-
-function update_contact!(contact::Contact_Node2Segment{dim}, x::AbstractVector{T}, it::Int) where {dim,T}
-    
-    nbuckets = (5,5,5)
-
-    #update buckets every 100 timestep
-    if (it%10 == 0) 
-        
-        #Get max and min world coords
-        minx,miny,minz = T(Inf),T(Inf),T(Inf)
-        maxx,maxy,maxz = T(-Inf),T(-Inf),T(-Inf)
-        for (i,slave) in enumerate(contact.slaves)
-            aabb::AABB{dim,T} = getAABB(slave, x)
-            contact.slave_aabb[i] = aabb
-            minx = minx < aabb.cornerpos[1] ? minx : aabb.cornerpos[1]
-            miny = miny < aabb.cornerpos[2] ? miny : aabb.cornerpos[2]
-            minz = minz < aabb.cornerpos[3] ? minz : aabb.cornerpos[3]
-
-            max_coords = aabb.cornerpos + aabb.sidelength
-            maxx = maxx > max_coords[1] ? maxx : max_coords[1]
-            maxy = maxy > max_coords[2] ? maxy : max_coords[2]
-            maxz = maxz > max_coords[3] ? maxz : max_coords[3]
-        end
-
-        for (i,master) in enumerate(contact.masters)
-            aabb::AABB{dim,T} = getAABB(master, x)
-            contact.master_aabb[i] = aabb
-            minx = minx < aabb.cornerpos[1] ? minx : aabb.cornerpos[1]
-            miny = miny < aabb.cornerpos[2] ? miny : aabb.cornerpos[2]
-            minz = minz < aabb.cornerpos[3] ? minz : aabb.cornerpos[3]
-
-            max_coords = aabb.cornerpos + aabb.sidelength
-            maxx = maxx > max_coords[1] ? maxx : max_coords[1]
-            maxy = maxy > max_coords[2] ? maxy : max_coords[2]
-            maxz = maxz > max_coords[3] ? maxz : max_coords[3]
-        end
-
-        worldbounds = AABB(Vec{dim,T}((minx,miny,minz)), Vec{dim,T}((maxx*1.001,maxy*1.001,maxz*1.001).-(minx,miny,minz)))
-
-        contact.slavebuckets = Buckets(Int, worldbounds, nbuckets)
-        contact.masterbuckets = Buckets(Int, worldbounds, nbuckets)
-
-        #slavepos = zeros(Vec{dim,T}, length(contact.slaves))
-        #masterpos = zeros(Vec{dim,T}, length(contact.masters))
-
-        for i in 1:length(contact.slaves)
-            insert3!(contact.slavebuckets, i, contact.slave_aabb[i])
-        end
-
-        for i in 1:length(contact.masters)
-            insert3!(contact.masterbuckets, i, contact.master_aabb[i])
-        end
-
-        #=for (ib, slavebucket) in enumerate(contact.slavebuckets)
-            for slaveidx in slavebucket.objects      
-                
-                #Position of nodew
-                sp = slavepos[slaveidx]
-
-                masterbucket = contact.masterbuckets[ib]
-                
-                for segmentidx in masterbucket.objects
-                    mp = masterpos[segmentidx]
-                    dist2 = dot(sp,mp)
-                    ordering[slaveidx]
-                end
-            end
-        end=#
-
-    end
-    
-    #ss = 0
-    #for (ib,slavebucket) in enumerate(contact.slavebuckets)
-        #ss += length(slavebucket.objects)
-        #println("Sb $ib has $(length(slavebucket.objects)) nodes, and mb has $(length(contact.masterbuckets[ib].objects))")
-        #println("bounds: $(slavebucket.bounds)")
-    #end
-    #println("mbsize $(getAABB(contact.masters[1], x).sidelength)")
-    #error("Hej")
-
-end
-
-function search1!(contact::Contact_Node2Segment{dim}, x::AbstractVector, should_ouput = false) where dim#f::AbstractVector, stiffness::Float64, 
-
-    contactoutputs = ContactOutput[]
-
-    for (ib, slavebucket) in enumerate(contact.slavebuckets.objects)
-        for slaveidx in slavebucket      
-
-            masterbucket_objects = contact.masterbuckets.objects[ib]
-
-            #Position of nodew
-            slave = contact.slaves[slaveidx]
-
-            prev_masteridx = contact.contact_cache[slaveidx]
-            if  prev_masteridx != -1
-                master = contact.masters[prev_masteridx]
-                contactoutput = search_contact(slave, master, x, should_ouput)
-                if contactoutput != nothing
-                    push!(contactoutputs, contactoutput)
-                    continue
-                end
-            end
-
-            for segmentidx in masterbucket_objects
-
-                master = contact.masters[segmentidx];
-
-                contactoutput = search_contact(slave, master, x, should_ouput)
-
-                if contactoutput != nothing
-                    push!(contactoutputs, contactoutput)
-                    contact.contact_cache[slaveidx] = segmentidx
-                    should_ouput ||  break
-                end
-            end  
-        end
-    end
-    return contactoutputs  
 end
 
 function search_contact(slave::NodeContactEntity{2}, master::SegmentContactEntity, x)
@@ -315,13 +169,12 @@ function search_contact(slave::NodeContactEntity{dim}, master::SphericalContactE
     end
 end
 
-function search_contact(slave::NodeContactEntity{2}, master::FaceContactEntity{2,T,Lagrange{1,RefCube,1},2}, x, should_ouput::Bool = true) where {T}
+function search_contact(slave::NodeContactEntity{2}, master::FaceContactEntity{2,Lagrange{1,RefCube,1},2}, x::Vector)
     dim = 2
+    xs = x[Vec(slave.dofs)]
 
-    xs = x[slave.dofs]
-
-    x1 = x[master.dofs[1]]
-    x2 = x[master.dofs[2]]
+    x1 = x[Vec(master.dofs[1])]
+    x2 = x[Vec(master.dofs[2])]
 
     _dir = x2 - x1
     _dirlen = norm(_dir)
@@ -334,14 +187,16 @@ function search_contact(slave::NodeContactEntity{2}, master::FaceContactEntity{2
     _penatration = dot(d, _normal);
     _eps = dot(d, _dir)/_dirlen;
     
-    if should_ouput || (_penatration < 0.0 && abs(_penatration) < (_dirlen*0.05)) && (_eps >= 0 && _eps <= 1)
-        return ContactOutput(slave, master, Vec{2,T}((_eps,T(0.0))), _penatration, Vec{2,T}(Tuple(_normal)), _dirlen, T(0.0), Vec{2,T}(Tuple(_dir)), Vec{2,T}((0.0,0.0)))
+    co = ContactOutput(slave, master, Vec{2}((_eps,0.0)), _penatration, Vec{2}(Tuple(_normal)), _dirlen, 0.0, Vec{2}(Tuple(_dir)), Vec{2}((0.0,0.0)))
+
+    if (_penatration < 0.0 && abs(_penatration) < (_dirlen*0.05)) && (_eps >= 0 && _eps <= 1)
+        return true, co
     else
-        return nothing
+        return false, co
     end
 end
 
-function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3,T,Lagrange{2,RefTetrahedron,1},3}, x, should_output::Bool = true) where {T}
+function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3,Lagrange{2,RefTetrahedron,1},3}, x::Vector{T}, should_output::Bool = true) where {T}
     dim = 3
 
     x1 = x[master.dofs[1]]
@@ -382,7 +237,7 @@ function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3
     end
 end
 
-function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3,T,Lagrange{2,RefCube,1},4}, x, ξ::Vec{2,T}=zero(Vec{2,T}), should_outut = true) where {T}
+function search_contact(slave::NodeContactEntity{3}, master::FaceContactEntity{3,Lagrange{2,RefCube,1},4}, x::Vector{T}, ξ::Vec{2,T}=zero(Vec{2,T}), should_outut = true) where {T}
     N = 4
     dim = 3
     @timeit "init search" begin
@@ -522,33 +377,6 @@ struct PenaltyBasedContactWithoutFriction{T} <: AbstractContactTreatment
     #friction::T
 end
 
-function handle_contact!(contact::Contact_Node2Segment, ct::PenaltyBasedContactWithoutFriction, contactoutputs::Vector{ContactOutput}, f, K, x)
-    
-    penalty = ct.penalty
-
-    for co in contactoutputs
-
-        N = co.normal
-        l = co.segment_length
-        _eps = co.eps/l
-        gns = co.penatration
-
-        Ns = vcat(N, -(1-_eps)*N, -_eps*N)
-        N0s = vcat([0.0,0.0], -N, N)
-
-        f[co.slave.dofs] += -penalty*gns*N
-        f[co.master.dofs1] += -penalty*gns*-(1-_eps)*N
-        f[co.master.dofs2] += -penalty*gns*-_eps*N
-
-        co_dofs = vcat(co.slave.dofs, 
-                        co.master.dofs1, 
-                        co.master.dofs2)
-
-        #K[co_dofs,co_dofs] += penalty*(Ns*Ns' - (gns^2/l^2)*N0s*N0s')
-    end
-
-end
-
 function handle_contact!(co::ContactOutput{S,M,dim,T}, ct::PenaltyBasedContactWithoutFriction, f, K, x) where {S<:NodeContactEntity, M<:SphericalContactEntity, dim, T}
     #f[co.slave.dofs]  = co.normal*co.penatration*ct.penalty
 
@@ -570,7 +398,7 @@ function handle_contact!(co::ContactOutput{S,M,dim,T}, ct::PenaltyBasedContactWi
     f[co.slave.dofs] -= ct.penalty*co.penatration*co.master.normal
 end
 
-function handle_contact!(co::ContactOutput{S,FaceContactEntity{2,T,Lagrange{1,RefCube,1},2},dim,T}, ct::PenaltyBasedContactWithoutFriction, f, K, x) where {S<:NodeContactEntity, dim, T}
+function handle_contact!(co::ContactOutput{S,FaceContactEntity{2,Lagrange{1,RefCube,1},2},dim,T}, ct::PenaltyBasedContactWithoutFriction, f::Vector{T}) where {S<:NodeContactEntity, dim, T}
     
     N = co.normal
     l = co.seg_len1
@@ -580,9 +408,9 @@ function handle_contact!(co::ContactOutput{S,FaceContactEntity{2,T,Lagrange{1,Re
     #Ns = vcat(N, -(1-xi)*N, -xi*N)
     #N0s = vcat([0.0,0.0], -N, N)
 
-    f[co.slave.dofs] -= ct.penalty*gns*N
-    f[co.master.dofs[1]] += ct.penalty*gns*(1-xi)*N
-    f[co.master.dofs[2]] += ct.penalty*gns*xi*N
+    f[Vec(co.slave.dofs)] .-= ct.penalty*gns*N
+    f[Vec(co.master.dofs[1])] .+= ct.penalty*gns*(1-xi)*N
+    f[Vec(co.master.dofs[2])] .+= ct.penalty*gns*xi*N
 
     #co_dofs = vcat(co.slave.dofs, co.master.dofs)
 
@@ -590,7 +418,7 @@ function handle_contact!(co::ContactOutput{S,FaceContactEntity{2,T,Lagrange{1,Re
     
 end
 
-function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,T,Lagrange{2,RefTetrahedron,1},3},dim,T}, ct::PenaltyBasedContactWithoutFriction, f, K, x) where {S<:NodeContactEntity, dim, T}
+function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,Lagrange{2,RefTetrahedron,1},3},dim,T}, ct::PenaltyBasedContactWithoutFriction, f::Vector{T}, K, x) where {S<:NodeContactEntity, dim, T}
     xi = co.xi
     n = co.normal
     penatration = co.penatration
@@ -608,7 +436,7 @@ function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,T,Lagrange{2,Re
     
 end
 
-function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,T,Lagrange{2,RefCube,1},4},dim,T}, ct::PenaltyBasedContactWithoutFriction, f, K, x) where {S<:NodeContactEntity, dim, T}
+function handle_contact!(co::ContactOutput{S,FaceContactEntity{3,Lagrange{2,RefCube,1},4},dim,T}, ct::PenaltyBasedContactWithoutFriction, f::Vector{T}, K, x) where {S<:NodeContactEntity, dim, T}
     n = co.normal
     penatration = co.penatration
 
@@ -627,21 +455,23 @@ struct ContactHandler
     contact_treatment::AbstractContactTreatment
 end
 
-using InteractiveUtils
+function contact!(search_algo, state, globaldata)
+    x = state.x0 .+ state.d
+    
+    @timeit "Updating contact" update_contact!(search_algo, x)
+    @timeit "Searching contact" contactoutputs, ncontacts = search1!(search_algo, x)
 
-function contact!(ch::ContactHandler, f, K, x, timestep)
-    @timeit "Updating contact" update_contact!(ch.search_algo, x, timestep)
-    @timeit "Searching contact" contactoutputs, ncontacts = search1!(ch.search_algo, x, true)
+    contact_treatment = PenaltyBasedContactWithoutFriction(-1e5)
     for i in 1:ncontacts#contactoutputs
         co = contactoutputs[i]
-        @timeit "Handling contact" handle_contact!(co, ch.contact_treatment, f, K, x)
+        @timeit "Handling contact" handle_contact!(co, contact_treatment, state.system_arrays.fⁱ)
     end
 end
 
 #
 # Utilitiy
 # 
-
+#=
 function pointInsidePolygon(point, vertices::Vector{Vec{2, Float64}})# where dim
 
 	dim = 2

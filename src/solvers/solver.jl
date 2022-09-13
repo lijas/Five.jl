@@ -167,3 +167,4 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
     state.system_arrays.q .= state.system_arrays.fᵉ
     #state.prev_detK = state.detK = det(state.system_arrays.Kⁱ - state.system_arrays.Kᵉ)
 end
+
