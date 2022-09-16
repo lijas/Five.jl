@@ -461,10 +461,11 @@ function contact!(search_algo, state, globaldata)
     @timeit "Updating contact" update_contact!(search_algo, x)
     @timeit "Searching contact" contactoutputs, ncontacts = search1!(search_algo, x)
 
-    contact_treatment = PenaltyBasedContactWithoutFriction(-1e5)
+    contact_treatment = PenaltyBasedContactWithoutFriction(2e5)
     for i in 1:ncontacts#contactoutputs
         co = contactoutputs[i]
-        @timeit "Handling contact" handle_contact!(co, contact_treatment, state.system_arrays.fⁱ)
+        
+        @timeit "Handling contact" handle_contact!(co, contact_treatment, state.system_arrays.fᵉ)
     end
 end
 

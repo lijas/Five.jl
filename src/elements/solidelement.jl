@@ -13,7 +13,7 @@ struct SolidElement{
 
     thickness::T #used in 2d
 
-    celltype::Type{<:Cell}
+    celltype::Type{<:Ferrite.AbstractCell}
     cv::CV
     field::Field
     dimstate::DIM
@@ -29,17 +29,18 @@ has_constant_massmatrix(::SolidElement) = true
 get_fields(e::SolidElement) = [e.field]
 
 function SolidElement{dim,order,refshape,T}(;
-        thickness::Float64 = 1.0, 
-        qr_order::Int=2, 
-        celltype::Type{<:Cell}, #Todo: Should be obtained from the grid instead...
-        dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
+        thickness   ::Float64 = 1.0, 
+        qr_order    ::Int=2, 
+        celltype    ::Type{<:Ferrite.AbstractCell}, #Todo: Should be obtained from the grid instead...
+        dimstate    ::AbstractDim{dim} = MaterialModels.Dim{3}(),
+        CV          ::Type{<:Ferrite.CellValues} = CellVectorValues ) where {dim, order, refshape, T}
     
-    ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
+    ip = geom_ip
 
     qr = QuadratureRule{dim, refshape}(qr_order)
 
-    cv = CellVectorValues(qr, ip, geom_ip)
+    cv = CV(qr, ip, geom_ip)
     return SolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
 

@@ -26,6 +26,7 @@ using JLD2
 @reexport using Ferrite
 @reexport using Tensors
 @reexport using MaterialModels
+using IGA
 
 LOG = Logging.global_logger()
 
@@ -236,7 +237,7 @@ mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
     
     constraints::Constraints
     efh::ExternalForceHandler{T}
-    contact::AbstractContactSearchAlgorithm
+    contact::Union{Nothing,AbstractContactSearchAlgorithm}
     
     parts::Vector{AbstractPart{dim}}
 

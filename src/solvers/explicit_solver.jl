@@ -68,7 +68,9 @@ function step!(solver::ExplicitSolver, state, globaldata, ntires=0)
     @timeit "ExternalForces" apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
     @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
 
-    contact!(globaldata.contact, state, globaldata)
+    if globaldata.contact !== nothing
+        contact!(globaldata.contact, state, globaldata)
+    end
 
     #Compute aᵢ₊₁ 
     update!(globaldata.dbc,tᵢ₊₁)

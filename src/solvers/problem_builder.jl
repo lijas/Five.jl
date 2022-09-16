@@ -9,7 +9,7 @@ mutable struct ProblemData{dim,T}
     output::Base.RefValue{Output{T}}
     outputdata::Dict{String, Five.AbstractOutput}
     materialstates::Dict{Int, Vector{Any}}
-    contact::AbstractContactSearchAlgorithm
+    contact::Union{Nothing,AbstractContactSearchAlgorithm}
 
     t0::T
     tend::T
@@ -26,7 +26,7 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     cnstr = Five.AbstractExternalForce[]
     states = Dict{Int, Vector{Any}}()
     grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
-    contact = FeSurface{2,Float64}(FaceIndex[], VertexIndex[])
+    contact = nothing#FeSurface{2,Float64}(FaceIndex[], VertexIndex[])
 
     return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, contact, t0, tend, adaptive)
 end
@@ -114,7 +114,9 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     end
     close!(data.output[], dh) 
 
-    close!(data.contact, dh)
+    if data.contact !== nothing
+        close!(data.contact, dh)
+    end
 
     globaldata = GlobalData(dch, data.grid, dh, ch, ef, data.contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
 

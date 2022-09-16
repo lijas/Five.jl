@@ -13,7 +13,7 @@ mutable struct FeSurface{dim,T} <: AbstractContactSearchAlgorithm
     node_segements::Vector{Vector{Int}} # node_segments[i] is a list of master elements containing node i
 
     nlbox::Vector{Int} #number of buckets a entity occupies
-    lbox::Vector{Int} 
+    lbox::Vector{Int}  #bucket id for each slave node
     nbox::Vector{Int} #number of entities in each bucket
     ndsort::Vector{Int} #list of entities sorted by bucket id
     npoints::Vector{Int} #pointer that identifies first entity in ndsort
@@ -32,8 +32,7 @@ function FeSurface{dim,T}(slavenodes, masterfaceset) where {dim,T}
     master_segments = FaceContactEntity[]
     node_segements = Vector{Vector{Int}}()
 
-
-    return FeSurface{dim,T}(slavenodes, masterfaceset,
+    return FeSurface{dim,T}(masterfaceset, slavenodes,
                             master_segments, nodes, bounding_boxes, node_segements,
                             zeros(Int, nmasters), Int[], Int[], Int[], Int[], 
                             0, 0.0,
@@ -72,14 +71,17 @@ end
 function update_contact!(contact::FeSurface{2,T}, x) where {T}
 
     (; masters, nodes, bounding_boxes, node_segements)     = contact
-    (; nlbox, nbox, ndsort, npoints, nbuckets, bucket_size) = contact
+    (; lbox, nlbox, nbox, ndsort, npoints, nbuckets, bucket_size) = contact
     (; possible_contacts)              = contact
 
     dim = 2
     nmasters = length(contact.masters)
 
-    minx = maxx = miny = maxy = 0.0
-    bucket_size = Inf
+    minx = Inf
+    maxx = -Inf
+    miny = Inf
+    maxy = -Inf
+    bucket_size = -Inf
     #Get maximum and minimum coordinates
     for (i, master) in enumerate(contact.masters)
 
@@ -106,32 +108,19 @@ function update_contact!(contact::FeSurface{2,T}, x) where {T}
     resize!(nbox, nbuckets)
     fill!(nbox,0)
     fill!(nlbox,0)
-    lbox = Int[]
+    resize!(lbox, length(contact.nodes))
     
     resize!(npoints, nbuckets)
 
-    for (i, master) in enumerate(contact.masters)
+    for (i, node) in enumerate(contact.nodes)
 
-        aabb = bounding_boxes[i]
+        node_coord = x[Vec(node.dofs)]
 
-        min_coords = aabb.cornerpos
-        max_coords = aabb.cornerpos + aabb.sidelength
-
-        xl = trunc(Int, (min_coords[1] - minx)/bucket_size) + 1
-        xu = trunc(Int, (max_coords[1] - minx)/bucket_size) + 1
-        
-        yl = trunc(Int, (min_coords[2] - miny)/bucket_size) + 1
-        yu = trunc(Int, (max_coords[2] - miny)/bucket_size) + 1
-
-
-        for ix in xl:xu
-            for iy in yl:yu
-                ib = (iy-1)*nbucketsx + ix
-                nbox[ib] +=1
-                push!(lbox,ib)
-                nlbox[i] += 1
-            end
-        end
+        ix = trunc(Int, (node_coord[1] - minx)/bucket_size) + 1
+        iy = trunc(Int, (node_coord[2] - miny)/bucket_size) + 1
+        ib = (iy-1)*nbucketsx + ix
+        nbox[ib] +=1
+        lbox[i] = ib
     end
 
     npoints[1] = 1
@@ -141,14 +130,10 @@ function update_contact!(contact::FeSurface{2,T}, x) where {T}
     resize!(ndsort, sum(nbox)+1)
 
     fill!(nbox, 0)
-    c = 0
-    for i in 1:nmasters
-        for j in 1:nlbox[i]
-            c += 1
-            ib = lbox[c] #boxid
-            ndsort[nbox[ib] + npoints[ib]] = i
-            nbox[ib] += 1
-        end
+    for i in 1:length(contact.slavenodes)
+        ib = lbox[i] #boxid
+        ndsort[nbox[ib] + npoints[ib]] = i
+        nbox[ib] += 1
     end
 
     contact.nbuckets = nbuckets
@@ -161,7 +146,6 @@ function update_contact!(contact::FeSurface{2,T}, x) where {T}
     end
 
     #ib = 1
-    #@show nbox[ib]
     #@show ndsort[ (0:nbox[ib]) .+ npoints[ib]]
     #masterids in bucket ib
     #master_ids = ndsort[ (0:nbox[ib]) .+ npoint[ib] ]
@@ -182,9 +166,14 @@ function update_contact!(contact::FeSurface{2,T}, x) where {T}
                 ib = (iy-1)*nbucketsx + ix
 
                 pointer = npoints[ib]
+                nbox[ib] == 0 ? continue : nothing #nothing to contact with
+
                 for j in 1:nbox[ib]
-                    entity_id = ndsort[pointer + j-1]
-                    push!(contact.possible_contacts, (i, entity_id))
+                    node_id = ndsort[pointer + j-1]
+                    #if i in node_segements[node_id]
+                    #    continue
+                    #end
+                    push!(contact.possible_contacts, (i, node_id))
                 end
 
             end
@@ -209,7 +198,6 @@ function search1!(contact::FeSurface, x)
         node = contact.nodes[contact_pair[2]]
 
         @timeit "local search" iscontact, co = search_contact(node, segment, x)#, contact.xi_cache[i])
-        
         if iscontact == true
             ncontacts += 1
             push!(contacts, co)
