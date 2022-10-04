@@ -6,7 +6,8 @@ include("generate.jl")
 GENERATEDEXAMPLES = [joinpath("examples", f) for f in (
     "bar_example.md",
     "beam_example.md",
-    "enf_example.md"
+    "enf_example.md",
+    "phasefield.md"
     )]
 
 makedocs(
@@ -27,7 +28,7 @@ makedocs(
             "solvers/local_dissipation_solver.md",
             ],
         "Outputs" => ["outputs/DofValueOutput.md"],
-        "Examples" => GENERATEDEXAMPLES,
+        "Code gallery" => GENERATEDEXAMPLES,
     ]
 )
 

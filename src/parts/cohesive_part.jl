@@ -63,3 +63,26 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T,
     return node_disp
 end
 
+
+function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
+
+    celldofs = part.cache.celldofs
+
+    for cellid in part.cellset
+        cell = dh.grid.cells[cellid]
+        
+        celldofs!(celldofs, dh, cellid)
+        ue = state.d[celldofs]
+        counter = 1
+        for i in 1:(Ferrite.nnodes(cell) ÷ 2) # Mid surface
+            nodeid = cell.nodes[i]
+            local_id = part.vtkexport.nodeid_mapper[nodeid]
+            for d in 1:nvars
+                data[d, local_id] = ue[counter + offset]
+                counter += 1
+            end
+        end
+    end
+    
+end
+

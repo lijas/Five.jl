@@ -94,11 +94,11 @@ end
 
 function init_part!(part::Part, dh::Ferrite.AbstractDofHandler)
     celltype = typeof(dh.grid.cells[first(part.cellset)])
+    vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
     
     next_node_id = 1
     for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
         cell = dh.grid.cells[cellid]
-        vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
 
         new_ids = Int[]
         for nodeid in cell.nodes
@@ -145,13 +145,14 @@ function assemble_fstar!(dh::Ferrite.AbstractDofHandler,
 
 end
 
-function assemble_dissipation!(dh::Ferrite.AbstractDofHandler, 
-    part::Part,
-    state::StateVariables)
+function assemble_dissipation!(
+    dh    ::Ferrite.AbstractDofHandler, 
+    part  ::Part,
+    state ::StateVariables)
 
-    #if !(part.material |> is_dissipative)
-        #return 
-    #end
+    if !(is_dissipative(part.material) || is_dissipative(part.element))
+        return 
+    end
 
     _assemble_part!(dh, part, state, DISSI)
 
@@ -304,7 +305,6 @@ end
 function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
 
     celldofs = part.cache.celldofs
-
     for cellid in part.cellset
         cell = dh.grid.cells[cellid]
         

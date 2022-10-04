@@ -175,7 +175,7 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; f
     for (partid, part) in enumerate(parts)
         #Vtk grid
         @timeit "grid" cells, coords = get_vtk_grid(dh, part)
-        if length(cells) == 0
+        if cells===nothing || length(cells) == 0
             continue
         end
         coords = reshape(reinterpret(T, coords), (dim, length(coords)))

@@ -15,19 +15,18 @@ function BarElement{dim}(; area::Float64) where {dim}
     return BarElement{dim}(area, [Field(:u, Lagrange{1,RefCube,1}(), dim)])
 end
 
+initial_element_state(::BarElement)  = EmptyElementState()
+
 #getquadraturerule(e::SolidElement) = QuadratureRule{1,RefCube}(1)
 Ferrite.getnquadpoints(::BarElement) = 1
 Ferrite.ndofs(::BarElement{dim}) where {dim} = dim*2
-Ferrite.getcelltype(::BarElement{dim}) where dim = Cell{dim,2, dim==3 ? 0 : 1}()
+Ferrite.getcelltype(::BarElement{2}) = Cell{2,2,1}
+Ferrite.getcelltype(::BarElement{3}) = Cell{3,2,0}
 has_constant_massmatrix(::BarElement) = true
 get_fields(e::BarElement) = return e.fields
 
-function integrate_massmatrix!(element::BarElement{dim}, elstate::AbstractElementState, material::AbstractMaterial, X::Vector{Vec{dim,T}}, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim,T}
-    error("Not implemented")
-end
-
 function integrate_forcevector_and_stiffnessmatrix!(element::BarElement{dim}, 
-                            elementstate::EmptyElementState, 
+                            elementstate::Vector{<:AbstractElementState}, 
                             material::AbstractMaterial, 
                             materialstate::AbstractVector{<:AbstractMaterialState},
                             stresses::Vector{<:SymmetricTensor{2,3,T}},

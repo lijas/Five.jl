@@ -15,6 +15,8 @@ struct CohesiveElement{dim_s,CV} <: AbstractElement
     cv::CV
 end
 
+initial_element_state(::CohesiveElement) = EmptyElementState()
+
 getquadraturerule(e::CohesiveElement) = e.cv.qr
 Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
@@ -42,7 +44,7 @@ end
 
 function integrate_forcevector_and_stiffnessmatrix!(
         element::CohesiveElement{dim_s,CV}, 
-        elementstate::AbstractElementState, 
+        elementstate::Vector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractArray{<:AbstractMaterialState}, 
         stresses::Vector{<:SymmetricTensor{2,3,T}},
@@ -150,7 +152,7 @@ function integrate_fstar!(element::CohesiveElement{dim_s,CV},
 end
 
 function integrate_dissipation!(element::CohesiveElement{dim_s,CV}, 
-    elementstate::AbstractElementState, 
+    elementstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     materialstate::AbstractArray{<:AbstractMaterialState}, 
     fe::Vector{T}, 

@@ -22,6 +22,7 @@ struct PhaseFieldElementState <: AbstractElementState
 end
 
 initial_element_state(::PhaseFieldElement) = PhaseFieldElementState(0.0)
+is_dissipative(::PhaseFieldElement) = true
 
 elementstate_type(::Type{<:PhaseFieldElement}) = PhaseFieldElementState
 

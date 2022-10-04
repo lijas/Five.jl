@@ -24,3 +24,11 @@ module EnfExample
         end
     end
 end
+
+module PhaseFieldExample
+    mktempdir() do dir
+        cd(dir) do
+            include(joinpath(@__DIR__, "../docs/src/literate/phasefield.jl"))
+        end
+    end
+end

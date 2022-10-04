@@ -1,12 +1,11 @@
 # # ENF example
 
 using Five
-using Ferrite
 
 include("enf_grid_generator.jl")
 
 #Crack length
-a0 = 16.9
+a0 = 30.9
 
 #Celltype
 CohesiveCellType = CohesiveCell{2,4,2} 
@@ -154,12 +153,12 @@ state, globaldata = build_problem(data)
 
 solver = LocalDissipationSolver(
     Δλ0          = 5.0,
-    Δλ_max       = 10.0,
+    Δλ_max       = 40.0,
     Δλ_min       = 1e-7,
     ΔL0          = 2.5,
     ΔL_min       = 1e-2,
-    ΔL_max       = 5.0,
-    sw2d         = 0.2,
+    ΔL_max       = 10.0,
+    sw2d         = 0.5,
     sw2i         = 1e-7,
     optitr       = 8,
     maxitr       = 13,
@@ -167,7 +166,7 @@ solver = LocalDissipationSolver(
     maxsteps     = 100,
     λ_max        = 1200.0,
     λ_min        = -100.0,
-    tol          = 1e-5,
+    tol          = 1e-8,
     max_residual = 1e5
 )
 

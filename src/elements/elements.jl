@@ -11,6 +11,14 @@ EmptyElementState(::AbstractElement) = EmptyElementState()
 elementstate_type(::Type{T}) where {T<:AbstractElement} = EmptyElementState
 
 """
+    is_dissipative(::AbstractElement)
+
+Returns true if the element has a dissipation meassure.
+Fallback value is false for elements not implementing this function.
+"""
+is_dissipative(::AbstractElement) = false
+
+"""
     getnquadpoints(::AbstractElement)
 
 Returns the number of quadrature points in the element
