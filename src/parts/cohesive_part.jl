@@ -1,7 +1,7 @@
 
 #Cohesive part, just override some plotting stuff
 function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDofHandler) where {dim,T}
-    celltype = typeof(dh.grid.cells[first(part.cellset)])
+   #= celltype = typeof(dh.grid.cells[first(part.cellset)])
     vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
 
     next_node_id = 1
@@ -24,7 +24,7 @@ function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDof
         push!(part.vtkexport.vtkcells, MeshCell(vtk_celltype, new_ids))
     end
 #asdf
-    resize!(part.cache.coords, Ferrite.nnodes(celltype))
+    resize!(part.cache.coords, Ferrite.nnodes(celltype))=#
 end
 
 function get_vtk_celldata(part::Part{dim,T,<:CohesiveElement}, output::VTKCellOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
@@ -86,3 +86,5 @@ function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Par
     
 end
 
+function collect_nodedata!(data::Vector{FT}, part::Part{dim,T,<:CohesiveElement}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT,T} 
+end

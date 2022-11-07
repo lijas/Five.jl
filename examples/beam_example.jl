@@ -52,7 +52,7 @@ push!(data.parts, part)
 
 data.output[] = Output(
     interval = 0.1,
-    runname = "Beamexample",
+    runname = "Beamexample22",
     savepath = "."
 )
 

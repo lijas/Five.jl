@@ -29,13 +29,20 @@
     #Traction force bottom
     fc = Five.FollowerConstraint(
         field = :u,
-        faces = getfaceset(globaldata.grid, "top"),
-        mastervertex = getvertexset(globaldata.grid, "topright") |> first,
+        faces = getfaceset(data.grid, "top"),
+        mastervertex = getvertexset(data.grid, "topright") |> first,
         component = 1
     )
     push!(data.dirichlet, fc)
+    
+    data.output[] = Output(
+        interval = -1.0,
+        runname = "--",
+        savepath = "."
+        )
+        
     state, globaldata = build_problem(data)
-
+    
     #What to test?
     @test 1==1
 end

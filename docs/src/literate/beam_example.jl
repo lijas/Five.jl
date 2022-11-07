@@ -82,7 +82,8 @@ data.outputdata["reactionforce"] = output
 
 vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
-        field = :σ
+        field = :σ,
+        datatype = SymmetricTensor{2,3,Float64,6}
     ),
     func = mean,
 )

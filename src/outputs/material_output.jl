@@ -1,12 +1,12 @@
 export MaterialStateOutput
 
-struct MaterialStateOutput <: AbstractOutput
+struct MaterialStateOutput{DT} <: AbstractOutput
     field::Symbol
     func::Function
 end
 
-function MaterialStateOutput(; field::Symbol, func::Function = mean)
-    return MaterialStateOutput(field, func)
+function MaterialStateOutput(; field::Symbol, func::Function = mean, datatype::Type)
+    return MaterialStateOutput{datatype}(field, func)
 end
 
 function build_outputdata(output::MaterialStateOutput, set::Set, dh)
@@ -18,6 +18,7 @@ function build_outputdata(output::MaterialStateOutput, set::Set, dh)
 end
 
 outputname(o::MaterialStateOutput) = string(o.field)
+getdatatype(o::MaterialStateOutput{DT}) where DT = DT
 
 function collect_output!(output::MaterialStateOutput, state::StateVariables, set::Set{Int}, globaldata)
 
@@ -37,12 +38,12 @@ function collect_output!(output::MaterialStateOutput, state::StateVariables, set
     return materialstates
 end
 
-struct StressOutput <: AbstractOutput
+struct StressOutput{DT} <: AbstractOutput
     func::Function
 end
 
 function StressOutput(; func::Function = mean)
-    return StressOutput(func)
+    return StressOutput{SymmetricTensor{2,3,Float64,6}}(func)
 end
 
 function build_outputdata(output::StressOutput, set::Set, dh)
@@ -54,6 +55,7 @@ function build_outputdata(output::StressOutput, set::Set, dh)
 end
 
 outputname(o::StressOutput) = "σ"
+getdatatype(o::StressOutput{DT}) where DT = DT
 
 function collect_output!(output::StressOutput, state::StateVariables, set::Set{Int}, globaldata)
 

@@ -57,8 +57,13 @@ Ferrite.default_interpolation(::Type{CohesiveCell{2,4,2}}) = CohesiveZoneInterpo
 Ferrite.default_interpolation(::Type{CohesiveCell{2,6,2}}) = CohesiveZoneInterpolation(Lagrange{1,RefCube,2}())
 Ferrite.default_interpolation(::Type{CohesiveCell{3,8,2}}) = CohesiveZoneInterpolation(Lagrange{2,RefCube,1}())
 
-Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_LINE
-Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,8,2}}) = Ferrite.VTKCellTypes.VTK_QUAD
+Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_QUAD
+Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,8,2}}) = Ferrite.VTKCellTypes.VTK_HEXAHEDRON
+
+#Ferrite.nodes_to_vtkorder(cell::CohesiveCell{2,4,2}) = cell.nodes[[1,2,4,3]]
+
+#Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_LINE
+#Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,8,2}}) = Ferrite.VTKCellTypes.VTK_QUAD
 
 """
     SurfaceVectorValues

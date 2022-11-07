@@ -91,7 +91,8 @@ function build_simple_problem()
     
     vtkoutput = VTKNodeOutput(
         type = MaterialStateOutput(
-            field = :σ
+            field = :σ,
+            datatype = SymmetricTensor{2,3,Float64,6}
         ),
         func = mean,
     )
@@ -175,7 +176,10 @@ end
 
     #MaterialStateOutput
     output = OutputData(
-        type = Five.MaterialStateOutput(field=:εᵖ),
+        type = Five.MaterialStateOutput(
+            field=:εᵖ,
+            datatype = SymmetricTensor{2,3,Float64,6}
+            ),
         interval = 0.1,
         set = getcellset(globaldata.grid, "all")
     )

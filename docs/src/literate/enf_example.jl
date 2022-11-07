@@ -138,7 +138,8 @@ Five.push_vtkoutput!(data.output[], vtkoutput)
 
 vtkoutput = VTKCellOutput(
     type = MaterialStateOutput(
-        field = :d
+        field = :d,
+        datatype = Float64
     ),
     func = mean,
 )
@@ -163,7 +164,7 @@ solver = LocalDissipationSolver(
     optitr       = 8,
     maxitr       = 13,
     maxitr_first_step = 50,
-    maxsteps     = 100,
+    maxsteps     = 10,
     λ_max        = 1200.0,
     λ_min        = -100.0,
     tol          = 1e-8,

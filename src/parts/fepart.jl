@@ -249,6 +249,7 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state:
 end
 
 function get_vtk_grid(dh::Ferrite.AbstractDofHandler, part::Part)
+    asdfasdf
     return part.vtkexport.vtkcells, part.vtkexport.vtknodes
 end
 
@@ -322,120 +323,90 @@ function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Par
     
 end
 
+function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput{FT}, state::StateVariables{T}, globaldata) where {dim,FT,T}
 
-function get_vtk_celldata(part::Part{dim}, output::VTKCellOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
-    
-    npartcells = length(part.cellset)
-    M = 9 #Always symmetric 3d stress tensor
-    data = Matrix{T}(undef, M, npartcells)
-    
-    for (ic, cellid) in enumerate(part.cellset)
-        stresses = state.partstates[cellid].stresses
-        data[:, ic] .= stresses |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
-    end
-
-    return data
-end
-
-function get_vtk_celldata(part::Part, output::VTKCellOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T
-
+    #Check if field exist in materialstate
     _cellid = first(part.cellset)
     first_state = first(state.partstates[_cellid].materialstates)
-    if !hasproperty(first_state, output.type.field) 
-        return nothing
-    end
-    
-    StateType = typeof(first_state)
-    npartcells = length(part.cellset)
-    ncomp = length(getproperty(first_state, output.type.field))
-    data = Matrix{T}(undef, ncomp, npartcells)
-    
-    for (ic, cellid) in enumerate(part.cellset)
-        matstates = state.partstates[cellid].materialstates
-        data[:, ic] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
+    if !hasproperty(first_state, output.field) 
+        return
     end
 
-    return data
-end
-
-function get_vtk_nodedata(part::Part{dim}, output::VTKNodeOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
-   
-    #Extract stresses to interpolate
-    data = Vector{SymmetricTensor{2,3,T,6}}[]
-    for (ic, cellid) in enumerate(part.cellset)
-        stresses = state.partstates[cellid].stresses
-        push!(data, stresses)
-    end
-
-    _get_vtk_nodedata(part, data, globaldata)
-end
-
-function get_vtk_nodedata(part::Part{dim}, output::VTKNodeOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where {dim,T}
-
-    #TODO: Move this check before simulatoin?
-    _cellid = first(part.cellset)
-    first_state = first(state.partstates[_cellid].materialstates)
-    if !hasproperty(first_state, output.type.field) 
-        return nothing
-    end
-    first_field = getproperty(first_state, output.type.field)
-    FieldDataType = typeof(first_field)
-  
     #Extract field to interpolate
-    data = Vector{FieldDataType}[]
+    qpdata = Vector{FT}[] #TODO: allocate
     for (ic, cellid) in enumerate(part.cellset)
         matstates = state.partstates[cellid].materialstates
-        field_states = getproperty.(matstates, output.type.field)
-        push!(data, field_states)
+        field_states = getproperty.(matstates, output.field)
+        push!(qpdata, field_states)
     end
 
-    _get_vtk_nodedata(part, data, globaldata)
+    _collect_nodedata!(data, part, qpdata, globaldata)
 end
 
-function _get_vtk_nodedata(part::Part{dim}, data::Vector{Vector{FieldDataType}}, globaldata) where {dim,FieldDataType}
+function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}
+
+    #Extract stresses to interpolate
+    qpdata = Vector{SymmetricTensor{2,3,T,6}}[]
+    for (ic, cellid) in enumerate(part.cellset)
+        stresses = state.partstates[cellid].stresses
+        push!(qpdata, stresses)
+    end
+
+    _collect_nodedata!(data, part, qpdata, globaldata)
+end
+
+function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vector{FT}}, globaldata) where {dim,T,FT}
     
+    (; grid, ) = globaldata
     #Set up quadrature rule
     celltype = getcelltype(part.element)
     geom_ip = Ferrite.default_interpolation(celltype)
     qr = getquadraturerule(part.element)
-    #refshape = Ferrite.getrefshape(geom_ip)
-    #nqp = length(first(data))
-    #qp_order = convert(Int, nqp^(1/dim))
-    #qr = QuadratureRule{dim, refshape}(qp_order) #Does not work for shells?
 
-    #Project
-    #= Projection for cohseive zone elements
-        L2Projector assumes CellScalarValues, But Should the depracted methods works with coustum SurfaceVectorValues...
-    if typeof(geom_ip) <: CohesiveZoneInterpolation
-        fe_values = part.element.cv
-        projector = Ferrite.L2Projector(fe_values, geom_ip, globaldata.grid, part.cellset)
-        n = getnbasefunctions(fe_values)
-        @show n
-        #@show ndofs_per_cell(globaldata.dh, first(part.cellset))
-        data_nodes = project(projector, data; project_to_nodes=true); # TODO: this should be default.
-    end=#
-
-    projector = Ferrite.L2Projector(geom_ip, globaldata.grid; set = part.cellset)
-    data_nodes = project(projector, data, qr; project_to_nodes=true); # TODO: this should be default.
+    projector = Ferrite.L2Projector(geom_ip, grid; set = part.cellset)
+    projecteddata = project(projector, qpdata, qr; project_to_nodes=true); 
 
     #Reorder to the parts vtk
-    nvtknodes = length(part.vtkexport.nodeid_mapper)
-    vtk_node_data = zeros(FieldDataType, nvtknodes)# Matrix{T}(undef, ncomp, nvtknodes)
-    for (ic,cellid) in enumerate(part.cellset)
+    for (ic, cellid) in enumerate(part.cellset)
         for nodeid in globaldata.grid.cells[cellid].nodes
-            vtknodeid = part.vtkexport.nodeid_mapper[nodeid]
-            vtk_node_data[vtknodeid] = data_nodes[nodeid]
+            data[nodeid] = projecteddata[nodeid]
         end
     end
-
-    return vtk_node_data
 end
 
-function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) where {dim_p,dim_s,T}
+function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}
+
+    #Check if field exist in materialstate
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
+    if !hasproperty(first_state, output.field) 
+        return
+    end
+
+    #Collect material state
+    for (ic, cellid) in enumerate(part.cellset)
+        materialstates = state.partstates[cellid].materialstates
+        statevalues = getproperty.(materialstates, output.field)
+        data[cellid] = output.func(statevalues)
+    end
+end
+
+function collect_celldata!(data::Matrix{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT, T}
+    #Collect material state
+    for (ic, cellid) in enumerate(part.cellset)
+        stresses = state.partstates[cellid].stresses
+        data[cellid] = output.func(stresses)
+    end
+end
+
+
+function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
+    asdf
     return nothing, nothing
 end
 
-function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) where {dim_p,dim_s,T}
+function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
+    asdf
     return nothing, nothing
 end
 
