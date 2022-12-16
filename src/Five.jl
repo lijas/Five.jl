@@ -29,6 +29,9 @@ using JLD2
 
 LOG = Logging.global_logger()
 
+#function _getT() end
+#function _getdim() end
+
 abstract type AbstractPart{dim} end
 abstract type AbstractPartState end
 

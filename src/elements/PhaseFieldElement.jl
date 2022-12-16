@@ -4,7 +4,7 @@ PhaseFieldElement{dim,order,shape,T,CV<:Ferrite.Values}
 
 """
 
-struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Values} <: AbstractElement
+struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Values} <: AbstractElement{dim}
     thickness::T #used in 2d
     Gc::T
     lc::T

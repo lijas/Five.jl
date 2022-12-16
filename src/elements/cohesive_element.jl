@@ -7,7 +7,7 @@ Any order, any shape, any dim,
 
 """
 
-struct CohesiveElement{dim_s,CV} <: AbstractElement
+struct CohesiveElement{dim_s,CV} <: AbstractElement{dim_s}
     thickness2d::Float64
 
     field::Field

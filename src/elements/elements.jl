@@ -1,7 +1,7 @@
 """
 
 """
-abstract type AbstractElement end
+abstract type AbstractElement{dim} end
 abstract type AbstractElementState end   
 
 #Many elementstates will be empty, so create default empty one

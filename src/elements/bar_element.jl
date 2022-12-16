@@ -5,7 +5,7 @@ Any dim
 
 """
 
-struct BarElement{dim} <: AbstractElement
+struct BarElement{dim} <: AbstractElement{dim}
     area::Float64
     fields::Vector{Field}
 end

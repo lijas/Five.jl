@@ -9,7 +9,7 @@ struct SolidElement{
         T          <: AbstractFloat,
         CV         <: Ferrite.Values,
         DIM       <: MaterialModels.AbstractDim
-    } <: AbstractElement
+    } <: AbstractElement{dim}
 
     thickness::T #used in 2d
 
