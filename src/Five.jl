@@ -32,6 +32,8 @@ LOG = Logging.global_logger()
 #function _getT() end
 #function _getdim() end
 
+const Optional{T} = Union{T,Nothing}
+
 abstract type AbstractPart{dim} end
 abstract type AbstractPartState end
 

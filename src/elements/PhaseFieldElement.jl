@@ -4,17 +4,13 @@ PhaseFieldElement{dim,order,shape,T,CV<:Ferrite.Values}
 
 """
 
-struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Values} <: AbstractElement{dim}
+struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Values, DIM <: MaterialModels.AbstractDim} <: AbstractElement{dim}
     thickness::T #used in 2d
-    Gc::T
-    lc::T
-    μ::T
-    λ::T
 
     celltype::Type{<:Cell}
     cv_u::CV1
     cv_d::CV2
-    g::Function
+    dimstate::DIM
 end
 
 struct PhaseFieldElementState <: AbstractElementState
@@ -37,12 +33,9 @@ get_fields(::PhaseFieldElement{dim,order,shape,T}) where {dim,order,shape,T} = r
 
 function PhaseFieldElement{dim,order,refshape,T}(;
     thickness = 1.0,     
-    Gc::T,
-    lc::T,
-    μ::T,
-    λ::T,
     qr_order::Int=2, 
-    celltype::Type{<:Cell}) where {dim, order, refshape, T}
+    celltype::Type{<:Cell},
+    dimstate::Optional{MaterialModels.AbstractDim} = nothing) where {dim, order, refshape, T}
     
     qr = QuadratureRule{dim, refshape}(qr_order)
     
@@ -52,10 +45,15 @@ function PhaseFieldElement{dim,order,refshape,T}(;
     cv_u = CellVectorValues(qr, ip, geom_ip)
     cv_d = CellScalarValues(qr, ip, geom_ip)
 
-    δ(i,j) = i == j ? 1.0 : 0.0
-    g(i,j,k,l) = λ*δ(i,j)*δ(k,l) + μ*(δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))
+    if dimstate === nothing
+        if dim == 3
+            dimstate = MaterialModels.Dim{3}()
+        else
+            error("No dimstate given.")
+        end
+    end
 
-    return PhaseFieldElement{dim,order,refshape,T,typeof(cv_u),typeof(cv_d)}(thickness, Gc, lc, μ, λ, celltype, cv_u, cv_d, g)
+    return PhaseFieldElement{dim,order,refshape,T,typeof(cv_u),typeof(cv_d),typeof(dimstate)}(thickness, celltype, cv_u, cv_d, dimstate)
 end
 
 function _integrate_forcevector!(element::PhaseFieldElement{dim, order, shape, T2}, 
@@ -209,10 +207,8 @@ function integrate_forcevector_and_stiffnessmatrix!(
     I1 = SymmetricTensor{4,dim}((i,j,k,l)->δ(i,j)*δ(k,l))
     I2 = SymmetricTensor{4,dim}((i,j,k,l)->δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))
 
-    λ = element.λ
-    μ = element.μ
-    lc = element.lc
-    Gc = element.Gc
+    lc = material.lc
+    Gc = material.Gc
 
     for qp in 1:getnquadpoints(cv_u)
         
@@ -225,16 +221,9 @@ function integrate_forcevector_and_stiffnessmatrix!(
 
 
         #σ, dσdε, σ⁺, Ψ⁺ = phasefield_response(ε, d, Gc, λ, μ)
-        σ, dσdε, σ⁺, Ψ⁺ = phasefield_response_AD(ε, d, Gc, λ, μ)
-        #σ, dσdεe, _ = material_response(PlaneStrain(), material, ε, initial_material_state(material))
-
-        
-        if iszero(ε)
-            σ, dσdε, _ = material_response(PlaneStrain(), material, ε, initial_material_state(material))
-            ∂H∂ε = zero(σ)
-            σ⁺ = zero(σ)
-            H = 0.0
-        end
+        #σ, dσdε, state = material_response(element.dimstate, material, ε, d, materialstate[qp])
+        σ, dσdε, state = my_material_response(material, ε, d, materialstate[qp])
+        materialstate[qp] = state
 
         #println("elastic")
         #display("text/plain", tovoigt(dσdεe))
@@ -244,13 +233,20 @@ function integrate_forcevector_and_stiffnessmatrix!(
         #display("text/plain", tovoigt(dσdε))
         #@show Ψ⁺ > elementstate.H[qp]
         
-        if Ψ⁺ > elementstate[qp].H
+        if state.Ψ⁺ > elementstate[qp].H
+            σ⁺ = state.σ⁺
             ∂H∂ε = σ⁺
-            H = Ψ⁺
+            H = state.Ψ⁺
             elementstate[qp] = PhaseFieldElementState(H)
         else
-            ∂H∂ε = zero(σ⁺)
+            σ⁺ =  zero(state.σ⁺)
+            ∂H∂ε = zero(state.σ⁺)
             H = elementstate[qp].H
+        end
+
+        if dim == 2
+            ∂H∂ε = MaterialModels.reduce_dim(∂H∂ε, element.dimstate)
+            σ⁺   = MaterialModels.reduce_dim(σ⁺  , element.dimstate)
         end
 
         for i in 1:ndofs_u
@@ -320,8 +316,8 @@ function integrate_dissipation!(
     de = a[(1:ndofs_d) .+ ndofs_u]
     Δde = Δa[(1:ndofs_d) .+ ndofs_u]
 
-    lc = element.lc
-    Gc = element.Gc
+    lc = material.lc
+    Gc = material.Gc
 
     for qp in 1:getnquadpoints(cv_u)
         
@@ -344,10 +340,10 @@ function integrate_dissipation!(
     end
 end
 
-mac₊(x::T) where T = x < 0.0 ? 0.0 : x #0.5(x + abs(x))
-mac₋(x::T) where T = x > 0.0 ? 0.0 : x #0.5(x - abs(x))
-heaviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
-
+#mac₊(x::T) where T = x < 0.0 ? 0.0 : x #0.5(x + abs(x))
+#mac₋(x::T) where T = x > 0.0 ? 0.0 : x #0.5(x - abs(x))
+#heaviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
+#=
 function phasefield_response_AD(ε::SymmetricTensor{2,dim}, φ, Gc, λ, μ) where {dim}
     ε_dual = Tensors._load(ε, nothing)
     _σ, _σ⁺, _ψ⁺ = _phasefield_response(ε_dual, φ, Gc, λ, μ)
@@ -375,7 +371,7 @@ function _phasefield_response(ε::SymmetricTensor{2,dim,T}, φ, Gc, λ, μ) wher
     ε⁺ = zero(SymmetricTensor{2,dim,T})
     ε⁻ = zero(SymmetricTensor{2,dim,T})
     
-    for i in 1:2 
+    for i in 1:dim
         ε⁺ += mac₊(p[i]) * symmetric((n[:,i] ⊗ n[:,i]))
         ε⁻ += mac₋(p[i]) * symmetric((n[:,i] ⊗ n[:,i]))
     end
@@ -459,3 +455,4 @@ function positive_proj(ε::SymmetricTensor{2,dim}) where dim
 
     return I⁺
 end
+=#

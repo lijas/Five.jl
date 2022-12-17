@@ -24,6 +24,7 @@ include("mattransverseisotropic2.jl")
 include("cohesive/matczbilinear.jl")
 #include("cohesive/matczbilinear_singlemode.jl")
 include("cohesive/matczexponential.jl")
+include("phasefield_material.jl")
 #include("cohesive/mat_temp.jl")
 #include("cohesive/matczbilinear2.jl")
 
