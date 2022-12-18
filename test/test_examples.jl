@@ -32,3 +32,11 @@ module PhaseFieldExample
         end
     end
 end
+
+module PhaseFieldExample2
+    mktempdir() do dir
+        cd(dir) do
+            include(joinpath(@__DIR__, "../docs/src/literate/phase_shear.jl"))
+        end
+    end
+end

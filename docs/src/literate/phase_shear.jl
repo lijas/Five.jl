@@ -13,9 +13,6 @@ data = ProblemData(
 #grid
 include("phase_grid.jl")
 
-h1 = Vec((0.02, 0.02))
-h2 = Vec((0.02, 0.1))
-
 data.grid = read_grid(joinpath(@__DIR__, "shear.mphtxt"))
 data.grid.nodes .= [Node(Vec{2,Float64}(((node.x[1] + 0.0005)*1000, (node.x[2] + 0.0005)*1000))) for node in data.grid.nodes]
 addvertexset!(data.grid, "topright", x -> x[2] ≈ L && x[1] ≈ L)
@@ -29,7 +26,7 @@ material = Five.PhaseFieldSpectralSplit(
     E = E,
     ν = nu,    
     Gc = 2.7,
-    lc = 0.015, # 0.003731
+    lc = 0.015, # ellength = 0.007323999999999997
 )
 
 #
@@ -100,7 +97,7 @@ force = PointForce(
     field = :u,
     comps = [1],
     set = getvertexset(data.grid, "top"),
-    func = (X,t) -> [1.0*t]
+    func = (X,t) -> [1.0]
 )
 push!(data.external_forces, force)
 
@@ -124,12 +121,6 @@ data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
-solver = NewtonSolver(
-    Δt0 = 0.001,
-    Δt_max = 1.0,
-    tol          = 1e-6,
-)
-
 
 solver = LocalDissipationSolver(
     Δλ0          = 1e-5,
@@ -146,11 +137,11 @@ solver = LocalDissipationSolver(
     optitr       = 7,
     maxitr       = 12,
     maxitr_first_step = 50,
-    maxsteps     = 500,
+    maxsteps     = 2,
     λ_max        = 1e10,
     #λ_max        = 100.0,
     λ_min        = -1e-10,
-    tol          = 1e-5,
+    tol          = 1e-6,
     max_residual = 1e10,
     #finish_criterion = Five.finish_criterion1
 )
@@ -158,8 +149,8 @@ solver = LocalDissipationSolver(
 
 output = solvethis(solver, state, globaldata)
 
-d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
-f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
+#d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
+#f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
 
 #fig = plot(xlabel = "Displacement", ylabel = "Force", legend = false)
 #plot!(fig, d, f, mark = :o)
