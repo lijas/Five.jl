@@ -1,6 +1,6 @@
-function read_grid()
+function read_grid(filepath)
 
-    filepath = joinpath(@__DIR__, "paperb_phase_mesh.mphtxt")
+    #filepath = joinpath(@__DIR__, "paperb_phase_mesh.mphtxt")
     file = open(filepath, "r")
 
     nodes = Node{2,Float64}[]

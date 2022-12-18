@@ -15,33 +15,31 @@ data = ProblemData(
 )
 
 #grid
-include(joinpath(@__DIR__, "phase_grid.jl"))
+include("phase_grid.jl")
 
 h1 = Vec((0.02, 0.02))
 h2 = Vec((0.02, 0.1))
 
-data.grid = read_grid()#generate_grid(Quadrilateral, (NELX,NELY), Vec((0.0,0.0)),Vec((L,L)))
+data.grid = read_grid(joinpath(@__DIR__, "paperb_phase_mesh.mphtxt"))#generate_grid(Quadrilateral, (NELX,NELY), Vec((0.0,0.0)),Vec((L,L)))
 #addvertexset!(data.grid, "leftbottom", x -> x[2] ≈ 0.0 && x[1] ≈ 0.0)
 #addvertexset!(data.grid, "top", x -> x[2] ≈ 1.0)
 addfaceset!(data.grid, "bottomhole", x ->  norm(x-h1) <= .010)
 addfaceset!(data.grid, "tophole", x ->  norm(x-h2) <= .010)
 addvertexset!(data.grid, "tophole", x ->  norm(x-h2) <= .010)
 
-material = 
-LinearElastic(
+material = Five.PhaseFieldSpectralSplit(
     E = E,
-    ν = nu,
+    ν = nu,    
+    Gc = 2280.0,
+    lc = 0.25e-3*2,
 )
 
 #
 element = PhaseFieldElement{2,1,RefCube,Float64}(
     thickness = 0.001,     
-    Gc = 2280.0,
-    lc = 0.25e-3*2, # 0.003731
-    μ = E / (2(1+nu)),
-    λ = (E*nu) / ((1+nu) * (1 - 2nu)),
     qr_order = 2, 
-    celltype = Quadrilateral
+    celltype = Quadrilateral,
+    dimstate = MaterialModels.PlaneStrain()
 )
 
 #=element = Five.LinearSolidElement{2,1,RefCube,Float64}(
@@ -52,10 +50,10 @@ element = PhaseFieldElement{2,1,RefCube,Float64}(
 )=#
 
 #
-part = Part{2,Float64}(
+part = Part{Float64}(
     element = element,
     material = material,
-    cellset  = 1:getncells(data.grid) |> collect
+    cellset  = 1:getncells(data.grid)
 )
 push!(data.parts, part)
 
@@ -134,7 +132,7 @@ solver = LocalDissipationSolver(
     optitr       = 7,
     maxitr       = 12,
     maxitr_first_step = 50,
-    maxsteps     = 2,
+    maxsteps     = 100,
     λ_max        = 100.108,
     #λ_max        = 100.0,
     λ_min        = -2000.0,

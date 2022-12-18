@@ -1,13 +1,9 @@
 using Five
 
-
-#NELX = 51
-#NELY = 51
-
-b = 0.001
-E = 6e11
-nu = 0.22
-#elsize = L/NELY
+L = 1.0
+a0 = L/2
+E = 210.0e3
+nu = 0.3
 
 data = ProblemData(
     dim = 2,
@@ -17,25 +13,24 @@ data = ProblemData(
 #grid
 include("phase_grid.jl")
 
-h1 = Vec((0.02, 0.02))
-h2 = Vec((0.02, 0.1))
-
-data.grid = read_grid(joinpath(@__DIR__, "paperb_phase_mesh.mphtxt"))#generate_grid(Quadrilateral, (NELX,NELY), Vec((0.0,0.0)),Vec((L,L)))
-#addvertexset!(data.grid, "leftbottom", x -> x[2] ≈ 0.0 && x[1] ≈ 0.0)
-#addvertexset!(data.grid, "top", x -> x[2] ≈ 1.0)
-addfaceset!(data.grid, "bottomhole", x ->  norm(x-h1) <= .010)
-addfaceset!(data.grid, "tophole", x ->  norm(x-h2) <= .010)
-addvertexset!(data.grid, "tophole", x ->  norm(x-h2) <= .010)
+data.grid = read_grid(joinpath(@__DIR__, "shear.mphtxt"))
+data.grid.nodes .= [Node(Vec{2,Float64}(((node.x[1] + 0.0005)*1000, (node.x[2] + 0.0005)*1000))) for node in data.grid.nodes]
+addvertexset!(data.grid, "topright", x -> x[2] ≈ L && x[1] ≈ L)
+addvertexset!(data.grid, "top", x -> x[2] ≈ L)
+addfaceset!(data.grid, "top", x -> x[2] ≈ L)
+addfaceset!(data.grid, "bottom", x ->  x[2] ≈ 0.0)
+addfaceset!(data.grid, "right", x -> x[1] ≈ L)
+addfaceset!(data.grid, "left", x -> x[1] ≈ 0.0)
 
 material = Five.PhaseFieldSpectralSplit(
     E = E,
     ν = nu,
-    Gc = 2280.0,
-    lc = 0.25e-3*2,
+    Gc = 2.7,
+    lc = 0.015, # ellength = 0.007323999999999997
 )
 
 element = PhaseFieldElement{2,1,RefCube,Float64}(
-    thickness = 0.001,
+    thickness = 1.0,
     qr_order = 2,
     celltype = Quadrilateral,
     dimstate = MaterialModels.PlaneStrain()
@@ -63,84 +58,96 @@ push!(data.parts, part)
 
 dbc1 = Ferrite.Dirichlet(
     field = :u,
-    set = getfaceset(data.grid, "bottomhole"),
+    set = getfaceset(data.grid, "bottom"),
     func = (x,t)->[0.0, 0.0],
     dofs =  [1, 2]
 )
 push!(data.dirichlet, dbc1)
 
+
+fc = Five.FollowerConstraint(
+    field     = :u,
+    component = 2,
+    faces     = getfaceset(data.grid, "top"),
+    mastervertex = first(getvertexset(data.grid, "topright")),
+)
+push!(data.dirichlet, fc)
+
+
 dbc1 = Ferrite.Dirichlet(
     field = :u,
-    set = getfaceset(data.grid, "tophole"),
-    func = (x,t)->[t*1.0],
+    set = getfaceset(data.grid, "left"),
+    func = (x,t)->[0.0],
     dofs =  [2]
 )
-#push!(data.dirichlet, dbc1)
+push!(data.dirichlet, dbc1)
+
+dbc1 = Ferrite.Dirichlet(
+    field = :u,
+    set = getfaceset(data.grid, "right"),
+    func = (x,t)->[0.0],
+    dofs =  [2]
+)
+push!(data.dirichlet, dbc1)
 
 force = PointForce(
     field = :u,
-    comps = [2],
-    set = getvertexset(data.grid, "tophole"),
+    comps = [1],
+    set = getvertexset(data.grid, "top"),
     func = (X,t) -> [1.0]
 )
 push!(data.external_forces, force)
 
 data.output[] = Output(
     interval = -1.0,
-    runname = "phase_comsol",
+    runname = "phase_shear",
     savepath = "."
 )
 
 output = OutputData(
     type = DofValueOutput(
         field = :u,
-        dofs = [2]
+        dofs = [1]
     ),
     interval = -1.0,
-    set = getfaceset(data.grid, "tophole")
+    set = getfaceset(data.grid, "top")
 )
 data.outputdata["reactionforce"] = output
 
 state, globaldata = build_problem(data)
 
-solver = NewtonSolver(
-    Δt0 = 0.0000001,
-    Δt_max = 0.0001,
-    tol    = 1e-4,
-)
-
 
 solver = LocalDissipationSolver(
-    Δλ0          = 1e-7,
-    Δλ_max       = 10.0,
+    Δλ0          = 1e-5,
+    Δλ_max       = 1e10,
     Δλ_min       = 1e-10,
     #Δλ0          = 1.0,
     #Δλ_max       = 10.0,
     #Δλ_min       = 1e-11,
     ΔL0          = 2.5,
     ΔL_min       = 1e-9,
-    ΔL_max       = 10.0,
-    sw2d         = 1e-6,
+    ΔL_max       = 1e10,
+    sw2d         = 0.001,
     sw2i         = -Inf,
     optitr       = 7,
     maxitr       = 12,
     maxitr_first_step = 50,
-    maxsteps     = 100,
-    λ_max        = 100.108,
+    maxsteps     = 2,
+    λ_max        = 1e10,
     #λ_max        = 100.0,
-    λ_min        = -2000.0,
-    tol          = 1e-8,
-    max_residual = 1e8,
+    λ_min        = -1e-10,
+    tol          = 1e-6,
+    max_residual = 1e10,
     #finish_criterion = Five.finish_criterion1
 )
 
 
 output = solvethis(solver, state, globaldata)
 
-d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
-f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
+#d = [output.outputdata["reactionforce"].data[i].displacement for i in 1:length(output.outputdata["reactionforce"].data)]
+#f = [output.outputdata["reactionforce"].data[i].fint for i in 1:length(output.outputdata["reactionforce"].data)]
 
-#ig = plot(xlabel = "Displacement", ylabel = "Force", legend = false)
+#fig = plot(xlabel = "Displacement", ylabel = "Force", legend = false)
 #plot!(fig, d, f, mark = :o)
 #plot!(fig, d1, f1, label = "Elastic energy", mark = :o)
 
