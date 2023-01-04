@@ -48,7 +48,7 @@ Five.TransverseIsotropicEngineeringConstants(
 )
 
 #
-solidpart = Part{2,Float64}(
+solidpart = Part(
     element  = Five.SolidElement{2,1,RefCube,Float64}(
         thickness = b, 
         qr_order = 2,
@@ -61,7 +61,7 @@ solidpart = Part{2,Float64}(
 push!(data.parts, solidpart)
 
 #
-part = Part{2,Float64}(
+part = Part(
     element = CohesiveElement(
         order = 1,
         thickness = b,

@@ -32,7 +32,7 @@ material1 = LinearElastic(
     ν = 0.3
 )
 
-bar1 = Part{2,Float64}(
+bar1 = Part(
     material = material1,
     cellset = [1, 2],
     element = Five.BarElement{2}(
@@ -41,7 +41,7 @@ bar1 = Part{2,Float64}(
 )
 push!(data.parts, bar1)
 
-midbar = Part{2,Float64}(
+midbar = Part(
     material = material1,
     cellset = [3],
     element = Five.BarElement{2}(

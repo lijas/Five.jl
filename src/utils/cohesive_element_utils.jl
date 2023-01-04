@@ -39,6 +39,13 @@ end
 
 Ferrite._mass_qr(::CohesiveZoneInterpolation{2,1,Lagrange{1,RefCube,1}}) = QuadratureRule{1,RefCube}(1)
 
+function Ferrite.reference_coordinates(::CohesiveZoneInterpolation{2, 1, Lagrange{1, RefCube, 1}})
+    return [Vec{2,Float64}((-1.0, 0.0)),
+            Vec{2,Float64}((1.0, 0.0)),
+            Vec{2,Float64}((-1.0, 0.0)),
+            Vec{2,Float64}((1.0, 0.0))]
+end
+
 """
 
 """
@@ -61,7 +68,6 @@ Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_
 Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,8,2}}) = Ferrite.VTKCellTypes.VTK_HEXAHEDRON
 
 #Ferrite.nodes_to_vtkorder(cell::CohesiveCell{2,4,2}) = cell.nodes[[1,2,4,3]]
-
 #Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_LINE
 #Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,8,2}}) = Ferrite.VTKCellTypes.VTK_QUAD
 

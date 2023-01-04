@@ -16,7 +16,7 @@
         ν = 0.3,
     )
     
-    part = Part{3,Float64}(
+    part = Part(
         element  = Five.LinearSolidElement{3,1,RefCube,Float64}(
             qr_order = 2,
             celltype = Hexahedron,

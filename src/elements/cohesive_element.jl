@@ -198,9 +198,11 @@ function integrate_dissipation!(element::CohesiveElement{dim_s,CV},
 end
 
 function integrate_forcevector!(element::CohesiveElement{dim_s}, 
-    elementstate::AbstractElementState, 
+    elementstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     materialstate::AbstractArray{<:AbstractMaterialState}, 
+    stresses::Vector{<:SymmetricTensor{2,3,T}},
+    strains::Vector{<:SymmetricTensor{2,3,T}},    
     fe::Vector{T}, 
     cell, 
     Δue::Vector,
@@ -216,14 +218,12 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
 
     reinit!(cv, xe)
     
-    A = 0
     for qp in 1:getnquadpoints(cv)
         
         #Rotation matrix
         R = getR(cv,qp)
 
         dΓ = getdetJdA(cv, qp) * element.thickness2d
-        A += dΓ
         
         J = function_value(cv, qp, ue)
         Ĵ = R'⋅J
@@ -235,15 +235,13 @@ function integrate_forcevector!(element::CohesiveElement{dim_s},
         t = R ⋅ t̂
         for i in 1:ndofs
             δui = shape_value(cv, qp, i)
-
             fe[i] += (t ⋅ δui) * dΓ
         end
     end
 
-    return A
 end
 
-function integrate_massmatrix!(element::CohesiveElement, elementstate::AbstractElementState, material::AbstractMaterial, cell, me::AbstractMatrix, ue::AbstractVector, due::AbstractVector)
+function integrate_massmatrix!(element::CohesiveElement, elementstate::Vector{<:AbstractElementState}, material::AbstractMaterial, cell, me::AbstractMatrix, ue::AbstractVector, due::AbstractVector)
     
 end
 

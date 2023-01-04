@@ -1,6 +1,15 @@
 """
+Current Element types supported
+
+LinearSolidElement
+SolidElement
+BarElement
+PhaseFieldElement
+CohesiveElement
 
 """
+
+
 abstract type AbstractElement{dim} end
 abstract type AbstractElementState end   
 

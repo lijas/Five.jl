@@ -32,12 +32,13 @@ struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim
     vtkexport::PartVTKExport{dim,T}
 end
 
-function Part{T}(; 
+function Part(; 
     material::AbstractMaterial,
     element::AbstractElement{dim},
     cellset
-    ) where {dim,T}
+    ) where {dim}
 
+    T = Float64
     _set = collect(cellset)
     sort!(_set) # YOLO
     return Part{dim,T}(material, _set, element)

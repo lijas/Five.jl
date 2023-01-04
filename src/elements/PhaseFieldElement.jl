@@ -56,126 +56,6 @@ function PhaseFieldElement{dim,order,refshape,T}(;
     return PhaseFieldElement{dim,order,refshape,T,typeof(cv_u),typeof(cv_d),typeof(dimstate)}(thickness, celltype, cv_u, cv_d, dimstate)
 end
 
-function _integrate_forcevector!(element::PhaseFieldElement{dim, order, shape, T2}, 
-    elementstate::AbstractVector{PhaseFieldElementState}, 
-    a::Vector{T}, cv_u, cv_d) where {dim, order, shape, T, T2}
-
-    ndofs_u = getnbasefunctions(cv_u)
-    ndofs_d = getnbasefunctions(cv_d)
-    
-    fe = zeros(T, ndofs_u+ndofs_d)
-        
-    ue = a[1:ndofs_u]
-    de = a[(1:ndofs_d) .+ ndofs_u]
-
-    I = one(SymmetricTensor{2,dim})
-    δ(i,j) = i == j ? 1.0 : 0.0
-    I1 = SymmetricTensor{4,dim}((i,j,k,l)->δ(i,j)*δ(k,l))
-    I2 = SymmetricTensor{4,dim}((i,j,k,l)->δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))
-
-    λ = element.λ
-    μ = element.μ
-    lc = element.lc
-    Gc = element.Gc
-
-    for qp in 1:getnquadpoints(cv_u)
-        
-        ∇u = function_gradient(cv_u, qp, ue)
-        ∇d = function_gradient(cv_d, qp, de)
-        d = function_value(cv_d, qp, de)
-        
-        dΩ = getdetJdV(cv_u, qp) * element.thickness
-    
-        mac₊(x) = 0.5(x + abs(x))
-        mac₋(x) = 0.5(x - abs(x))
-
-        ε = symmetric(∇u)
-
-       # p, n = eigen(ε)
-        #ε⁺ = sum( i -> mac₊(p[i]) * (n[i,:] ⊗ n[i,:]), 1:dim) 
-       #ε⁻ = sum( i -> mac₋(p[i]) * (n[i,:] ⊗ n[i,:]), 1:dim) 
-
-        #σ⁺ = element.λ*mac₊(tr(ε))*I + 2*element.μ*ε⁺
-        #σ⁻ = element.λ*mac₋(tr(ε))*I + 2*element.μ*ε⁻
-
-        #σ = (1-d)^2 * σ⁺ + σ⁻ 
-        σ    = (1-d)^2 * (λ*tr(ε)*I + 2*μ*ε)
-        #ψ⁺ = (0.5*element.λ*mac₊(tr(ε))^2 + element.μ*tr(ε⁺ ⋅ ε⁺))
-        ψ⁺ = (0.5*element.λ*tr(ε)^2 + element.μ*tr(ε ⋅ ε))
-        H = max(ψ⁺, elementstate[qp].H)
-
-        # Hoist computations of δE
-        for i in 1:ndofs_u
-            ∇Ni = shape_symmetric_gradient(cv_u, qp, i)
-
-            fe[i] += (σ ⊡ ∇Ni) * dΩ
-        end
-
-        for i in 1:ndofs_d
-            Ni = shape_value(cv_d, qp, i)
-            ∇Ni = shape_gradient(cv_d, qp, i)
-
-            fe[i+ndofs_u] += (((Gc/lc + 2*H)*d - 2*H)*Ni + Gc*lc*∇d⋅∇Ni) * dΩ
-        end
-
-    end
-
-    return fe
-end
-
-function integrate_forcevector_and_stiffnessmatrix2!(
-        element::PhaseFieldElement{dim, order, shape, T}, 
-        elementstate::AbstractVector{PhaseFieldElementState}, 
-        material::AbstractMaterial, 
-        materialstate::AbstractVector{<:AbstractMaterialState},
-        stresses::Vector{<:SymmetricTensor{2,3,T}},
-        strains::Vector{<:SymmetricTensor{2,3,T}},
-        ke::Matrix,
-        fe::Vector, 
-        cell, 
-        Δue::Vector,
-        a::Vector,
-        due::Vector,
-        Δt::T ) where {dim, order, shape, T}
-
-    cv_u = element.cv_u
-    cv_d = element.cv_d
-    reinit!(cv_u, cell)
-    reinit!(cv_d, cell)
-
-    residual(a) = _integrate_forcevector!(element, elementstate, a, cv_u, cv_d) 
-
-    _fe = residual(a)
-    _ke = ForwardDiff.jacobian(residual, a)
-
-    fe .= _fe
-    ke .= _ke
-
-    ndofs_u = getnbasefunctions(cv_u)
-    ndofs_d = getnbasefunctions(cv_d)
-    ue = a[1:ndofs_u]
-    de = a[(1:ndofs_d) .+ ndofs_u]
-    #Must store state variable outside
-    for qp in 1:getnquadpoints(cv_u)
-        
-        ∇u = function_gradient(cv_u, qp, ue)
-        d = function_value(cv_d, qp, de)
-        mac₊(x) = 0.5(x + abs(x))
-        mac₋(x) = 0.5(x - abs(x))
-
-        ε = symmetric(∇u)
-
-        #p, n = eigen(ε)
-        #ε⁺ = sum( i -> mac₊(p[i]) * (n[i,:] ⊗ n[i,:]), 1:dim) 
-
-        #ψ⁺ = (0.5*element.λ*mac₊(tr(ε))^2 + element.μ*tr(ε⁺ ⋅ ε⁺))
-        ψ⁺ = (0.5*element.λ*tr(ε)^2 + element.μ*tr(ε ⋅ ε))
-        H = max(ψ⁺, elementstate[qp].H)
-        elementstate[qp] = PhaseFieldElementState(H)
-    end
-
-end
-
 function integrate_forcevector_and_stiffnessmatrix!(
         element::PhaseFieldElement{dim, order, shape, T}, 
         elementstate::AbstractVector{PhaseFieldElementState}, 
@@ -225,13 +105,9 @@ function integrate_forcevector_and_stiffnessmatrix!(
         σ, dσdε, state = my_material_response(material, ε, d, materialstate[qp])
         materialstate[qp] = state
 
-        #println("elastic")
-        #display("text/plain", tovoigt(dσdεe))
-        #println("britt")
-        #display("text/plain", tovoigt(dσdε))
-        #println("ad")
-        #display("text/plain", tovoigt(dσdε))
-        #@show Ψ⁺ > elementstate.H[qp]
+        #Store stress and strain (always as 3d)
+        stresses[qp] = dim==3 ? σ : MaterialModels.increase_dim(σ)
+        strains[qp] = dim==3 ? ε : MaterialModels.increase_dim(ε)
         
         if state.Ψ⁺ > elementstate[qp].H
             σ⁺ = state.σ⁺

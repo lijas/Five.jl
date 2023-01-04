@@ -62,6 +62,8 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
         elementstate::Vector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
+        stresses::Vector{<:SymmetricTensor{2,3,T}},
+        strains::Vector{<:SymmetricTensor{2,3,T}},
         fe::Vector, 
         cell, 
         Δue::Vector,
@@ -86,6 +88,10 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
 
         S, ∂S∂E, new_matstate = material_response(element.dimstate, material, E, materialstate[qp])
         materialstate[qp] = new_matstate
+
+        #Store stress and strain (always as 3d)
+        stresses[qp] = dim==3 ? S : MaterialModels.increase_dim(S)
+        strains[qp] = dim==3 ? S : MaterialModels.increase_dim(E)
 
         for i in 1:ndofs
             δFi = shape_gradient(cv, qp, i)
