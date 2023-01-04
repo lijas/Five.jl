@@ -50,7 +50,7 @@ con1 = Dirichlet(
 )
 push!(data.dirichlet, con1)=#
 
-part = Part{2,Float64}(
+part = Part(
     element  = Five.LinearSolidElement{2,1,RefCube,Float64}(
         thickness = 1.0,
         qr_order = 2,

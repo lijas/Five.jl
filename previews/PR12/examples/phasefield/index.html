@@ -45,7 +45,7 @@ material = Five.PhaseFieldSpectralSplit(
     celltype = Quadrilateral,
     qr_order = 2,
     dimstate = PlaneStrain()
-)=#</code></pre><pre><code class="language-">part = Part{Float64}(
+)=#</code></pre><pre><code class="language-">part = Part(
     element = element,
     material = material,
     cellset  = 1:getncells(data.grid)
@@ -116,7 +116,7 @@ solver = LocalDissipationSolver(
     optitr       = 7,
     maxitr       = 12,
     maxitr_first_step = 50,
-    maxsteps     = 100,
+    maxsteps     = 2,
     λ_max        = 100.108,
     #λ_max        = 100.0,
     λ_min        = -2000.0,
@@ -133,4 +133,4 @@ f = [output.outputdata[&quot;reactionforce&quot;].data[i].fint for i in 1:length
 
 #ig = plot(xlabel = &quot;Displacement&quot;, ylabel = &quot;Force&quot;, legend = false)
 #plot!(fig, d, f, mark = :o)
-#plot!(fig, d1, f1, label = &quot;Elastic energy&quot;, mark = :o)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../enf_example/">« ENF example</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 18 December 2022 10:23">Sunday 18 December 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+#plot!(fig, d1, f1, label = &quot;Elastic energy&quot;, mark = :o)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../enf_example/">« ENF example</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 4 January 2023 20:14">Wednesday 4 January 2023</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -45,7 +45,7 @@ element = PhaseFieldElement{2,1,RefCube,Float64}(
 )=#
 
 #
-part = Part{Float64}(
+part = Part(
     element = element,
     material = material,
     cellset  = 1:getncells(data.grid)

@@ -50,7 +50,7 @@ element = PhaseFieldElement{2,1,RefCube,Float64}(
 )=#
 
 #
-part = Part{Float64}(
+part = Part(
     element = element,
     material = material,
     cellset  = 1:getncells(data.grid)
@@ -132,7 +132,7 @@ solver = LocalDissipationSolver(
     optitr       = 7,
     maxitr       = 12,
     maxitr_first_step = 50,
-    maxsteps     = 100,
+    maxsteps     = 2,
     λ_max        = 100.108,
     #λ_max        = 100.0,
     λ_min        = -2000.0,
