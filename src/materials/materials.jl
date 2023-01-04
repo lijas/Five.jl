@@ -12,6 +12,10 @@ density(m::M) where M <: MaterialModels.AbstractMaterial = m.density
 """
 is_dissipative(::AbstractMaterial) = false
 
+function constitutive_driver_dissipation(::AbstractMaterial, ε::T, args...; kwargs...) where T
+    return zero(Float64), zero(ε)
+end
+
 #include("matelastic.jl")
 include("mattransvlinearelastic.jl")
 include("mattransverseisotropic2.jl")
