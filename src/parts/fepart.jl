@@ -32,13 +32,16 @@ struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim
     vtkexport::PartVTKExport{dim,T}
 end
 
-function Part{dim,T}(; 
+function Part(; 
     material::AbstractMaterial,
-    element::AbstractElement,
-    cellset::AbstractVector{Int}
-    ) where {dim,T}
+    element::AbstractElement{dim},
+    cellset
+    ) where {dim}
 
-   return Part{dim,T}(material, collect(cellset), element)
+    T = Float64
+    _set = collect(cellset)
+    sort!(_set) # YOLO
+    return Part{dim,T}(material, _set, element)
 end
 
 #Not implemented:
@@ -52,43 +55,41 @@ struct IGAPart{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{
     #cv_plot::CellScalarValues 
 end
 
-const FEPart{dim} = Union{IGAPart{dim}, Part{dim}}# where dim
 
 function Part{dim,T}(material::M, cellset::AbstractVector{Int}, element::E) where {dim,T,E,M}
-    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), getncoords(element)), PartVTKExport{dim,T}())
+    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), Ferrite.nnodes(getcelltype(element))), PartVTKExport{dim,T}())
 end
 
 struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState
-    elementstate::S 
-    materialstates::Vector{M} 
+    elementstate::Vector{S}
+    materialstates::Vector{M}
+    stresses::Vector{SymmetricTensor{2,3,Float64,6}}
+    strains::Vector{SymmetricTensor{2,3,Float64,6}}
 end
 
-getmaterialstate(partstate::PartState, field::Symbol) =  getproperty.(partstate.materialstates, field)
+get_fields(part::Part) = get_fields(part.element)
+get_cellset(part::Part) = part.cellset
 
-get_partstate_type(part::Part{dim,T,E,M}) where {dim,T,E,M} = return PartState{get_elementstate_type(part.element), get_material_state_type(part.material)}
-
-get_fields(part::FEPart) = get_fields(part.element)
-get_cellset(part::FEPart) = part.cellset
-
-function construct_partstates(part::FEPart)
+function construct_partstates(part::Part{dim,T,ET,MT}) where {dim,T,ET,MT}
 
     ncells = length(part.cellset)
     nqp = getnquadpoints(part.element)
 
-    materialtype = get_material_state_type(part.material)
-    ElementStateType = get_elementstate_type(part.element)
+    MaterialStateType = typeof( initial_material_state(part.material) )
+    ElementStateType = elementstate_type(ET)
 
-    states = Vector{PartState{ElementStateType,materialtype}}(undef, ncells)
+    states = Vector{PartState{ElementStateType,MaterialStateType}}(undef, ncells)
 
     for i in 1:ncells
-        _cellstate = ElementStateType(part.element)
-
-        _materialstates = Vector{materialtype}(undef, nqp)
+        #@show MaterialStateType,ElementStateType
+        _materialstates = Vector{MaterialStateType}(undef, nqp)
+        _elementstates = Vector{ElementStateType}(undef, nqp)
         for j in 1:nqp
-            _materialstates[j] = getmaterialstate(part.material)
+            _materialstates[j] = initial_material_state(part.material)
+            _elementstates[j] = initial_element_state(part.element)
         end
 
-        states[i] = PartState(_cellstate, _materialstates)
+        states[i] = PartState(_elementstates, _materialstates, zeros(SymmetricTensor{2,3,Float64,6}, nqp), zeros(SymmetricTensor{2,3,Float64,6}, nqp))
     end
     return states
 end
@@ -96,11 +97,11 @@ end
 
 function init_part!(part::Part, dh::Ferrite.AbstractDofHandler)
     celltype = typeof(dh.grid.cells[first(part.cellset)])
+    vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
     
     next_node_id = 1
     for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
         cell = dh.grid.cells[cellid]
-        vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
 
         new_ids = Int[]
         for nodeid in cell.nodes
@@ -124,7 +125,7 @@ end
 @enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI
 
 function assemble_stiffnessmatrix_and_forcevector!(dh::Ferrite.AbstractDofHandler, 
-    part::FEPart,
+    part::Part,
     state::StateVariables)
 
     _assemble_part!(dh, part,state, STIFFMAT)
@@ -132,7 +133,7 @@ function assemble_stiffnessmatrix_and_forcevector!(dh::Ferrite.AbstractDofHandle
 end
 
 function assemble_forcevector!(dh::Ferrite.AbstractDofHandler, 
-    part::FEPart,
+    part::Part,
     state::StateVariables)
 
     _assemble_part!(dh, part,state, FORCEVEC)
@@ -140,18 +141,19 @@ function assemble_forcevector!(dh::Ferrite.AbstractDofHandler,
 end
 
 function assemble_fstar!(dh::Ferrite.AbstractDofHandler, 
-    part::FEPart,
+    part::Part,
     state::StateVariables)
 
     _assemble_part!(dh, part,state, FSTAR)
 
 end
 
-function assemble_dissipation!(dh::Ferrite.AbstractDofHandler, 
-    part::FEPart,
-    state::StateVariables)
+function assemble_dissipation!(
+    dh    ::Ferrite.AbstractDofHandler, 
+    part  ::Part,
+    state ::StateVariables)
 
-    if !(part.material |> is_dissipative)
+    if !(is_dissipative(part.material) || is_dissipative(part.element))
         return 
     end
 
@@ -160,12 +162,15 @@ function assemble_dissipation!(dh::Ferrite.AbstractDofHandler,
 end
 
 function _assemble_part!(dh::Ferrite.AbstractDofHandler, 
-    part::FEPart{dim},
+    part::Part{dim,T,ET,MT},
     state::StateVariables{T},
-    assemtype::ASSEMBLETYPE) where {dim,T}
+    assemtype::ASSEMBLETYPE) where {dim,T,ET,MT}
 
     assembler = start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false)
-    
+   
+    ElementState = elementstate_type(ET)
+    MaterialState = typeof( initial_material_state(part.material) )#materialstate_type(MT)
+
     #Extract variables
     element = part.element
     ue, Δue, due, ke, fe, coords, celldofs = (part.cache.ue, part.cache.Δue, part.cache.due, 
@@ -175,30 +180,31 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
 
     for (localid,cellid) in enumerate(part.cellset)
         
-        partstate::get_partstate_type(part) = state.partstates[cellid]
+        partstate::PartState{ElementState, MaterialState} = state.partstates[cellid]
 
         materialstate = partstate.materialstates
         cellstate     = partstate.elementstate
+        stresses      = partstate.stresses
+        strains       = partstate.strains
 
         fill!(fe, 0.0)
         (assemtype == STIFFMAT) && fill!(ke, 0.0)
-        #@show typeof(element)
-        #@show length(celldofs)
-        #@show ndofs_per_cell(dh,cellid)
+
         Ferrite.cellcoords!(coords, dh, cellid)
         Ferrite.celldofs!(celldofs, dh, cellid)
 
-        Δue .= state.Δd[celldofs]
+        Δue .= state.v[celldofs] #Dont need both Δue and (v and Δt)
         ue .= state.d[celldofs]
         due .= state.v[celldofs]
         
         if assemtype == STIFFMAT
-            integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, ke, fe, coords, Δue, ue, due, Δt)
+            integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, stresses, strains, ke, fe, coords, Δue, ue, due, Δt)
             assemble!(assembler, celldofs, fe, ke)
         elseif assemtype == FORCEVEC
             integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
             state.system_arrays.fⁱ[celldofs] += fe
         elseif assemtype == FSTAR
+            error("Broken code, fix")
             prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
             prev_materialstate = prev_partstate.materialstates
 
@@ -215,7 +221,7 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     
 end
 
-function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables)
+function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables)
 
     assembler = start_assemble(state.system_arrays.M, fillzero=false)
     element = part.element
@@ -246,17 +252,19 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::FEPart, stat
 end
 
 function get_vtk_grid(dh::Ferrite.AbstractDofHandler, part::Part)
+    asdfasdf
     return part.vtkexport.vtkcells, part.vtkexport.vtknodes
 end
 
-function post_part!(dh, part::FEPart, states::StateVariables)
+function post_part!(dh, part::Part, states::StateVariables)
     
 end
 
-function commit_part!(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables)
+function commit_part!(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables)
     return nothing
 end
 
+#=
 function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables) where {dim,T}
     @assert(length(get_fields(part.element)) == 1 && get_fields(part.element)[1].name == :u)
 
@@ -277,79 +285,131 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}
     end
     
     return node_coords
-end
+end=#
 
-function get_vtk_celldata(part::FEPart, output::VTKCellOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where T
+function get_vtk_field(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
+    fh = FieldHandler(get_fields(part), Set([1]))
+    fieldidx = Ferrite.find_field(fh, field_name)
+    @assert(fieldidx !== nothing)
 
-    _cellid = first(part.cellset)
-    first_state = first(state.partstates[_cellid].materialstates)
-    if !hasproperty(first_state, output.type.field) 
-        return nothing
+    offset = Ferrite.field_offset(fh, field_name)
+    fdim   = fh.fields[fieldidx].dim 
+
+    n_vtk_nodes = length(part.vtkexport.vtknodes)
+    #Special case displacement (it needs 3 datapoints)
+    if field_name == :u
+        data = zeros(T, (dim == 2 ? 3 : dim), n_vtk_nodes)
+    else
+        data = zeros(T, fdim, n_vtk_nodes)
     end
-    
-    StateType = typeof(first_state)
-    npartcells = length(part.cellset)
-    ncomp = length(getproperty(first_state, output.type.field))
-    data = Matrix{T}(undef, ncomp, npartcells)
-    
-    for (ic, cellid) in enumerate(part.cellset)
-        matstates = state.partstates[cellid].materialstates
-        data[:, ic] .= getproperty.(matstates, output.type.field) |> output.func |> (x) -> reinterpret(T, x) |> collect |> vec
-    end
-
+    _get_vtk_field!(data, dh, part, state, offset, fdim)
     return data
 end
 
-function get_vtk_nodedata(part::FEPart{dim}, output::VTKNodeOutput{<:MaterialStateOutput}, state::StateVariables{T}, globaldata) where {dim,T}
-    
-    _cellid = first(part.cellset)
-    first_state = first(state.partstates[_cellid].materialstates)
-    if !hasproperty(first_state, output.type.field) 
-        return nothing
-    end
-    first_field = getproperty(first_state, output.type.field)
-    
-    ncomp = length(first_field)
-    FieldDataType = typeof(first_field)
-    #celltype = getcelltype(part.element)
-    celltype = typeof(globaldata.grid.cells[first(part.cellset)])
-    geom_ip = Ferrite.default_interpolation(celltype)
-    refshape = Ferrite.getrefshape(geom_ip)# RefCube#getrefshape(geom_ip)
-    nqp = length(state.partstates[_cellid].materialstates)
-    #qp_order = convert(Int, nqp^(1/dim))
-    qr = QuadratureRule{dim, refshape}(2)#qp_order)
-    cellvalues = CellScalarValues(qr, geom_ip)
-    projector = L2Projector(cellvalues, geom_ip, globaldata.grid, part.cellset)
+function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
 
-    #Extract field to interpolate
-    data = Vector{FieldDataType==Float64 ? Vec{1,T} : FieldDataType}[]
-    for (ic, cellid) in enumerate(part.cellset)
-        matstates = state.partstates[cellid].materialstates
-        field_states = getproperty.(matstates, output.type.field)
-        if FieldDataType == Float64
-            push!(data, reinterpret(Vec{1,T}, field_states))
-        else
-            push!(data, field_states)
+    celldofs = part.cache.celldofs
+    for cellid in part.cellset
+        cell = dh.grid.cells[cellid]
+        
+        celldofs!(celldofs, dh, cellid)
+        ue = state.d[celldofs]
+        counter = 1
+        for (i,nodeid) in enumerate(cell.nodes)
+            local_id = part.vtkexport.nodeid_mapper[nodeid]
+            for d in 1:nvars
+                data[d, local_id] = ue[counter + offset]
+                counter += 1
+            end
         end
     end
-
-    data_nodes = project(data, projector)
-    nvtknodes = length(part.vtkexport.nodeid_mapper)
-    vtk_node_data = Matrix{T}(undef, ncomp, nvtknodes)
-    for (ic,cellid) in enumerate(part.cellset)
-        for nodeid in globaldata.grid.cells[cellid].nodes
-            vtknodeid = part.vtkexport.nodeid_mapper[nodeid]
-            vtk_node_data[:,vtknodeid] .= reinterpret(T, data_nodes[nodeid])
-        end
-    end
-    return vtk_node_data
+    
 end
 
-function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
+function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput{FT}, state::StateVariables{T}, globaldata) where {dim,FT,T}
+
+    #Check if field exist in materialstate
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
+    if !hasproperty(first_state, output.field) 
+        return
+    end
+
+    #Extract field to interpolate
+    qpdata = Vector{FT}[] #TODO: allocate
+    for (ic, cellid) in enumerate(part.cellset)
+        matstates = state.partstates[cellid].materialstates
+        field_states = getproperty.(matstates, output.field)
+        push!(qpdata, field_states)
+    end
+
+    _collect_nodedata!(data, part, qpdata, globaldata)
+end
+
+function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}
+
+    #Extract stresses to interpolate
+    qpdata = Vector{SymmetricTensor{2,3,T,6}}[]
+    for (ic, cellid) in enumerate(part.cellset)
+        stresses = state.partstates[cellid].stresses
+        push!(qpdata, stresses)
+    end
+
+    _collect_nodedata!(data, part, qpdata, globaldata)
+end
+
+function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vector{FT}}, globaldata) where {dim,T,FT}
+    
+    (; grid, ) = globaldata
+    #Set up quadrature rule
+    celltype = getcelltype(part.element)
+    geom_ip = Ferrite.default_interpolation(celltype)
+    qr = getquadraturerule(part.element)
+
+    projector = Ferrite.L2Projector(geom_ip, grid; set = part.cellset)
+    projecteddata = project(projector, qpdata, qr; project_to_nodes=true); 
+
+    #Reorder to the parts vtk
+    for (ic, cellid) in enumerate(part.cellset)
+        for nodeid in globaldata.grid.cells[cellid].nodes
+            data[nodeid] = projecteddata[nodeid]
+        end
+    end
+end
+
+function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}
+
+    #Check if field exist in materialstate
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
+    if !hasproperty(first_state, output.field) 
+        return
+    end
+
+    #Collect material state
+    for (ic, cellid) in enumerate(part.cellset)
+        materialstates = state.partstates[cellid].materialstates
+        statevalues = getproperty.(materialstates, output.field)
+        data[cellid] = output.func(statevalues)
+    end
+end
+
+function collect_celldata!(data::Matrix{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT, T}
+    #Collect material state
+    for (ic, cellid) in enumerate(part.cellset)
+        stresses = state.partstates[cellid].stresses
+        data[cellid] = output.func(stresses)
+    end
+end
+
+
+function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
+    asdf
     return nothing, nothing
 end
 
-function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::FEPart, state::StateVariables) where {dim_p,dim_s,T}
+function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
+    asdf
     return nothing, nothing
 end
 
@@ -366,3 +426,9 @@ end
 function get_vtk_part_point_data(part::Part{<:SolidElement}, dh::DofHandler{dim,T}, di) where {dim,T}
     return []
 end=#
+
+function build_output!(part::Part, output::OutputData, state::StateVariables, globaldata)
+
+    
+
+end

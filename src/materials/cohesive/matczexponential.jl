@@ -4,7 +4,7 @@
 # const MatCZVanDenBosch{dim} = MatCZExponentialLaw{dim,true}
 # const MatCZOtherName{dim} = MatCZExponentialLaw{dim,false}
 
-struct MatCZKolluri <: AbstractCohesiveMaterial
+struct MatCZKolluri <: MaterialModels.AbstractMaterial
     #constant, not updated for every element
     σₘₐₓ::Float64
     τₘₐₓ::Float64
@@ -20,7 +20,7 @@ function MatCZKolluri( ; σₘₐₓ::Float64, τₘₐₓ::Float64, Φₙ::Floa
     return MatCZKolluri(σₘₐₓ, τₘₐₓ, δₙ, δₜ, Φₙ, Φₜ)
 end
 
-struct MatCZKolluriState <: AbstractMaterialState
+struct MatCZKolluriState <:  MaterialModels.AbstractMaterialState
     Δ::Tensor{1, 3, Float64, 3}
     T::Tensor{1, 3, Float64, 3}    
     Δ_max::Tensor{1, 3, Float64, 3}
@@ -28,7 +28,7 @@ struct MatCZKolluriState <: AbstractMaterialState
     d_c::NTuple{2,Float64} #Coupling damage factors
 end
 
-function getmaterialstate(m::MatCZKolluri, d::Float64=zero(Float64))
+function MaterialModels.initial_material_state(m::MatCZKolluri, d::Float64=zero(Float64))
     @assert( 0.0 <= d <= 1.0)
 
     T = Float64
@@ -104,7 +104,7 @@ function _MatCZKolluri_law_with_damage(m::MatCZKolluri, Δ::Vec{3,T}, ms::MatCZK
 end
 
 
-function constitutive_driver(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
+function  MaterialModels.material_response(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
     J_dual = Tensors._load(J, nothing)
     _T, _d_n, _d_t, _d_cn, _d_ct, _J_max_temp, _ = _MatCZKolluri_law_with_damage(m, J_dual, ms)
 
@@ -120,10 +120,10 @@ function constitutive_driver(m::MatCZKolluri, J::Vec, ms::MatCZKolluriState)
 end
 
 
-function constitutive_driver(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState) 
+function MaterialModels.material_response(m::MatCZKolluri, _J::Vec{2}, ms::MatCZKolluriState, Δt=nothing; cache=nothing, options=nothing) 
 
     J = Vec{3,Float64}((_J[1], 0.0, _J[2]))
-    _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = constitutive_driver(m, J, ms)
+    _T::Vec{3,Float64}, _dTdΔ::Tensor{2,3,Float64,9}, new_state = material_response(m, J, ms)
 
     #Remove third direction
     T = Vec{2,Float64}((_T[1], _T[3]))

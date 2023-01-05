@@ -2,18 +2,19 @@ export ExternalForceHandler, PointForce
 
 abstract type AbstractExternalForce end
 
-struct ExternalForceHandler{T}
+struct ExternalForceHandler{T,DH<:Ferrite.MixedDofHandler}
+    dh::DH
     external_forces::Vector{AbstractExternalForce}
 end
 
-function ExternalForceHandler{T}() where T
-    return ExternalForceHandler{T}(AbstractExternalForce[])
+function ExternalForceHandler{T}(dh::MixedDofHandler) where T
+    return ExternalForceHandler{T, typeof(dh)}(dh, AbstractExternalForce[])
 end
 
-function Ferrite.close!(ef::ExternalForceHandler, dh::MixedDofHandler)
+function Ferrite.close!(ef::ExternalForceHandler)
     for (i, e) in enumerate(ef.external_forces)
         ForceType = typeof(e)
-        ef.external_forces[i] = init_external_force!(e, dh)
+        ef.external_forces[i] = init_external_force!(e, ef.dh)
     end
 end
 
@@ -59,50 +60,76 @@ end
 #
 struct TractionForce{FV<:Ferrite.Values} <: AbstractExternalForce
     field::Symbol
-    comps::Vector{Int}
     set::Union{Vector{FaceIndex}, Vector{VertexIndex}, Vector{EdgeIndex}}
     traction::Function
 
     facevalues::FV
 end
 
-function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::TractionForce{FV}, state::StateVariables, globaldata) where {FV<:Ferrite.Values}
+function TractionForce(;
+        field::Symbol,
+        set,
+        traction::Function,
+        celltype::Type{<:Ferrite.AbstractCell{dim}}) where dim
+
+    ip = Ferrite.default_interpolation(celltype)
+    fip = Ferrite.getlowerdim(ip)
+    qr = Ferrite._mass_qr(fip)
+    fv = FaceVectorValues(qr, ip)
+
+    val = traction(zero(Vec{dim}), 0.0)
+    @assert length(val) == 3
+
+    return TractionForce(field, collect(set), traction, fv)
+end
+
+function init_external_force!(force::TractionForce, dh::MixedDofHandler)
+    return force
+end
+
+function apply_external_force!(ef::TractionForce{FV}, state::StateVariables{T}, globaldata) where {T,FV<:Ferrite.Values}
     
+    dh = globaldata.dh
     fv = ef.facevalues
+    dim = Ferrite.getdim(dh)
+
+    #Cache this?
     ndofs = getnbasefunctions(fv)
     fe = zeros(T, ndofs)
     ncoords = Ferrite.getngeobasefunctions(fv)
     coords = zeros(Vec{dim,T}, ncoords)
     celldofs = zeros(Int, ndofs)
 
-    total_area = 0
-    for (i, face) in enumerate(ef.faces)
+    total_area = 0.0
+    for face in ef.set
         fill!(fe, 0.0)
 
         #extract cell id and face id 
-        cellid,faceid = (face[1], face[2])
+        cellid, faceid = face
+
         #Get coords and dofs of cell
         Ferrite.cellcoords!(coords, dh, cellid)
         Ferrite.celldofs!(celldofs, dh, cellid)
 
-        
-        area = _compute_external_traction_force!(fv, coords, faceid, ef.traction, fe, state.t)
-        total_area +=area
-        system_arrays.fᵉ[celldofs] += fe
+        #Integrate
+        area = _compute_external_traction_force!(fe, fv, coords, faceid, ef.traction, state.t)
+
+        #Scatter
+        total_area += area
+        state.system_arrays.fᵉ[celldofs] += fe
     end
-    @show total_area
 end
 
 
-function _compute_external_traction_force!(fv::Ferrite.Values{dim,T}, cellcoords, faceid, traction::Function, fe::AbstractVector, t::T) where {dim,T}
+function _compute_external_traction_force!(fe::AbstractVector, fv::Ferrite.Values{dim,T}, coords, faceid, traction::Function, t::T) where {dim,T}
 
-    reinit!(fv, cellcoords, faceid)
+    reinit!(fv, coords, faceid)
     dA = 0
     for q_point in 1:getnquadpoints(fv)
         dΓ = getdetJdV(fv, q_point)
 
-        X = spatial_coordinate(fv, q_point, cellcoords)
-        t =traction(X,time)
+        X = spatial_coordinate(fv, q_point, coords)
+        t = traction(X, t)
 
         dA += dΓ
         for i in 1:getnbasefunctions(fv)

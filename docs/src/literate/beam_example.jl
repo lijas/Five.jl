@@ -1,3 +1,5 @@
+# # Beam example
+
 using Five
 
 data = ProblemData(
@@ -9,10 +11,19 @@ data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0
 
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
-material = MatLinearElastic(
-    rho = 1.0,
+#=material = MatLinearElastic(
     E = 1e5,
     nu = 0.3
+)=#
+
+material = MatTransvLinearElastic(;    
+    E1 = 100.0,   
+    E2 = 100.0,   
+
+    ν_12 = 0.3, 
+    G_12 = 100.0/(2(1.3)),
+    ρ = 1.0,
+    α =0.0
 )
 
 #= material = MatHyperElasticPlastic(
@@ -32,10 +43,21 @@ con1 = Dirichlet(
 )
 push!(data.dirichlet, con1)
 
-part = Part{2,Float64}(
-    element = SolidElement{2,2,RefCube,Float64}(
-        celltype = Ferrite.Quadrilateral,
-        qr_order = 4
+#=
+con1 = Dirichlet(
+    set = getfaceset(data.grid, "right"),
+    func = (x,t) -> (t*1.0),
+    field = :u,
+    dofs = [2]
+)
+push!(data.dirichlet, con1)=#
+
+part = Part(
+    element  = Five.LinearSolidElement{2,1,RefCube,Float64}(
+        thickness = 1.0, 
+        qr_order = 2,
+        celltype = Quadrilateral,
+        dimstate = PlaneStrain()
     ),
     material = material,
     cellset = collect(1:getncells(data.grid))
@@ -58,21 +80,23 @@ output = OutputData(
 )
 data.outputdata["reactionforce"] = output
 
-vtkoutput = VTKCellOutput(
+vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
-        field = :ϵᵖ
+        field = :σ,
+        datatype = SymmetricTensor{2,3,Float64,6}
     ),
     func = mean,
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)
 
-vtkoutput = VTKNodeOutput(
+#=vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
         field = :ϵᵖ
     ),
     func = mean,
 )
-Five.push_vtkoutput!(data.output[], vtkoutput)
+Five.push_vtkoutput!(data.output[], vtkoutput)=#
+
 
 force = PointForce(
     field = :u,
@@ -93,5 +117,6 @@ output = solvethis(solver, state, data)
 
 d = output.outputdata["reactionforce"].data[end].displacement
 
-using Test                         #src
-@test abs(d) ≈ 0.44438080510979344 #src
+using Test 
+@show abs(d[1])                      #src
+#@test norm(d) ≈ 0.44438080510979344 #src

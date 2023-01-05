@@ -3,7 +3,7 @@ export ProblemData, build_problem
 mutable struct ProblemData{dim,T}
     grid::Ferrite.AbstractGrid
     parts::Vector{Five.AbstractPart{dim}}
-    dirichlet::Vector{Ferrite.Dirichlet}
+    dirichlet::Vector{Union{Ferrite.Dirichlet, Five.FollowerConstraint}}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints::Vector{Five.AbstractExternalForce}
     output::Base.RefValue{Output{T}}
@@ -18,7 +18,7 @@ end
 function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
     
     parts = Five.AbstractPart{dim}[]
-    dbc   = Ferrite.Dirichlet[]
+    dbc   = Union{Ferrite.Dirichlet, Five.FollowerConstraint}[]
     exfor = Five.AbstractExternalForce[]
     output = Base.RefValue{Output{T}}()
     outputdata = Dict{String, Five.OutputData}()
@@ -94,11 +94,11 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     update!(vbc, 0.0)=#
 
     #
-    ef = ExternalForceHandler{T}()
+    ef = ExternalForceHandler{T}(dh)
     for d in data.external_forces
         push!(ef.external_forces, d)
     end
-    close!(ef, dh)
+    close!(ef)
     #
     ch = Constraints()
     for d in data.constraints
@@ -106,10 +106,11 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     end
     close!(ch, dh)
 
+    #output = Output(dh)
     for (name, o) in data.outputdata
         push_output!(data.output[], name, o)
     end
-    close!(data.output[], dh)
+    close!(data.output[], dh) 
 
     contact = Contact_Node2Segment{dim,T}()# not used
 
@@ -125,11 +126,10 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     state = StateVariables(T, ndofs(dh))
     state.t = data.t0
     state.partstates = partstates
-    state.prev_partstates = deepcopy(partstates)
 
     #System Arrays
     state.system_arrays = SystemArrays(T, ndofs(dh))
-    state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
+    state.system_arrays.Kⁱ = create_sparsity_pattern(dh, dch)
 
     return state, globaldata
 end
@@ -147,7 +147,8 @@ function _check_input(data::ProblemData{dim,T}) where {dim,T}
 
         !issorted(part.cellset) && error("The cellset for the parts must be sorted.")
     end
-
+    @show length(all_cellsets)
+    @show  getncells(data.grid)
     length(all_cellsets) < getncells(data.grid) && error("Not all cells are included in a part.")
 
 end

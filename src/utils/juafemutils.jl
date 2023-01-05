@@ -335,6 +335,7 @@ end=#
 
 
 #Overwrite Ferrite.function_value for scalar cellvalues to interpolate any type
+#=
 function Ferrite.function_value(fe_v::Ferrite.ScalarValues{dim}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T}
     n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
     #isa(fe_v, VectorValues) && (n_base_funcs *= dim)
@@ -394,7 +395,7 @@ function Ferrite.spatial_coordinate(fe_v::Ferrite.ScalarValues{dim_p}, q_point::
     return vec
 end
 ##
-
+=#
 
 function facedofs(dh::Ferrite.AbstractDofHandler, fieldhandler::FieldHandler, faceindx::FaceIndex; field_name::Symbol = :all, components::Vector{Int} = [])
 
@@ -496,6 +497,34 @@ function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
     return Grid(cells_new, nodes_new, cellset_new, nodeset_new, faceset_new, edgeset_new, vertexset_new, bm)
 
 end
+
+function WriteVTK.vtk_cell_data(
+    vtk::WriteVTK.DatasetFile,
+    data::Vector{S},
+    name::AbstractString
+    ) where {O, D, T, M, S <: Union{Tensor{O, D, T, M}, SymmetricTensor{O, D, T, M}}}
+    ncells = length(data)
+    out = zeros(T, M, ncells)
+    for i in 1:ncells
+        Ferrite.toparaview!(@view(out[:, i]), data[i])
+    end
+    return vtk_cell_data(vtk, out, name; component_names=component_names(S))
+end
+
+function component_names(::Type{S}) where S
+    names =
+        S <:             Vec{1}   ? ["x"] :
+        S <:             Vec      ? ["x", "y", "z"] : # Pad 2D Vec to 3D
+        S <:          Tensor{2,1} ? ["xx"] :
+        S <: SymmetricTensor{2,1} ? ["xx"] :
+        S <:          Tensor{2,2} ? ["xx", "yy", "xy", "yx"] :
+        S <: SymmetricTensor{2,2} ? ["xx", "yy", "xy"] :
+        S <:          Tensor{2,3} ? ["xx", "yy", "zz", "yz", "xz", "xy", "zy", "zx", "yx"] :
+        S <: SymmetricTensor{2,3} ? ["xx", "yy", "zz", "yz", "xz", "xy"] :
+                                    nothing
+    return names
+end
+
 
 export disassemble!
 Base.@propagate_inbounds function disassemble!(ue::AbstractVector, u::AbstractVector, dofs::AbstractVector{Int})

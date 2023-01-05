@@ -11,13 +11,28 @@ Example:
     Shell-element: Field(:u, Lagrange{2,RefCube,1}, 3), Field(:θ, Lagrange{2,RefCube,1}, 3)
 
 """
-get_fields
+function get_fields(::AbstractPart) end
 
 """
     init_part!
-
 """
 init_part!
+
+""" 
+    assemble_stiffnessmatrix_and_forcevector!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+assemble_stiffnessmatrix_and_forcevector!
+
+"""
+    assemble_forcevector!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+assemble_forcevector!
+
+"""
+    assemble_dissipation!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+assemble_dissipation!
+
 
 include("fepart.jl")
 include("cohesive_part.jl")

@@ -92,11 +92,14 @@ mutable struct Output{T}
     
     vtkoutput::VTKOutput
 
+    export_rawdata::Bool
+    export_vtk::Bool
+
     #List of stuff that should be outputed
     outputdata::Dict{String, AbstractOutput}
 end
 
-function Output(; savepath=raw".", runname::String, interval::T) where {T}
+function Output(; savepath=raw".", runname::String, interval::T, export_rawdata=false, export_vtk=true) where {T}
 
     vtkoutput = VTKOutput(interval, savepath, runname)
 
@@ -112,10 +115,10 @@ function Output(; savepath=raw".", runname::String, interval::T) where {T}
         error("Error, could not create file interact.txt")
     end
 
-    return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, Dict{String, OutputData}())
+    return Output{T}(savepath, runname, _NO_TERMINATION, vtkoutput, export_rawdata, export_vtk, Dict{String, OutputData}())
 end
 
-function Ferrite.close!(output::Output, dh::MixedDofHandler)
+function Ferrite.close!(output::Output, dh)
     for (key, outp) in output.outputdata
         #Overwright with new data
         output.outputdata[key] = build_outputdata(outp, dh)
@@ -163,7 +166,8 @@ function vtk_add_state!(output::Output{T}, state::StateVariables, globaldata) wh
     end
 end
 
-function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; filename::String) where {T}
+#=
+function create_vtk_output2(output::Output{T}, state::StateVariables, globaldata; filename::String) where {T}
     
     dh::Ferrite.AbstractDofHandler = globaldata.dh
     parts = globaldata.parts
@@ -175,15 +179,17 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; f
     for (partid, part) in enumerate(parts)
         #Vtk grid
         @timeit "grid" cells, coords = get_vtk_grid(dh, part)
-        if length(cells) == 0
+        if cells===nothing || length(cells) == 0
             continue
         end
         coords = reshape(reinterpret(T, coords), (dim, length(coords)))
         vtkfile = WriteVTK.vtk_grid(vtmfile, coords, cells)
         
-        #Displacements 
-        @timeit "disp" node_coords = get_vtk_displacements(dh, part, state)
-        vtkfile["u"] = reshape_vtk_coords(node_coords)
+        #Export Fields, such :u, etc
+        @timeit "fielddata" for field in get_fields(part)
+            data = get_vtk_field(dh, part, state, field.name)
+            vtkfile[string(field.name)] = data
+        end
 
         @timeit "nodedata" for nodeoutput in output.vtkoutput.nodeoutputs
             data = get_vtk_nodedata(part, nodeoutput, state, globaldata)
@@ -206,6 +212,77 @@ function _vtk_add_state!(output::Output{T}, state::StateVariables, globaldata; f
     output.vtkoutput.pvd[state.t] = vtmfile
 
 end
+=#
+
+function export!(output::Output, state::StateVariables, globaldata; force=false)
+
+    #Export vtk/visualization
+    if force || should_output(output.vtkoutput, state.t)
+        
+        output.vtkoutput.last_output[] = state.t
+        filename =  output.runname * string(state.step)
+        
+        if output.export_vtk
+            vtkfile = create_vtk_output(output, state, globaldata, filename=filename)
+            vtk_save(vtkfile)
+        end
+
+        if output.export_rawdata
+            error("Not implemented")
+            dumpstate()
+        end
+    end
+
+    #Export data
+    for (name, outp) in output.outputdata
+        if force || should_output(outp, state.t)
+            set_last_output!(outp, state.t)
+            collect_output!(outp, state, globaldata)
+        end
+    end
+end
+
+
+function create_vtk_output(output::Output, state::StateVariables, globaldata; filename)
+    filename = output.runname * string(state.step)
+    (; grid, dh, parts) = globaldata
+
+    vtkgrid = vtk_grid(filename, grid)
+
+    #Export all fields
+    vtk_point_data(vtkgrid, dh, state.d)
+
+    #Nodedata
+    for nodeoutput in output.vtkoutput.nodeoutputs
+        DT = getdatatype(nodeoutput.type)
+        data = [zero(DT)*NaN for _ in 1:getnnodes(grid)]
+        for part in parts
+            collect_nodedata!(data, part, nodeoutput.type, state, globaldata)
+        end
+        vtk_point_data(vtkgrid, data, outputname(nodeoutput.type))
+    end 
+    
+    #Celldata
+    for celloutput in output.vtkoutput.celloutputs
+        DT = getdatatype(celloutput.type)
+        data = [zero(DT)*NaN for _ in 1:getncells(grid)]
+        for part in parts
+            collect_celldata!(data, part, celloutput.type, state, globaldata)
+        end
+        vtk_cell_data(vtkgrid, data, outputname(celloutput.type))
+    end
+
+    #Partsets
+    for (ipart, part) in enumerate(parts)
+        data = [NaN for _ in 1:getncells(grid)]
+        data[part.cellset] .= 1.0
+        vtk_cell_data(vtkgrid, data, "Part $ipart")
+    end
+
+    output.vtkoutput.pvd[state.t] = vtkgrid
+    
+end
+
 
 function reshape_vtk_coords(coords::AbstractVector{Vec{dim,T}}) where {dim,T}
     npoints = length(coords)

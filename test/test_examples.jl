@@ -9,11 +9,34 @@ module BeamExample
     end
 end
 
-#=module CurvedCantileverBeam
-    using Test
+module BarExample
     mktempdir() do dir
         cd(dir) do
-            include(joinpath(@__DIR__, "../examples/stress_rec/curved_cantilever_beam/curved_cantilever_beam.jl"))
+            include(joinpath(@__DIR__, "../docs/src/literate/bar_example.jl"))
         end
     end
-end=#
+end
+
+module EnfExample
+    mktempdir() do dir
+        cd(dir) do
+            include(joinpath(@__DIR__, "../docs/src/literate/enf_example.jl"))
+        end
+    end
+end
+
+module PhaseFieldExample
+    mktempdir() do dir
+        cd(dir) do
+            include(joinpath(@__DIR__, "../docs/src/literate/phasefield.jl"))
+        end
+    end
+end
+
+module PhaseFieldExample2
+    mktempdir() do dir
+        cd(dir) do
+            include(joinpath(@__DIR__, "../docs/src/literate/phase_shear.jl"))
+        end
+    end
+end

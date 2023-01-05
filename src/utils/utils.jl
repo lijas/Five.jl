@@ -137,6 +137,25 @@ function get_x0(dh::Ferrite.AbstractDofHandler)
 
 end
 
+#TODO:Move to ferrite
+function condense_rhs!(f::AbstractVecOrMat, ch::ConstraintHandler)
+    
+    acs = ch.acs
+    ndofs = size(f, 1)
+    distribute = Dict{Int,Int}(acs[c].constrained_dof => c for c in 1:length(acs))
+
+    for col in 1:ndofs
+        dcol = get(distribute, col, 0)
+        if dcol != 0
+            ac = acs[dcol]
+            for (d,v) in ac.entries
+                f[d,:] += f[col,:] * v
+            end
+            @assert ac.constrained_dof == col
+            f[ac.constrained_dof,:] .= 0.0
+        end
+    end
+end
 
 function numdiff(f!::Function, ue_interface::AbstractVector{T}, nms::AbstractVector{<:AbstractMaterialState}, ms::AbstractVector{<:AbstractMaterialState}) where T
 

@@ -5,7 +5,9 @@
 *.pdf
 log.txt
 *.out
+*.cov
 submit
 interact.txt
 *.png
 docs/build/
+docs/src/examples/
