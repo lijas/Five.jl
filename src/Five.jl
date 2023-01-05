@@ -2,12 +2,10 @@ module Five
 
 using Reexport
 using ForwardDiff
-using NLsolve
 
 using Parameters
 using TimerOutputs
 using StaticArrays
-
 using LinearAlgebra
 using SparseArrays
 using Statistics: mean
@@ -212,7 +210,6 @@ include("assembling.jl")
 include("externalforce/external_forces.jl")
 include("constraints/Constraints.jl")
 include("utils/follower_constraint.jl")
-#include("constraints/linearconstraints.jl)
 
 include("utils/utils.jl")
 include("utils/celliterator2.jl")
