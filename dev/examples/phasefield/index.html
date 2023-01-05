@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>- · Five</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Five</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../essentials/">Essentials</a></li><li><a class="tocitem" href="../../parts/">Parts</a></li><li><span class="tocitem">Elements</span><ul><li><a class="tocitem" href="../../elements/elements_overview/">Elements overview</a></li><li><a class="tocitem" href="../../elements/solid_element/">Solid element</a></li></ul></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../../solvers/solver_overview/">Solver overview</a></li><li><a class="tocitem" href="../../solvers/crisfield_solver/">Crisfield arc-length solver</a></li><li><a class="tocitem" href="../../solvers/local_dissipation_solver/">-</a></li></ul></li><li><span class="tocitem">Outputs</span><ul><li><a class="tocitem" href="../../outputs/DofValueOutput/">DofValueOutputs</a></li></ul></li><li><span class="tocitem">Code gallery</span><ul><li><a class="tocitem" href="../bar_example/">Bar example</a></li><li><a class="tocitem" href="../beam_example/">Beam example</a></li><li><a class="tocitem" href="../enf_example/">ENF example</a></li><li class="is-active"><a class="tocitem" href>-</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Code gallery</a></li><li class="is-active"><a href>-</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>-</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/lijas/Five.jl/blob/master/docs/src/literate/phasefield.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-">using Five
+
+
+#NELX = 51
+#NELY = 51
+
+b = 0.001
+E = 6e11
+nu = 0.22
+#elsize = L/NELY
+
+data = ProblemData(
+    dim = 2,
+    tend = 0.010,
+)
+
+#grid
+include(&quot;phase_grid.jl&quot;)
+
+h1 = Vec((0.02, 0.02))
+h2 = Vec((0.02, 0.1))
+
+data.grid = read_grid(joinpath(@__DIR__, &quot;paperb_phase_mesh.mphtxt&quot;))#generate_grid(Quadrilateral, (NELX,NELY), Vec((0.0,0.0)),Vec((L,L)))
+#addvertexset!(data.grid, &quot;leftbottom&quot;, x -&gt; x[2] ≈ 0.0 &amp;&amp; x[1] ≈ 0.0)
+#addvertexset!(data.grid, &quot;top&quot;, x -&gt; x[2] ≈ 1.0)
+addfaceset!(data.grid, &quot;bottomhole&quot;, x -&gt;  norm(x-h1) &lt;= .010)
+addfaceset!(data.grid, &quot;tophole&quot;, x -&gt;  norm(x-h2) &lt;= .010)
+addvertexset!(data.grid, &quot;tophole&quot;, x -&gt;  norm(x-h2) &lt;= .010)
+
+material = Five.PhaseFieldSpectralSplit(
+    E = E,
+    ν = nu,
+    Gc = 2280.0,
+    lc = 0.25e-3*2,
+)</code></pre><pre><code class="language-julia">element = PhaseFieldElement{2,1,RefCube,Float64}(
+    thickness = 0.001,
+    qr_order = 2,
+    celltype = Quadrilateral,
+    dimstate = MaterialModels.PlaneStrain()
+)
+
+#=element = Five.LinearSolidElement{2,1,RefCube,Float64}(
+    thickness = 1.0,
+    celltype = Quadrilateral,
+    qr_order = 2,
+    dimstate = PlaneStrain()
+)=#</code></pre><pre><code class="language-">part = Part(
+    element = element,
+    material = material,
+    cellset  = 1:getncells(data.grid)
+)
+push!(data.parts, part)
+
+
+#Change initial states
+#for cellid in getcellset(data.grid, &quot;precracked&quot;)</code></pre><p>data.elementstates[cellid] = Five.PhaseFieldElementState(element, 1000.0)</p><pre><code class="language-julia">#end</code></pre><pre><code class="language-">dbc1 = Ferrite.Dirichlet(
+    field = :u,
+    set = getfaceset(data.grid, &quot;bottomhole&quot;),
+    func = (x,t)-&gt;[0.0, 0.0],
+    dofs =  [1, 2]
+)
+push!(data.dirichlet, dbc1)
+
+dbc1 = Ferrite.Dirichlet(
+    field = :u,
+    set = getfaceset(data.grid, &quot;tophole&quot;),
+    func = (x,t)-&gt;[t*1.0],
+    dofs =  [2]
+)
+#push!(data.dirichlet, dbc1)</code></pre><pre><code class="language-">force = PointForce(
+    field = :u,
+    comps = [2],
+    set = getvertexset(data.grid, &quot;tophole&quot;),
+    func = (X,t) -&gt; [1.0]
+)
+push!(data.external_forces, force)</code></pre><pre><code class="language-julia">data.output[] = Output(
+    interval = -1.0,
+    runname = &quot;phase_comsol&quot;,
+    savepath = &quot;.&quot;
+)</code></pre><pre class="documenter-example-output">Output{Float64}(&quot;.&quot;, &quot;phase_comsol&quot;, Five._NO_TERMINATION, VTKOutput(WriteVTK.CollectionFile(&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;VTKFile type=&quot;Collection&quot; version=&quot;1.0&quot; byte_order=&quot;LittleEndian&quot; compressor=&quot;vtkZLibDataCompressor&quot;&gt;
+  &lt;Collection/&gt;
+&lt;/VTKFile&gt;
+, &quot;./phase_comsol.pvd&quot;, String[]), -1.0, VTKCellOutput[], VTKNodeOutput[], Base.RefValue{Float64}(-Inf)), false, true, Dict{String, Five.AbstractOutput}())</pre><pre><code class="language-">output = OutputData(
+    type = DofValueOutput(
+        field = :u,
+        dofs = [2]
+    ),
+    interval = -1.0,
+    set = getfaceset(data.grid, &quot;tophole&quot;)
+)
+data.outputdata[&quot;reactionforce&quot;] = output
+
+state, globaldata = build_problem(data)
+
+solver = NewtonSolver(
+    Δt0 = 0.0000001,
+    Δt_max = 0.0001,
+    tol    = 1e-4,
+)
+
+
+solver = LocalDissipationSolver(
+    Δλ0          = 1e-7,
+    Δλ_max       = 10.0,
+    Δλ_min       = 1e-10,
+    #Δλ0          = 1.0,
+    #Δλ_max       = 10.0,
+    #Δλ_min       = 1e-11,
+    ΔL0          = 2.5,
+    ΔL_min       = 1e-9,
+    ΔL_max       = 10.0,
+    sw2d         = 1e-6,
+    sw2i         = -Inf,
+    optitr       = 7,
+    maxitr       = 12,
+    maxitr_first_step = 50,
+    maxsteps     = 2,
+    λ_max        = 100.108,
+    #λ_max        = 100.0,
+    λ_min        = -2000.0,
+    tol          = 1e-8,
+    max_residual = 1e8,
+    #finish_criterion = Five.finish_criterion1
+)
+
+
+output = solvethis(solver, state, globaldata)
+
+d = [output.outputdata[&quot;reactionforce&quot;].data[i].displacement for i in 1:length(output.outputdata[&quot;reactionforce&quot;].data)]
+f = [output.outputdata[&quot;reactionforce&quot;].data[i].fint for i in 1:length(output.outputdata[&quot;reactionforce&quot;].data)]
+
+#ig = plot(xlabel = &quot;Displacement&quot;, ylabel = &quot;Force&quot;, legend = false)
+#plot!(fig, d, f, mark = :o)
+#plot!(fig, d1, f1, label = &quot;Elastic energy&quot;, mark = :o)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../enf_example/">« ENF example</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 5 January 2023 09:09">Thursday 5 January 2023</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

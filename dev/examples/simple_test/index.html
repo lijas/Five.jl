@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Beam example · Five</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Five</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../essentials/">Essentials</a></li><li><a class="tocitem" href="../../parts/">Parts</a></li><li><span class="tocitem">Elements</span><ul><li><a class="tocitem" href="../../elements/elements_overview/">Elements overview</a></li><li><a class="tocitem" href="../../elements/solid_element/">Solid element</a></li></ul></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../../solvers/solver_overview/">Solver overview</a></li><li><a class="tocitem" href="../../solvers/crisfield_solver/">Crisfield arc-length solver</a></li><li><a class="tocitem" href="../../solvers/local_dissipation_solver/">-</a></li></ul></li><li><span class="tocitem">Outputs</span><ul><li><a class="tocitem" href="../../outputs/DofValueOutput/">DofValueOutputs</a></li></ul></li><li><span class="tocitem">Code gallery</span><ul><li><a class="tocitem" href="../bar_example/">Bar example</a></li><li><a class="tocitem" href="../beam_example/">Beam example</a></li><li><a class="tocitem" href="../enf_example/">ENF example</a></li><li><a class="tocitem" href="../phasefield/">-</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Beam example</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Beam example</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/lijas/Five.jl/blob/master/docs/src/literate/simple_test.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Beam-example"><a class="docs-heading-anchor" href="#Beam-example">Beam example</a><a id="Beam-example-1"></a><a class="docs-heading-anchor-permalink" href="#Beam-example" title="Permalink"></a></h1><pre><code class="language-">using Five
+
+data = ProblemData(
+    dim = 3,
+    tend = 1.0
+)
+
+data.grid = generate_grid(Hexahedron, (2,2,2), Vec((0.0,0.0,0.0)), Vec((2.0,2.0,4.0)))
+addvertexset!(data.grid, &quot;topright&quot;, (x) -&gt; x[1] == 2.0 &amp;&amp; x[2] == 2.0 &amp;&amp; x[3] == 4.0)
+addcellset!(data.grid, &quot;all&quot;, (x) -&gt; true)
+
+material = LinearElastic(
+    E = 100.0,
+    ν = 0.3,
+)
+
+con1 = Dirichlet(
+    set = getfaceset(data.grid, &quot;top&quot;),
+    func = (x,t) -&gt; (0.0),
+    field = :u,
+    dofs = [3]
+)
+push!(data.dirichlet, con1)
+
+con1 = Dirichlet(
+    set = getfaceset(data.grid, &quot;back&quot;),
+    func = (x,t) -&gt; (0.0),
+    field = :u,
+    dofs = [1]
+)
+push!(data.dirichlet, con1)
+
+con1 = Dirichlet(
+    set = getfaceset(data.grid, &quot;right&quot;),
+    func = (x,t) -&gt; (0.0),
+    field = :u,
+    dofs = [2]
+)
+push!(data.dirichlet, con1)
+
+part = Part(
+    element  = Five.LinearSolidElement{3,1,RefCube,Float64}(
+        qr_order = 2,
+        celltype = Hexahedron,
+    ),
+    material = material,
+    cellset = collect(1:getncells(data.grid))
+)
+push!(data.parts, part)
+
+data.output[] = Output(
+    interval = -0.1,
+    runname = &quot;Beamexample&quot;,
+    savepath = &quot;.&quot;
+)
+
+output = OutputData(
+    type = DofValueOutput(
+        field = :u,
+        dofs = [2]
+    ),
+    interval = 0.1,
+    set = getfaceset(data.grid, &quot;bottom&quot;)
+)
+
+data.outputdata[&quot;reactionforce&quot;] = output
+
+vtkoutput = VTKNodeOutput(
+    type = MaterialStateOutput(
+        field = :σ,
+        datatype = SymmetricTensor{2,3,Float64,6}
+    ),
+    func = mean,
+)
+
+Five.push_vtkoutput!(data.output[], vtkoutput)
+
+solver = NewtonSolver(
+    Δt0 = 1.0,
+    Δt_max = 1.0,
+)
+
+state, globaldata = build_problem(data)
+
+@testset &quot;External forces&quot; begin</code></pre><pre><code class="language-julia">    #Traction force bottom</code></pre><pre><code class="language-">    force = Five.TractionForce(
+        field = :u,
+        set = getfaceset(data.grid, &quot;bottom&quot;),
+        traction = (X,t) -&gt; (0.0, 0.0, 1.0), #Force per area
+        celltype = Hexahedron
+    )
+
+    force = Five.init_external_force!(force, globaldata.dh)
+    Five.apply_external_force!(force, state, globaldata)
+    @test sum(state.system_arrays.fᵉ) ≈ 4.0 atol = 1e-10</code></pre><pre><code class="language-julia">    #Traction force right</code></pre><pre><code class="language-">    fill!(state.system_arrays, 0.0)
+    force = Five.TractionForce(
+        field = :u,
+        set = getfaceset(data.grid, &quot;right&quot;),
+        traction = (X,t) -&gt; (1.0, 0.0, 0.0), #Force per area
+        celltype = Hexahedron
+    )
+
+    force = Five.init_external_force!(force, globaldata.dh)
+    Five.apply_external_force!(force, state, globaldata)
+    @test sum(state.system_arrays.fᵉ) ≈ 8.0 atol = 1e-10</code></pre><pre><code class="language-julia">    #Point force</code></pre><pre><code class="language-">    fill!(state.system_arrays, 0.0)
+
+    force = PointForce(
+        field = :u,
+        comps = [3],
+        set = getvertexset(data.grid, &quot;topright&quot;),
+        func = (X,t) -&gt; (-13.37,)
+    )
+
+    force = Five.init_external_force!(force, globaldata.dh)
+    Five.apply_external_force!(force, state, globaldata)
+    @test sum(state.system_arrays.fᵉ) ≈ -13.37 atol = 1e-10
+end
+
+@testset &quot;Outputs&quot; begin</code></pre><pre><code class="language-julia">    #Dof value: Vertexset</code></pre><pre><code class="language-">    output = OutputData(
+        type = DofValueOutput(
+            field = :u,
+            dofs = [2]
+        ),
+        interval = 0.1,
+        set = getvertexset(data.grid, &quot;topright&quot;)
+    )
+
+    output = Five.build_outputdata(output, globaldata.dh)
+
+    #translate all nodes
+    fill!(state.system_arrays, 0.0)
+    fill!(state.d, 1.337)
+    fill!(state.system_arrays.fⁱ, 1.337)
+    fill!(state.system_arrays.fᵉ, 13.337)
+    Five.collect_output!(output, state, globaldata)
+
+    @test output.data[1].displacement == 1.337
+    @test output.data[1].fint == 1.337
+    @test output.data[1].fext == 13.337</code></pre><pre><code class="language-julia">    #Dof value: Faceset</code></pre><pre><code class="language-">    output = OutputData(
+        type = DofValueOutput(
+            field = :u,
+            dofs = [2]
+        ),
+        interval = 0.1,
+        set = getfaceset(data.grid, &quot;bottom&quot;)
+    )
+
+    output = Five.build_outputdata(output, globaldata.dh)
+
+    #translate all nodes
+    fill!(state.system_arrays, 0.0)
+    fill!(state.d, 1.337)
+    fill!(state.system_arrays.fⁱ, 1.337)
+    fill!(state.system_arrays.fᵉ, 13.337)
+    Five.collect_output!(output, state, globaldata)
+
+    @test output.data[1].displacement ≈ 1.337
+    @test output.data[1].fint ≈ 1.337 * 9 #9 nodes
+    @test output.data[1].fext ≈ 13.337 * 9 #9 nodes</code></pre><pre><code class="language-julia">    #MaterialStateOutput</code></pre><pre><code class="language-">    output = OutputData(
+        type = Five.StressOutput(),
+        interval = 0.1,
+        set = getcellset(data.grid, &quot;all&quot;)
+    )
+
+    output = Five.build_outputdata(output, globaldata.dh)
+
+    Five.collect_output!(output, state, globaldata)
+
+    @test length(getcellset(data.grid, &quot;all&quot;)) == length(output.data[1])
+    @test all(iszero.(output.data[1]))
+
+
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 5 January 2023 09:09">Thursday 5 January 2023</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,5 +1,3 @@
-# # Beam example
-
 using Five
 
 data = ProblemData(
@@ -16,11 +14,11 @@ addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
     nu = 0.3
 )=#
 
-material = MatTransvLinearElastic(;    
-    E1 = 100.0,   
-    E2 = 100.0,   
+material = MatTransvLinearElastic(;
+    E1 = 100.0,
+    E2 = 100.0,
 
-    ν_12 = 0.3, 
+    ν_12 = 0.3,
     G_12 = 100.0/(2(1.3)),
     ρ = 1.0,
     α =0.0
@@ -54,7 +52,7 @@ push!(data.dirichlet, con1)=#
 
 part = Part(
     element  = Five.LinearSolidElement{2,1,RefCube,Float64}(
-        thickness = 1.0, 
+        thickness = 1.0,
         qr_order = 2,
         celltype = Quadrilateral,
         dimstate = PlaneStrain()
@@ -117,6 +115,7 @@ output = solvethis(solver, state, data)
 
 d = output.outputdata["reactionforce"].data[end].displacement
 
-using Test 
-@show abs(d[1])                      #src
-#@test norm(d) ≈ 0.44438080510979344 #src
+using Test
+
+# This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
+
