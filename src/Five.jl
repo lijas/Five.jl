@@ -2,6 +2,10 @@ module Five
 
 using Reexport
 using ForwardDiff
+import LinearSolve
+import Preconditioners
+import IncompleteLU
+using MKLSparse
 
 using Parameters
 using TimerOutputs
@@ -29,6 +33,18 @@ LOG = Logging.global_logger()
 
 #function _getT() end
 #function _getdim() end
+
+# IdentityProconditioner
+struct IdentityProconditioner <: Preconditioners.AbstractPreconditioner end
+function IdentityProconditioner(K::AbstractMatrix) 
+    IdentityProconditioner()
+end
+function LinearAlgebra.ldiv!(y, ::IdentityProconditioner, x)
+    copyto!(y, x)
+end
+function LinearAlgebra.ldiv!(::IdentityProconditioner, x)
+    x
+end
 
 const Optional{T} = Union{T,Nothing}
 

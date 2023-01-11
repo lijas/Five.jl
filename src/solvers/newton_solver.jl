@@ -10,6 +10,9 @@ export NewtonSolver
     optitr::Int = 5
     max_residual::T = Inf
     maxitr_first_step::Int = maxitr
+
+    linearsolver::Optional{LinearSolve.SciMLLinearSolveAlgorithm} = nothing
+    preconditioner = IdentityProconditioner
 end
 
 function Base.isdone(solver::NewtonSolver, state::StateVariables, globaldata)
@@ -45,11 +48,15 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
 
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ #- state.system_arrays.Kᵉ
-
-        
         #Solve 
         apply!(K, r, ch, true; strategy = Ferrite.APPLY_TRANSPOSE)
-        ΔΔd = K\-r
+        
+        #Kt = ThreadedSparseMatrixCSC(K)' #Note the transpose
+        prob = LinearSolve.LinearProblem(K, -r) 
+        precon = solver.preconditioner(K)
+        linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
+        @timeit "Solve" sol = LinearSolve.solve(linsolve)
+        ΔΔd = sol.u
         apply_zero!(ΔΔd, ch)
         
         state.norm_residual = norm(r[free_dofs(ch)])
