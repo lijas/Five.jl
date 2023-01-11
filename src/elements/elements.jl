@@ -19,6 +19,8 @@ struct EmptyElementState <: AbstractElementState end
 EmptyElementState(::AbstractElement) = EmptyElementState() 
 elementstate_type(::Type{T}) where {T<:AbstractElement} = EmptyElementState
 
+Ferrite.getdim(::AbstractElement{dim}) where dim = dim
+
 """
     is_dissipative(::AbstractElement)
 

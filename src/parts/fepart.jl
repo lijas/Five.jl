@@ -1,7 +1,7 @@
 export Part
 export PartState
 
-struct PartCache{dim,T}
+struct PartCache{dim,T,E}
     ue::Vector{T}
     due::Vector{T}
     Δue::Vector{T}
@@ -9,6 +9,7 @@ struct PartCache{dim,T}
     ke::Matrix{T}
     celldofs::Vector{Int}
     coords::Vector{Vec{dim,T}}
+    element::E
 end
 
 struct PartVTKExport{dim,T}
@@ -18,30 +19,47 @@ struct PartVTKExport{dim,T}
 end
 
 PartVTKExport{dim,T}() where {dim,T} = PartVTKExport{dim,T}(Dict{Int,Int}(), MeshCell[], Vec{dim,T}[])
-PartCache{dim,T}(ndofs, ncoords) where {dim,T} = PartCache{dim,T}(zeros(T,ndofs), zeros(T,ndofs), zeros(T,ndofs), zeros(T,ndofs), zeros(T,ndofs,ndofs), zeros(Int,ndofs), zeros(Vec{dim,T},ncoords))
+
+function PartCache{dim,T}(ndofs, ncoords, element::E) where {dim,T,E} 
+    PartCache{dim,T,E}(
+        zeros(T,ndofs), 
+        zeros(T,ndofs), 
+        zeros(T,ndofs), 
+        zeros(T,ndofs), 
+        zeros(T,ndofs,ndofs), 
+        zeros(Int,ndofs), 
+        zeros(Vec{dim,T},ncoords),
+        deepcopy(element)
+    )
+end
 
 #Name it Part instead of Fe-part because it is the standard...
 struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim}
-    #id::Int
     material::M
     cellset::Vector{Int}
+    threadsets::Vector{Vector{Int}}
     element::E
 
-    #For vtk-ploting
-    cache::PartCache{dim,T}
-    vtkexport::PartVTKExport{dim,T}
+    cache::Vector{PartCache{dim,T,E}} #One for each thread
 end
 
 function Part(; 
-    material::AbstractMaterial,
-    element::AbstractElement{dim},
+    material::M,
+    element::E,
     cellset
-    ) where {dim}
+    ) where {E,M}
 
+    dim = Ferrite.getdim(element)
     T = Float64
+
     _set = collect(cellset)
     sort!(_set) # YOLO
-    return Part{dim,T}(material, _set, element)
+    return Part{dim,T,E,M}(
+        material, 
+        collect(cellset), 
+        Vector{Int}[],
+        element, 
+        PartCache{dim,T}[])
 end
 
 #Not implemented:
@@ -53,11 +71,6 @@ struct IGAPart{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{
 
     #Cb::Vector{IGA.BezierExtractionOperator{T}}
     #cv_plot::CellScalarValues 
-end
-
-
-function Part{dim,T}(material::M, cellset::AbstractVector{Int}, element::E) where {dim,T,E,M}
-    return Part{dim,T,E,M}(material, collect(cellset), element, PartCache{dim,T}(ndofs(element), Ferrite.nnodes(getcelltype(element))), PartVTKExport{dim,T}())
 end
 
 struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState
@@ -95,31 +108,21 @@ function construct_partstates(part::Part{dim,T,ET,MT}) where {dim,T,ET,MT}
 end
 
 
-function init_part!(part::Part, dh::Ferrite.AbstractDofHandler)
-    celltype = typeof(dh.grid.cells[first(part.cellset)])
-    vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
-    
-    next_node_id = 1
-    for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
-        cell = dh.grid.cells[cellid]
+function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {dim,T}
+    grid = dh.grid
 
-        new_ids = Int[]
-        for nodeid in cell.nodes
-            if !haskey(part.vtkexport.nodeid_mapper, nodeid)
-                part.vtkexport.nodeid_mapper[nodeid] = next_node_id
-                push!(new_ids, next_node_id)
-                next_node_id += 1
-                push!(part.vtkexport.vtknodes, dh.grid.nodes[nodeid].x)
-            else
-                _new_id = part.vtkexport.nodeid_mapper[nodeid]
-                push!(new_ids, _new_id)
-            end
-        end
-        push!(part.vtkexport.vtkcells, MeshCell(vtk_celltype, copy(new_ids[1:vtk_celltype.nodes])))
+    _ndofs = ndofs(part.element)
+    _nnodes = Ferrite.nnodes(getcelltype(part.element))
+
+    nthreads = Threads.nthreads()
+    
+    resize!(part.cache, nthreads)
+    for i in 1:nthreads
+        part.cache[i] = PartCache{dim,T}(_ndofs, _nnodes, part.element)
     end
 
-
-    resize!(part.cache.coords, Ferrite.nnodes(celltype))
+    threadsets = Ferrite.create_coloring(grid, Set(part.cellset))
+    copy!(part.threadsets, threadsets)
 end
 
 @enum ASSEMBLETYPE FORCEVEC STIFFMAT FSTAR DISSI
@@ -166,57 +169,59 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     state::StateVariables{T},
     assemtype::ASSEMBLETYPE) where {dim,T,ET,MT}
 
-    assembler = start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false)
+    assemblers = [start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false) for _ in 1:Threads.nthreads()]
    
     ElementState = elementstate_type(ET)
     MaterialState = typeof( initial_material_state(part.material) )#materialstate_type(MT)
 
-    #Extract variables
-    element = part.element
-    ue, Δue, due, ke, fe, coords, celldofs = (part.cache.ue, part.cache.Δue, part.cache.due, 
-    part.cache.ke, part.cache.fe, part.cache.coords, part.cache.celldofs)
-
     Δt = state.Δt
 
-    for (localid,cellid) in enumerate(part.cellset)
+    for tset in part.threadsets
+        Threads.@threads :static for i in 1:length(tset) 
+            cellid = part.cellset[tset[i]]
+            cache = part.cache[Threads.threadid()]
+            assembler = assemblers[Threads.threadid()]
+
+            (; fe, ke, ue, due, Δue, coords, celldofs, element) = cache
         
-        partstate::PartState{ElementState, MaterialState} = state.partstates[cellid]
+            partstate::PartState{ElementState, MaterialState} = state.partstates[cellid]
 
-        materialstate = partstate.materialstates
-        cellstate     = partstate.elementstate
-        stresses      = partstate.stresses
-        strains       = partstate.strains
+            materialstate = partstate.materialstates
+            cellstate     = partstate.elementstate
+            stresses      = partstate.stresses
+            strains       = partstate.strains
 
-        fill!(fe, 0.0)
-        (assemtype == STIFFMAT) && fill!(ke, 0.0)
+            fill!(fe, 0.0)
+            (assemtype == STIFFMAT) && fill!(ke, 0.0)
 
-        Ferrite.cellcoords!(coords, dh, cellid)
-        Ferrite.celldofs!(celldofs, dh, cellid)
+            Ferrite.cellcoords!(coords, dh, cellid)
+            Ferrite.celldofs!(celldofs, dh, cellid)
 
-        Δue .= state.v[celldofs] #Dont need both Δue and (v and Δt)
-        ue .= state.d[celldofs]
-        due .= state.v[celldofs]
-        
-        if assemtype == STIFFMAT
-            integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, stresses, strains, ke, fe, coords, Δue, ue, due, Δt)
-            assemble!(assembler, celldofs, fe, ke)
-        elseif assemtype == FORCEVEC
-            integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
-            state.system_arrays.fⁱ[celldofs] += fe
-        elseif assemtype == FSTAR
-            error("Broken code, fix")
-            prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
-            prev_materialstate = prev_partstate.materialstates
+            Δue .= state.v[celldofs] #Dont need both Δue and (v and Δt)
+            ue .= state.d[celldofs]
+            due .= state.v[celldofs]
+            
+            if assemtype == STIFFMAT
+                integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, stresses, strains, ke, fe, coords, Δue, ue, due, Δt)
+                assemble!(assembler, celldofs, fe, ke)
+            elseif assemtype == FORCEVEC
+                integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
+                state.system_arrays.fⁱ[celldofs] += fe
+            elseif assemtype == FSTAR
+                error("Broken code, fix")
+                prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
+                prev_materialstate = prev_partstate.materialstates
 
-            integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
-            state.system_arrays.fᴬ[celldofs] += fe
-        elseif assemtype == DISSI
-            ge = Base.RefValue(zero(T))
-            integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
-            state.system_arrays.fᴬ[celldofs] += fe
-            state.system_arrays.G[] += ge[]
+                integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
+                state.system_arrays.fᴬ[celldofs] += fe
+            elseif assemtype == DISSI
+                ge = Base.RefValue(zero(T))
+                integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+                state.system_arrays.fᴬ[celldofs] += fe
+                state.system_arrays.G[] += ge[]
+            end
+
         end
-
     end
     
 end
