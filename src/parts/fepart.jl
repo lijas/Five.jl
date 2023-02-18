@@ -51,12 +51,11 @@ function Part(;
 
     dim = Ferrite.getdim(element)
     T = Float64
-
     _set = collect(cellset)
     sort!(_set) # YOLO
     return Part{dim,T,E,M}(
         material, 
-        collect(cellset), 
+        _set,
         Vector{Int}[],
         element, 
         PartCache{dim,T}[])
@@ -177,8 +176,8 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     Δt = state.Δt
 
     for tset in part.threadsets
-        Threads.@threads :static for i in 1:length(tset) 
-            cellid = part.cellset[tset[i]]
+        Threads.@threads :static for cellid in tset
+
             cache = part.cache[Threads.threadid()]
             assembler = assemblers[Threads.threadid()]
 
