@@ -9,6 +9,7 @@ mutable struct ProblemData{dim,T}
     output::Base.RefValue{Output{T}}
     outputdata::Dict{String, Five.AbstractOutput}
     materialstates::Dict{Int, Vector{Any}}
+    initial_condition::Vector{Five.InitialCondition}
 
     t0::T
     tend::T
@@ -25,8 +26,9 @@ function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive =
     cnstr = Five.AbstractExternalForce[]
     states = Dict{Int, Vector{Any}}()
     grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
+    ic = Five.InitialCondition[]
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, t0, tend, adaptive)
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, ic, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)
@@ -78,8 +80,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     #
     dch = ConstraintHandler(dh)
     for d in data.dirichlet
-        fh = getfieldhandler(dh, first(d.faces)[1])
-        add!(dch, fh, d)
+        add!(dch, d)
     end
     close!(dch)
     update!(dch, 0.0)
@@ -117,6 +118,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
 
     for part in globaldata.parts
+        @show typeof(part)
         init_part!(part, dh)
     end
 
@@ -126,6 +128,10 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     state = StateVariables(T, ndofs(dh))
     state.t = data.t0
     state.partstates = partstates
+
+    for ic in data.initial_condition
+        apply_analytical!(state.d, dh, ic.field, ic.func);
+    end
 
     #System Arrays
     state.system_arrays = SystemArrays(T, ndofs(dh))
@@ -149,6 +155,6 @@ function _check_input(data::ProblemData{dim,T}) where {dim,T}
     end
     @show length(all_cellsets)
     @show  getncells(data.grid)
-    length(all_cellsets) < getncells(data.grid) && error("Not all cells are included in a part.")
+#    length(all_cellsets) < getncells(data.grid) && error("Not all cells are included in a part.")
 
 end

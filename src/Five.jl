@@ -60,6 +60,11 @@ export SystemArrays, StateVariables, GlobalData
 
 abstract type AbstractSystemArrays{T} end
 
+@with_kw struct InitialCondition
+    field::Symbol
+    func::Function
+end
+
 """
     SystemArrays(T::Type, ndofs::Int)
 
