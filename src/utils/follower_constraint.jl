@@ -19,10 +19,12 @@ end
 
 
 function Ferrite.add!(ch::ConstraintHandler, c::FollowerConstraint)
-    field_idx     = Ferrite.find_field(ch.dh, c.field_name)
-    interpolation = Ferrite.getfieldinterpolation(ch.dh, field_idx)
-    field_dim     = Ferrite.getfielddim(ch.dh, field_idx)
-    offset        = Ferrite.field_offset(ch.dh, c.field_name)
+    cellid, faceid = first(c.faces) #assume all cells in the cellset are the same
+    fh            = getfieldhandler(ch.dh, cellid)
+    field_idx     = Ferrite.find_field(fh, c.field_name)
+    interpolation = Ferrite.getfieldinterpolation(fh, field_idx)
+    field_dim     = Ferrite.getfielddim(fh, field_idx)
+    offset        = Ferrite.field_offset(fh, c.field_name)
 
     _add!(ch, c, interpolation, field_dim, offset)
     return ch
