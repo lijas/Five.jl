@@ -28,7 +28,7 @@ function my_material_response(mp::PhaseFieldSpectralSplit, ε::SymmetricTensor{2
     (; Gc, λ, μ) = mp
     
     local σ, dσdε, σ⁺, Ψ⁺
-    if iszero(ε)
+    if iszero(ε) || (dim==3 && count(x->iszero(x), ε[[1,5,9]]) == 2) #If two of the diagonal terms are zero (or equal to each other), the gradient of the eigen values will be NaN
         δ(i,j) = i == j ? 1.0 : 0.0
         f = (i,j,k,l) -> λ*δ(i,j)*δ(k,l) + μ*(δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))    
         dσdε = SymmetricTensor{4, dim, Float64}(f)

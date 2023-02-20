@@ -109,6 +109,8 @@ push!(data.external_forces, force)
 solver = NewtonSolver(
     Δt0 = 0.1,
     Δt_max = 0.1,
+    linearsolver = Five.LinearSolve.KrylovJL_CG(itmax = 1000, verbose=0, atol = 1e-15),
+    preconditioner = Five.Preconditioners.AMGPreconditioner{Five.Preconditioners.RugeStuben}#Five.IncompleteLU.ilu#Five.IdentityProconditioner #Five.IncompleteLU.ilu
 )
 
 state, data = build_problem(data)
