@@ -33,6 +33,9 @@ struct TransverseIsotropicState <: MaterialModels.AbstractMaterialState
     a3::Vec{3,Float64}
 end
 
+
+materialstate_type(::Type{<:TransverseIsotropic}) = TransverseIsotropicState
+
 # # # # # # #
 # Constructors
 # # # # # # #

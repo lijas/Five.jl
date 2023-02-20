@@ -17,7 +17,7 @@ struct PhaseFieldElementState <: AbstractElementState
     H::Float64
 end
 
-initial_element_state(::PhaseFieldElement) = PhaseFieldElementState(0.0)
+initial_element_state(::PhaseFieldElement) = PhaseFieldElementState()
 is_dissipative(::PhaseFieldElement) = true
 
 elementstate_type(::Type{<:PhaseFieldElement}) = PhaseFieldElementState

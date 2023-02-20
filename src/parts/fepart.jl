@@ -179,7 +179,7 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     assemblers = [start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false) for _ in 1:Threads.nthreads()]
    
     ElementState = elementstate_type(ET)
-    MaterialState = typeof( initial_material_state(part.material) )#materialstate_type(MT)
+    MaterialState = materialstate_type(MT)
 
     Δt = state.Δt
 

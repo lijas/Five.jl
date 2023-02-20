@@ -7,6 +7,8 @@ density(m::M) where M <: MaterialModels.AbstractMaterial = m.density
 #
 #end
 
+materialstate_type(::Type{<:LinearElastic}) = LinearElasticState
+
 """
     is_dissipative
 """
