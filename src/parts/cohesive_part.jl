@@ -1,6 +1,6 @@
 
 #Cohesive part, just override some plotting stuff
-function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDofHandler) where {dim,T}
+#=function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDofHandler) where {dim,T}
    #= celltype = typeof(dh.grid.cells[first(part.cellset)])
     vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
 
@@ -25,7 +25,7 @@ function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDof
     end
 #asdf
     resize!(part.cache.coords, Ferrite.nnodes(celltype))=#
-end
+end=#
 
 function get_vtk_celldata(part::Part{dim,T,<:CohesiveElement}, output::VTKCellOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
     return nothing
