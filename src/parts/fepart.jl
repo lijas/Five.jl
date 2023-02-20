@@ -120,18 +120,14 @@ function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {d
         part.cache[i] = PartCache{dim,T}(_ndofs, _nnodes, part.element)
     end
 
-    #Quick fix for bar_example.jl : TODO: fix Ferrite.create_coloring for small number of elements
+    #Quick fix for bar_example.jl : TODO: this is fixed in latest ferrite version
     local threadsets
-    if getncells(grid) < 10
-        threadsets = [Int[] for _ in 1:getncells(grid)]
-        for i in 1:getncells(grid)
-            push!(threadsets[i], i)
-        end
+    if length(part.cellset) == 1
+        threadsets = Vector{Int}[[first(part.cellset)]]
     else
         alg = ColoringAlgorithm.WorkStream
-        threadsets = Ferrite.create_coloring(grid, Set(part.cellset); alg)
+        threadsets = Ferrite.create_coloring(grid, part.cellset; alg)
     end
-
 
     copy!(part.threadsets, threadsets)
 end
