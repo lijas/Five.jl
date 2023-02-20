@@ -535,3 +535,13 @@ Base.@propagate_inbounds function disassemble!(ue::AbstractVector, u::AbstractVe
     end
     return ue
 end
+
+function Ferrite._check_same_celltype(grid::Ferrite.AbstractGrid, boundaryset::AbstractVector{<:Ferrite.BoundaryIndex})
+    cellid, faceid = first(boundaryset)
+    celltype = typeof(grid.cells[cellid])
+    for (cellid,bid) in boundaryset
+        if celltype != typeof(grid.cells[cellid])
+            error("The cells in your boundary-set are not all of the same celltype.")
+        end
+    end
+end

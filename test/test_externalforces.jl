@@ -95,10 +95,8 @@ end
 
     #Traction force bottom
     force = Five.TractionForce(
-        field = :u,
         set = getfaceset(globaldata.grid, "bottom"),
         traction = (X,t) -> (0.0, 0.0, 1.0), #Force per area
-        celltype = Hexahedron
     )
 
     force = Five.init_external_force!(force, globaldata.dh)
@@ -109,10 +107,8 @@ end
 
     fill!(state.system_arrays, 0.0)
     force = Five.TractionForce(
-        field = :u,
         set = getfaceset(globaldata.grid, "right"),
         traction = (X,t) -> (1.0, 0.0, 0.0), #Force per area
-        celltype = Hexahedron
     )
 
     force = Five.init_external_force!(force, globaldata.dh)
