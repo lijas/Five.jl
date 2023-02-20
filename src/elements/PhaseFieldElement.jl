@@ -14,7 +14,6 @@ struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Valu
 end
 
 struct PhaseFieldElementState <: AbstractElementState
-    H::Float64
 end
 
 initial_element_state(::PhaseFieldElement) = PhaseFieldElementState()
@@ -79,45 +78,36 @@ function integrate_forcevector_and_stiffnessmatrix!(
     ndofs_u = getnbasefunctions(cv_u)
     ndofs_d = getnbasefunctions(cv_d)
 
-    ue = a[1:ndofs_u]
-    de = a[(1:ndofs_d) .+ ndofs_u]
-
-    I = one(SymmetricTensor{2,dim,T})
-    δ(i,j) = i == j ? 1.0 : 0.0
-    I1 = SymmetricTensor{4,dim}((i,j,k,l)->δ(i,j)*δ(k,l))
-    I2 = SymmetricTensor{4,dim}((i,j,k,l)->δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))
+    urange = (1:ndofs_u) .+ 0
+    drange = (1:ndofs_d) .+ ndofs_u
 
     lc = material.lc
     Gc = material.Gc
 
     for qp in 1:getnquadpoints(cv_u)
         
-        ∇u = function_gradient(cv_u, qp, ue)
-        ∇d = function_gradient(cv_d, qp, de)
-        d = function_value(cv_d, qp, de)
+        ∇u = function_gradient(cv_u, qp, a, urange)
+        ∇d = function_gradient(cv_d, qp, a, drange)
+        d = function_value(cv_d, qp, a, drange)
         ε = symmetric(∇u)
         
         dΩ = getdetJdV(cv_u, qp) * element.thickness
 
-
         #σ, dσdε, σ⁺, Ψ⁺ = phasefield_response(ε, d, Gc, λ, μ)
         #σ, dσdε, state = material_response(element.dimstate, material, ε, d, materialstate[qp])
+        prev_state = materialstate[qp]
         σ, dσdε, state = my_material_response(material, ε, d, materialstate[qp])
-        materialstate[qp] = state
+        new_state = state
 
-        #Store stress and strain (always as 3d)
-        stresses[qp] = dim==3 ? σ : MaterialModels.increase_dim(σ)
-        strains[qp] = dim==3 ? ε : MaterialModels.increase_dim(ε)
-        
-        if state.Ψ⁺ > elementstate[qp].H
-            σ⁺ = state.σ⁺
-            ∂H∂ε = σ⁺
-            H = state.Ψ⁺
-            elementstate[qp] = PhaseFieldElementState(H)
-        else
-            σ⁺ =  zero(state.σ⁺)
+        σ⁺ = state.σ⁺
+        H = state.Ψ⁺
+        ∂H∂ε = σ⁺
+        materialstate[qp] = new_state
+        if new_state.Ψ⁺ <= prev_state.Ψ⁺
+            #σ⁺ =  zero(state.σ⁺)
+            H = prev_state.Ψ⁺
             ∂H∂ε = zero(state.σ⁺)
-            H = elementstate[qp].H
+            materialstate[qp] = prev_state
         end
 
         if dim == 2
@@ -125,6 +115,10 @@ function integrate_forcevector_and_stiffnessmatrix!(
             σ⁺   = MaterialModels.reduce_dim(σ⁺  , element.dimstate)
         end
 
+        #Store stress and strain (always as 3d)
+        stresses[qp] = dim==2 ? MaterialModels.increase_dim(σ) : σ 
+        strains[qp]  = dim==2 ? MaterialModels.increase_dim(ε) : ε
+        
         for i in 1:ndofs_u
             ∇Ni = shape_symmetric_gradient(cv_u, qp, i)
 

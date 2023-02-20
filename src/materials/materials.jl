@@ -3,6 +3,10 @@ export PlaneStressMaterial, PlaneStrainMaterial
 
 density(m::M) where M <: MaterialModels.AbstractMaterial = m.density
 
+mac₊(x::T) where T = x < 0.0 ? zero(T) : x 
+mac₋(x::T) where T = x > 0.0 ? zero(T) : x 
+heaviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
+
 #@generated function materialstate_type(::Type{T}) where {T<:AbstractMaterial}
 #
 #end
