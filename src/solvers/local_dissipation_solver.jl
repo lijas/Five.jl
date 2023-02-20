@@ -78,7 +78,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
         Kₜ = state.system_arrays.Kⁱ# - state.system_arrays.Kᵉ
         rₜ = state.λ*q + state.system_arrays.fᵉ - state.system_arrays.fⁱ
         
-        apply!(Kₜ, rₜ, globaldata.dbc, true; strategy = Ferrite.APPLY_TRANSPOSE)
+        apply_zero!(Kₜ, rₜ, globaldata.dbc)
         @timeit "Solve system" ΔΔd, ΔΔλ, _success = _solve_dissipation_system(solver, Kₜ, rₜ, q, state.system_arrays.fᵉ, state.system_arrays.fᴬ, Δg, Δd0, λ0, state.ΔL, state.solvermode)
         apply_zero!(ΔΔd, globaldata.dbc)
         
@@ -153,7 +153,7 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
         h = fᴬ
         φ = Δg - ΔL
 
-        solvefull = 2
+        solvefull = 1
         if solvefull == 1
             KK = vcat(hcat(Kₜ, -q), hcat(h', w))
             ff = vcat(rₜ, -(Δg - ΔL))
@@ -161,14 +161,21 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
             local aa
             try
                 aa = KK\ff
-            catch error
-                error("Matrix not invertible")
+            catch singularity_error
+                #error("Matrix not invertible")
                 return 0.0 .* copy(h), 0.0, false
             end
             ΔΔd, ΔΔλ = (aa[1:end-1], aa[end])
         else
             RHS = hcat(rₜ, -q)
-            SOL = Kₜ\RHS
+
+            local SOL
+            try
+                SOL = Kₜ\RHS
+            catch singularity_error
+                #error("Matrix not invertible")
+                return zeros(Float64, length(rₜ)), 0.0, false
+            end
 
             dᴵ  = SOL[:,1]
             dᴵᴵ = SOL[:,2]
@@ -181,7 +188,14 @@ function _solve_dissipation_system(solver::LocalDissipationSolver, Kₜ, rₜ, q
     elseif solvermode == DissipationSolverModes.RIKS
 
         RHS = hcat(rₜ, -q)
-        SOL = Kₜ\RHS
+
+        local SOL
+        try
+            SOL = Kₜ\RHS
+        catch singularity_error
+            #error("Matrix not invertible")
+            return zeros(Float64, length(rₜ)), 0.0, false
+        end
 
         dᴵ  = SOL[:,1]
         dᴵᴵ = SOL[:,2]     
