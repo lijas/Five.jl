@@ -406,7 +406,7 @@ function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::MaterialSt
     end
 end
 
-function collect_celldata!(data::Matrix{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT, T}
+function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT, T}
     #Collect material state
     for (ic, cellid) in enumerate(part.cellset)
         stresses = state.partstates[cellid].stresses
