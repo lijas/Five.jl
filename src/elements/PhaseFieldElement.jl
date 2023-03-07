@@ -21,6 +21,7 @@ is_dissipative(::PhaseFieldElement) = true
 
 elementstate_type(::Type{<:PhaseFieldElement}) = PhaseFieldElementState
 
+getquadraturerule(e::PhaseFieldElement) = e.cv_u.qr
 Ferrite.getnquadpoints(e::PhaseFieldElement) = getnquadpoints(e.cv_u)
 Ferrite.ndofs(e::PhaseFieldElement) = getnbasefunctions(e.cv_u) + getnbasefunctions(e.cv_d)
 Ferrite.getcelltype(e::PhaseFieldElement) = e.celltype
@@ -96,17 +97,15 @@ function integrate_forcevector_and_stiffnessmatrix!(
         #σ, dσdε, σ⁺, Ψ⁺ = phasefield_response(ε, d, Gc, λ, μ)
         #σ, dσdε, state = material_response(element.dimstate, material, ε, d, materialstate[qp])
         prev_state = materialstate[qp]
-        σ, dσdε, state = my_material_response(material, ε, d, materialstate[qp])
-        new_state = state
+        σ, dσdε, new_state = my_material_response(material, ε, d, materialstate[qp])
 
-        σ⁺ = state.σ⁺
-        H = state.Ψ⁺
+        σ⁺ = new_state.σ⁺
+        H = new_state.Ψ⁺
         ∂H∂ε = σ⁺
         materialstate[qp] = new_state
-        if new_state.Ψ⁺ <= prev_state.Ψ⁺
-            #σ⁺ =  zero(state.σ⁺)
+        if H <= prev_state.Ψ⁺
             H = prev_state.Ψ⁺
-            ∂H∂ε = zero(state.σ⁺)
+            ∂H∂ε = zero(σ⁺)
             materialstate[qp] = prev_state
         end
 
