@@ -14,8 +14,8 @@ struct CohesiveZoneInterpolation{dim,order,I<:Interpolation} <: Ferrite.Interpol
 end
 
 Ferrite.getnbasefunctions(ip::CohesiveZoneInterpolation) = getnbasefunctions(ip.interpolation)*2
-Ferrite.nvertexdofs(::CohesiveZoneInterpolation) = 1
-Ferrite.nfacedofs(ip::CohesiveZoneInterpolation) = Ferrite.ncelldofs(ip.interpolation)
+Ferrite.vertexdof_indices(::CohesiveZoneInterpolation{2,2}) = ((1,), (2,), (3,), (4,))
+Ferrite.facedof_interior_indices(ip::CohesiveZoneInterpolation{dim,1}) where {dim} = ((), ())
 
 _mapper(::Lagrange{1,RefCube,1}, _i::Int) = [1,2,1,2][_i]
 _mapper(::Lagrange{1,RefCube,2}, _i::Int) = [1,2,1,2,3,3][_i]

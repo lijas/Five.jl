@@ -77,18 +77,6 @@ Ferrite.faces(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
 Ferrite.vertices(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
 #Ferrite.vertices(c::Cell{3,4,2}) where dim = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
 
-##
-# Serendipity
-##
-Ferrite.default_interpolation(::Type{Cell{2,2,2}}) = Lagrange{1,RefCube,1}()
-Ferrite.default_interpolation(::Type{Cell{dim,1,0}}) where dim = Serendipity{dim,RefCube,0}()
-Ferrite.getnbasefunctions(::Serendipity{dim,RefCube,0}) where dim = 1
-Ferrite.vertices(::Serendipity{dim,RefCube,0}) where dim = (1,)
-Ferrite.ncelldofs(::Serendipity{dim,RefCube,0}) where dim = 1
-Ferrite.faces(::Serendipity{dim,RefCube,0}) where dim = ()
-Ferrite.value(::Serendipity{3,RefCube,0}, ::Int64, ::Tensor{1,3,T,3}) where T = T(1.0)
-
-
 #Face interpolation
 faceinterpolation(::Type{Triangle}) = Lagrange{1,RefCube,1}()
 faceinterpolation(::Type{Hexahedron}) = Lagrange{2,RefCube,1}()
