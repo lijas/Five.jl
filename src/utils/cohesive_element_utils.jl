@@ -20,6 +20,7 @@ Ferrite.nfacedofs(ip::CohesiveZoneInterpolation) = Ferrite.ncelldofs(ip.interpol
 _mapper(::Lagrange{1,RefCube,1}, _i::Int) = [1,2,1,2][_i]
 _mapper(::Lagrange{1,RefCube,2}, _i::Int) = [1,2,1,2,3,3][_i]
 _mapper(::Lagrange{2,RefCube,1}, _i::Int) = [1,2,3,4,1,2,3,4][_i]
+_mapper(::Lagrange{2,RefTetrahedron,1}, _i::Int) = [1,2,3,1,2,3][_i]
 function mid_surf_value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) where dim_p
     _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
     i = _mapper(ip.interpolation, _i)
@@ -30,8 +31,9 @@ end
 _sign_mapper(::Lagrange{1,RefCube,1}, _i::Int) = [-1,-1,+1,+1][_i]
 _sign_mapper(::Lagrange{1,RefCube,2}, _i::Int) = [-1,-1,+1,+1,-1,+1][_i]
 _sign_mapper(::Lagrange{2,RefCube,1}, _i::Int) = [-1,-1,-1,-1,+1,+1,+1,+1][_i]
+_sign_mapper(::Lagrange{2,RefTetrahedron,1}, _i::Int) = [-1,-1,-1,+1,+1,+1][_i]
 function Ferrite.value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) where dim_p
-    _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $i for interpolation $ip"))
+    _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
     sign = _sign_mapper(ip.interpolation, _i)
     i = _mapper(ip.interpolation, _i)
     return sign*Ferrite.value(ip.interpolation, i, ξ)
@@ -60,12 +62,18 @@ Ferrite.faces(c::CohesiveCell{2,N,2}) where N    = ((c.nodes[1], c.nodes[2]), (c
 Ferrite.vertices(c::CohesiveCell{3,8,2}) = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4], c.nodes[5], c.nodes[6], c.nodes[7], c.nodes[8])
 Ferrite.faces(c::CohesiveCell{3,8,2}) = ((c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4]), (c.nodes[5], c.nodes[6], c.nodes[7], c.nodes[8])) 
 
+Ferrite.vertices(c::CohesiveCell{3,6,2}) = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4], c.nodes[5], c.nodes[6],)
+Ferrite.faces(c::CohesiveCell{3,6,2}) = ((c.nodes[1], c.nodes[2], c.nodes[3], ), (c.nodes[4], c.nodes[6], c.nodes[6],)) 
+
+
 Ferrite.default_interpolation(::Type{CohesiveCell{2,4,2}}) = CohesiveZoneInterpolation(Lagrange{1,RefCube,1}())
 Ferrite.default_interpolation(::Type{CohesiveCell{2,6,2}}) = CohesiveZoneInterpolation(Lagrange{1,RefCube,2}())
 Ferrite.default_interpolation(::Type{CohesiveCell{3,8,2}}) = CohesiveZoneInterpolation(Lagrange{2,RefCube,1}())
+Ferrite.default_interpolation(::Type{CohesiveCell{3,6,2}}) = CohesiveZoneInterpolation(Lagrange{2,RefTetrahedron,1}())
 
 Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_QUAD
 Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,8,2}}) = Ferrite.VTKCellTypes.VTK_HEXAHEDRON
+Ferrite.cell_to_vtkcell(::Type{CohesiveCell{3,6,2}}) = Ferrite.VTKCellTypes.VTK_WEDGE
 
 #Ferrite.nodes_to_vtkorder(cell::CohesiveCell{2,4,2}) = cell.nodes[[1,2,4,3]]
 #Ferrite.cell_to_vtkcell(::Type{CohesiveCell{2,4,2}}) = Ferrite.VTKCellTypes.VTK_LINE
@@ -97,12 +105,13 @@ end
 @inline getR(cv::SurfaceVectorValues, qp::Int) = cv.R[qp]
 
 function SurfaceVectorValues(::Type{T},
-    quad_rule::QuadratureRule{dim_p,RefCube},
+    quad_rule::QuadratureRule{dim_p,refshape},
     func_interpol::CohesiveZoneInterpolation{dim_s},
-    geom_interpol::CohesiveZoneInterpolation{dim_s}=func_interpol) where {dim_p,dim_s,T}
+    geom_interpol::CohesiveZoneInterpolation{dim_s}=func_interpol) where {dim_p,dim_s,T,refshape}
 
     @assert Ferrite.getdim(func_interpol) == Ferrite.getdim(geom_interpol)
-    @assert Ferrite.getrefshape(func_interpol) == Ferrite.getrefshape(geom_interpol) == RefCube
+    @assert Ferrite.getrefshape(func_interpol) == Ferrite.getrefshape(geom_interpol)
+
     n_qpoints = length(getweights(quad_rule))
 
     # Function interpolation
@@ -143,7 +152,7 @@ function SurfaceVectorValues(::Type{T},
     detJdA = fill(T(NaN), n_qpoints)
     R = fill(zero(Tensor{2,dim_s,T}) *T(NaN), n_qpoints)
     MM = Tensors.n_components(Tensors.get_base(eltype(R)))
-    SurfaceVectorValues{dim_p,dim_s,T,MM,RefCube}(N, dNdξ, dNdX, R, detJdA, M, dMdξ, quad_rule, covar_base)
+    SurfaceVectorValues{dim_p,dim_s,T,MM,refshape}(N, dNdξ, dNdX, R, detJdA, M, dMdξ, quad_rule, covar_base)
 end
 
 Ferrite.getn_scalarbasefunctions(cv::SurfaceVectorValues{dim,dim_s}) where {dim,dim_s} = size(cv.N, 1) ÷ dim_s
@@ -165,7 +174,7 @@ function Ferrite.reinit!(cv::SurfaceVectorValues{dim_p,dim_s}, x::AbstractVector
                 E[d] += cv.dMdξ[j,i][d] * x[j]
             end
         end
-        D = cross(E...) #in 2d cross-product is defined as cross(a::Vec{2}) = [-a[2], a[1]]
+        D = Tensors.cross(E...) #in 2d cross-product is defined as cross(a::Vec{2}) = [-a[2], a[1]]
         
         #Rotation matrix and covariant vectors are similar becuase 
         _R = hcat((E./norm.(E))..., D/norm(D))
