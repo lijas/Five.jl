@@ -41,12 +41,14 @@ struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim
     element::E
 
     cache::Vector{PartCache{dim,T,E}} #One for each thread
+    geometry::Optional{Any} # TODO: Where should the visualization geometry live?
 end
 
 function Part(; 
     material::M,
     element::E,
-    cellset
+    cellset,
+    geometry=nothing
     ) where {E,M}
 
     dim = Ferrite.getdim(element)
@@ -58,7 +60,8 @@ function Part(;
         _set,
         Vector{Int}[],
         element, 
-        PartCache{dim,T}[])
+        PartCache{dim,T}[],
+        geometry)
 end
 
 #Not implemented:
@@ -263,9 +266,24 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state:
 
 end
 
-function get_vtk_grid(dh::Ferrite.AbstractDofHandler, part::Part)
-    asdfasdf
-    return part.vtkexport.vtkcells, part.vtkexport.vtknodes
+function get_part_vtk_grid(part::Part)
+    return part.geometry
+end
+
+function eval_part_field_data(part::Part, dh, state, field_name::Symbol)
+    fh = getfieldhandler(dh, part.cellset)
+    fieldidx = Ferrite.find_field(fh, field_name)
+    if fieldidx === nothing #the field does not exist in this part
+        return nothing 
+    end
+
+    field_offset = Ferrite.field_offset(fh, field_name) #TODO: change to fieldidx
+    field_dim    = fh.fields[fieldidx].dim 
+
+    nnodes = getnnodes(dh.grid)
+    data   = fill(Float64(NaN), field_dim, nnodes)
+    Ferrite.reshape_field_data!(data, dh, state.a, field_offset, field_dim, part.cellset)
+    return data[:, part.geometry.nodeid_mapper]
 end
 
 function post_part!(dh, part::Part, states::StateVariables)

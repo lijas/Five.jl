@@ -35,7 +35,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
     #Apply boundary conditions
     update!(ch, state.t)
     apply!(state.d, ch)
-
+    
     state.newton_itr = 0
     while true
         state.newton_itr += 1
@@ -49,8 +49,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ #- state.system_arrays.Kᵉ
         #Solve 
-        apply!(K, r, ch, true; strategy = Ferrite.APPLY_TRANSPOSE)
-        
+        apply_zero!(K, r, ch)
         #Kt = ThreadedSparseMatrixCSC(K)' #Note the transpose
         prob = LinearSolve.LinearProblem(K, -r) 
         precon = solver.preconditioner(K)
@@ -59,7 +58,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         ΔΔd = sol.u
         apply_zero!(ΔΔd, ch)
         
-        state.norm_residual = norm(r[free_dofs(ch)])
+        state.norm_residual = norm(r)
 
         state.d .+= ΔΔd
         state.v .+= ΔΔd # (state.d .- d0)#./state.Δt

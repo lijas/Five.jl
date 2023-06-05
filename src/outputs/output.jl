@@ -69,7 +69,11 @@ end
 
 outputname(o::VTKCellOutput) = outputname(o.type)
 
-struct VTKOutput
+abstract type AbstractVTKOutputType end
+struct FerriteVTKOutput <: AbstractVTKOutputType end
+struct FiveVTKOutput <: AbstractVTKOutputType end
+
+struct VTKOutput{OT <: AbstractVTKOutputType}
     #data::Union{Any, Vector{Any}}
     pvd::WriteVTK.CollectionFile
     interval::Float64 
@@ -80,9 +84,9 @@ struct VTKOutput
     last_output::Base.RefValue{Float64}
 end
 
-function VTKOutput(interval::Float64, savepath::String, filename::String)
+function VTKOutput{T}(interval::Float64, savepath::String, filename::String) where T
     pvd = paraview_collection(joinpath(savepath, filename))
-    return VTKOutput(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf))
+    return VTKOutput{T}(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf))
 end
 
 mutable struct Output{T}
@@ -99,9 +103,9 @@ mutable struct Output{T}
     outputdata::Dict{String, AbstractOutput}
 end
 
-function Output(; savepath=raw".", runname::String, interval::T, export_rawdata=false, export_vtk=true) where {T}
+function Output(; savepath=raw".", runname::String, interval::T, export_rawdata=false, export_vtk=true, vtkoutputtype::Type{<:AbstractVTKOutputType} = FerriteVTKOutput) where {T}
 
-    vtkoutput = VTKOutput(interval, savepath, runname)
+    vtkoutput = VTKOutput{vtkoutputtype}(interval, savepath, runname)
 
     #Create logging file
     logfile = open(joinpath(savepath, "log.txt"), "w+")
@@ -145,13 +149,11 @@ function push_vtkoutput!(output::Output, o::VTKNodeOutput)
     push!(output.vtkoutput.nodeoutputs, o)
 end
 
-function WriteVTK.vtk_save(output::Output)
-    vtk_save(output.pvd)
-end
 
 function save_outputs(output::Output)
     filename = output.runname * string("_stateoutputs.jld2")
     save(joinpath(output.savepath, filename), output.outputdata)
+    vtk_save(output.vtkoutput.pvd)
 end
 
 function should_output(output::Union{VTKOutput}, t::T) where T
@@ -166,41 +168,37 @@ function vtk_add_state!(output::Output{T}, state::StateVariables, globaldata) wh
     end
 end
 
-#=
-function create_vtk_output2(output::Output{T}, state::StateVariables, globaldata; filename::String) where {T}
+
+function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVariables, globaldata; filename::String) where {T}
     
-    dh::Ferrite.AbstractDofHandler = globaldata.dh
+    dh    = globaldata.dh
     parts = globaldata.parts
     
-    vtmfile = vtk_multiblock(joinpath(output.savepath, filename))
-    dim = Ferrite.getdim(dh)
+    vtmfile = vtk_multiblock(filename)
 
     #Ouput to vtk_grid
     for (partid, part) in enumerate(parts)
-        #Vtk grid
-        @timeit "grid" cells, coords = get_vtk_grid(dh, part)
-        if cells===nothing || length(cells) == 0
-            continue
-        end
-        coords = reshape(reinterpret(T, coords), (dim, length(coords)))
-        vtkfile = WriteVTK.vtk_grid(vtmfile, coords, cells)
         
+        #Vtk grid
+        vtkfile = get_part_vtk_grid(part)
+        multiblock_add_block(vtmfile, vtkfile, "partid$partid")
+
         #Export Fields, such :u, etc
-        @timeit "fielddata" for field in get_fields(part)
-            data = get_vtk_field(dh, part, state, field.name)
+        for field in get_fields(part)
+            data = eval_part_field_data(part, dh, state, field.name)
             vtkfile[string(field.name)] = data
         end
 
-        @timeit "nodedata" for nodeoutput in output.vtkoutput.nodeoutputs
-            data = get_vtk_nodedata(part, nodeoutput, state, globaldata)
+        for nodeoutput in vtkoutput.nodeoutputs
+            data = eval_part_node_data(part, nodeoutput, state, globaldata)
             if data !== nothing
                 name = outputname(nodeoutput)
                 vtk_point_data(vtkfile, data, name)
             end
         end
 
-        @timeit "celldata" for celloutput in output.vtkoutput.celloutputs
-            data = get_vtk_celldata(part, celloutput, state, globaldata)
+        for celloutput in vtkoutput.celloutputs
+            data = eval_part_cell_data(part, celloutput, state, globaldata)
             if data !== nothing
                 name = outputname(celloutput)
                 vtk_cell_data(vtkfile, data, name)
@@ -208,11 +206,11 @@ function create_vtk_output2(output::Output{T}, state::StateVariables, globaldata
         end
 
     end
-    #collection_add_timestep(output.pvd, vtmfile, state.t)
-    output.vtkoutput.pvd[state.t] = vtmfile
 
+    #collection_add_timestep(output.pvd, vtmfile, state.t)
+    vtkoutput.pvd[state.t] = vtmfile
 end
-=#
+
 
 function export!(output::Output, state::StateVariables, globaldata; force=false)
 
@@ -223,7 +221,7 @@ function export!(output::Output, state::StateVariables, globaldata; force=false)
         filename =  output.runname * string(state.step)
         
         if output.export_vtk
-            vtkfile = create_vtk_output(output, state, globaldata, filename=filename)
+            vtkfile = create_vtk_output(output.vtkoutput, state, globaldata, filename=filename)
             vtk_save(vtkfile)
         end
 
@@ -243,8 +241,8 @@ function export!(output::Output, state::StateVariables, globaldata; force=false)
 end
 
 
-function create_vtk_output(output::Output, state::StateVariables, globaldata; filename)
-    filename = output.runname * string(state.step)
+function create_vtk_output(vtkoutput::VTKOutput{FerriteVTKOutput}, state::StateVariables, globaldata; filename)
+    
     (; grid, dh, parts) = globaldata
 
     vtkgrid = vtk_grid(filename, grid)
@@ -253,7 +251,7 @@ function create_vtk_output(output::Output, state::StateVariables, globaldata; fi
     vtk_point_data(vtkgrid, dh, state.d)
 
     #Nodedata
-    for nodeoutput in output.vtkoutput.nodeoutputs
+    for nodeoutput in vtkoutput.nodeoutputs
         DT = getdatatype(nodeoutput.type)
         data = [zero(DT)*NaN for _ in 1:getnnodes(grid)]
         for part in parts
@@ -263,7 +261,7 @@ function create_vtk_output(output::Output, state::StateVariables, globaldata; fi
     end 
     
     #Celldata
-    for celloutput in output.vtkoutput.celloutputs
+    for celloutput in vtkoutput.celloutputs
         DT = getdatatype(celloutput.type)
         data = [zero(DT)*NaN for _ in 1:getncells(grid)]
         for part in parts
@@ -279,7 +277,7 @@ function create_vtk_output(output::Output, state::StateVariables, globaldata; fi
         vtk_cell_data(vtkgrid, data, "Part $ipart")
     end
 
-    output.vtkoutput.pvd[state.t] = vtkgrid
+    vtkoutput.pvd[state.t] = vtkgrid
     
 end
 
@@ -324,3 +322,62 @@ function handle_input_interaction(output)
 
 
 end
+
+
+
+#
+#=
+struct SubGridGeometry
+    grid::Grid
+    cellset::Vector{Int}
+    nodemapper::Vector{Int}
+end 
+
+function SubGridGeometry(grid::Grid, cellset)
+    count = 0
+    for cellid in cellset
+        vtkcelltype = Ferrite.cell_to_vtkcell(cell)
+
+        nodes = Int[]
+        for nodeid in cell.nodes
+            nodeid_subgrid = get!(nodeid, nodemap) do 
+                count+=1
+            end
+            push!(nodes, nodeid_subgrid)
+        end
+
+        push!(vtkcells, WriteVTK.MeshCell(vtkcelltype, nodes))
+    end
+
+end
+
+function __eval_on_output_mesh(geometry::SubGridGeometry, dh::Ferrite.AbstractDofHandler, a::Vector, fieldname::Symbol)
+    nviznodes = getnnodes(geometry)
+    fieldname ∈ Ferrite.getfieldnames(dh) || error("Field $fieldname not found.")
+    field_dim = Ferrite.getfielddim(dh, fieldname)
+    space_dim = field_dim == 2 ? 3 : field_dim
+
+    data = fill(Float64(NaN), space_dim, nviznodes)  # set default value
+
+    # Assume that only one of the field handlers can "project" to the geometry
+    local fh
+    for _fh in dh.fieldhandlers
+        if first(compcells) in _fh.cellset
+            fh = _fh
+            @assert isempty(intersect(compcells, _fh.cellset))
+            break
+        end
+    end
+
+    # check if this fh contains this field, otherwise continue to the next
+    field_idx = Ferrite.find_field(fh, fieldname)
+    field_idx === nothing && return
+    ip     = Ferrite.getfieldinterpolation(fh, field_idx)
+    offset = Ferrite.field_offset(fh, fieldname)
+
+    _compute_field_to_nodes!(data, dh, a, ip, offset, field_dim, immersogeometry, compcells)
+
+    data = data[:,geometry.nodemapper]
+
+    return data
+end=#
