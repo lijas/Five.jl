@@ -135,7 +135,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
 
     #System Arrays
     state.system_arrays = SystemArrays(T, ndofs(dh))
-    state.system_arrays.Kⁱ = create_sparsity_pattern(dh, dch)
+    #state.system_arrays.Kⁱ = create_sparsity_pattern(dh, dch)
 
     return state, globaldata
 end

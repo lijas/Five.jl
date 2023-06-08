@@ -155,6 +155,16 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
    
     fill!(state.system_arrays, 0.0)
 
+    #Create sparsity pattern
+    state.system_arrays.Kⁱ = create_sparsity_pattern(globaldata.dh, globaldata.dbc)
+    fill!(state.system_arrays.Kⁱ.nzval, 1.0)
+    for part in globaldata.parts
+        K2 = assemble_sparsity_pattern!(part, globaldata)
+        state.system_arrays.Kⁱ .+= K2
+    end
+    Ferrite._condense_sparsity_pattern!(state.system_arrays.Kⁱ, globaldata.dbc.dofcoefficients, globaldata.dbc.dofmapping, true)
+    fill!(state.system_arrays.Kⁱ.nzval, 0.0)
+
     #TODO: Activate for time dependent solvers
     if false# !(solver isa LocalDissipationSolver) #if solver is not a ExplicitSolver
         assemble_massmatrix!(globaldata.dh, state, globaldata)
