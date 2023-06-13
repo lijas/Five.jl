@@ -37,7 +37,7 @@ assemble_dissipation!
     assemble_sparsity_pattern!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
 """
 function assemble_sparsity_pattern!(::AbstractPart, globaldata)
-    return sparse(Float64, Int[], Int[], Int[], ndofs(globaldata.dh), ndofs(globaldata.dh))
+    return sparse(Int[], Int[], Float64[], ndofs(globaldata.dh), ndofs(globaldata.dh))
 end
 
 

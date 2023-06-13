@@ -178,9 +178,10 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
 
     #Ouput to vtk_grid
     for (partid, part) in enumerate(parts)
-        
         #Vtk grid
         vtkfile = get_part_vtk_grid(part)
+        vtkfile === nothing && continue
+        
         multiblock_add_block(vtmfile, vtkfile, "partid$partid")
 
         #Export Fields, such :u, etc
@@ -326,21 +327,31 @@ end
 
 
 #
-#=
 struct SubGridGeometry
-    grid::Grid
+    grid::Ferrite.AbstractGrid
     cellset::Vector{Int}
     nodemapper::Vector{Int}
+    vtkcells::Vector{WriteVTK.MeshCell}
+    coords::Matrix{Float64}
 end 
 
-function SubGridGeometry(grid::Grid, cellset)
+function SubGridGeometry(grid::Ferrite.AbstractGrid{dim}, cellset) where dim
     count = 0
+    nodemap = Dict{Int,Int}()
+    nodemap2 = Int[]
+    vtkcells = MeshCell[]
+    cellset = collect(cellset)
+    subgridnodes = Vec{dim,Float64}[]
+
     for cellid in cellset
-        vtkcelltype = Ferrite.cell_to_vtkcell(cell)
+        cell = grid.cells[cellid]
+        vtkcelltype = Ferrite.cell_to_vtkcell(typeof(cell))
 
         nodes = Int[]
         for nodeid in cell.nodes
-            nodeid_subgrid = get!(nodeid, nodemap) do 
+            nodeid_subgrid = get!(nodemap,nodeid) do 
+                push!(subgridnodes, grid.nodes[nodeid].x)
+                push!(nodemap2, nodeid)
                 count+=1
             end
             push!(nodes, nodeid_subgrid)
@@ -348,36 +359,11 @@ function SubGridGeometry(grid::Grid, cellset)
 
         push!(vtkcells, WriteVTK.MeshCell(vtkcelltype, nodes))
     end
+    coords = reinterpret(reshape, Float64, subgridnodes)
 
+    return SubGridGeometry(grid, cellset, nodemap2, vtkcells, coords)
 end
 
-function __eval_on_output_mesh(geometry::SubGridGeometry, dh::Ferrite.AbstractDofHandler, a::Vector, fieldname::Symbol)
-    nviznodes = getnnodes(geometry)
-    fieldname ∈ Ferrite.getfieldnames(dh) || error("Field $fieldname not found.")
-    field_dim = Ferrite.getfielddim(dh, fieldname)
-    space_dim = field_dim == 2 ? 3 : field_dim
-
-    data = fill(Float64(NaN), space_dim, nviznodes)  # set default value
-
-    # Assume that only one of the field handlers can "project" to the geometry
-    local fh
-    for _fh in dh.fieldhandlers
-        if first(compcells) in _fh.cellset
-            fh = _fh
-            @assert isempty(intersect(compcells, _fh.cellset))
-            break
-        end
-    end
-
-    # check if this fh contains this field, otherwise continue to the next
-    field_idx = Ferrite.find_field(fh, fieldname)
-    field_idx === nothing && return
-    ip     = Ferrite.getfieldinterpolation(fh, field_idx)
-    offset = Ferrite.field_offset(fh, fieldname)
-
-    _compute_field_to_nodes!(data, dh, a, ip, offset, field_dim, immersogeometry, compcells)
-
-    data = data[:,geometry.nodemapper]
-
-    return data
-end=#
+function WriteVTK.vtk_grid(filename, geometry::SubGridGeometry)
+    return vtk_grid(filename, geometry.coords, geometry.vtkcells)
+end

@@ -1,4 +1,3 @@
-export gridmerge
 #
 # Stuff that I think should be in Ferrite
 #

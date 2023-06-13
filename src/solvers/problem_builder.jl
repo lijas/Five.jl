@@ -39,37 +39,22 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     
     _check_input(data)
 
-    # Create FieldHandlers/cellsets with parts that have the same element-type and fields 
-    # This makes it easier to constraints that span multiple parts
-    dict = Dict{Pair{Type{<:Ferrite.AbstractCell},Vector{Field}}, Vector{Int}}()
-    for part in data.parts
-        celltype = Ferrite.getcelltype(data.grid, first(part.cellset))
-        fields = get_fields(part)
-
-        #Check if this combination of celltype and fields have already been added
-        combo = Pair(celltype, fields)
-        if !haskey(dict, combo)
-            #Add new cellset
-            dict[combo] = copy(part.cellset)
-        else
-            #Combine the cellset
-            union!(dict[combo], part.cellset)
-        end
-    end
-
     #
     dh = MixedDofHandler(data.grid)
-    for (combo, cells) in dict
-        fields = last(combo)
-        push!(dh, FieldHandler(fields, Set(cells)))
+    for part in data.parts
+        set    = get_cellset(part)
+        length(set) == 0 && continue # Some 
+        fields = get_fields(part)
+        push!(dh, FieldHandler(fields, Set(set))) 
     end 
     close!(dh)
     
     #
     partstates = Vector{AbstractPartState}(undef, getncells(data.grid))
     for part in data.parts
+        set    = get_cellset(part)
         states = construct_partstates(part)
-        partstates[part.cellset] = states
+        partstates[set] .= states
         #append!(partstates, states)
     end
 
@@ -144,14 +129,15 @@ function _check_input(data::ProblemData{dim,T}) where {dim,T}
 
     all_cellsets = Int[]
     for part in data.parts
-        for cellid in part.cellset
+        set = get_cellset(part)
+        for cellid in set
             if cellid in all_cellsets
                 error("$cellid is in two sets")
             end
         end
-        append!(all_cellsets, part.cellset)
+        append!(all_cellsets, set)
 
-        !issorted(part.cellset) && error("The cellset for the parts must be sorted.")
+        !issorted(set) && error("The cellset for the parts must be sorted.")
     end
     @show length(all_cellsets)
     @show  getncells(data.grid)

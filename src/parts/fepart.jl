@@ -109,6 +109,33 @@ function construct_partstates(part::Part{dim,T,ET,MT}) where {dim,T,ET,MT}
     return states
 end
 
+function hot_fix_create_incidence_matrix(g::Ferrite.AbstractGrid, cellset)
+    cell_containing_node = Dict{Int, Set{Int}}()
+    for cellid in cellset
+        cell = getcells(g, cellid)
+        for v in cell.nodes
+            _set = get!(Set{Int}, cell_containing_node, v)
+            push!(_set, cellid)
+        end
+    end
+
+    I, J, V = Int[], Int[], Bool[]
+    for (_, cells) in cell_containing_node
+        for cell1 in cells # All these cells have a neighboring node
+            for cell2 in cells
+                # if true # cell1 != cell2
+                if cell1 != cell2
+                    push!(I, cell1)
+                    push!(J, cell2)
+                    push!(V, true)
+                end
+            end
+        end
+    end
+
+    incidence_matrix = sparse(I, J, V, getncells(g), getncells(g))
+    return incidence_matrix
+end
 
 function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {dim,T}
     grid = dh.grid
@@ -123,13 +150,16 @@ function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {d
         part.cache[i] = PartCache{dim,T}(_ndofs, _nnodes, part.element)
     end
 
-    #Quick fix for bar_example.jl : TODO: this is fixed in latest ferrite version
+    #Hot fix cells for parts with only one cell (bar_example.jl)
+    #TODO: this is fixed in latest ferrite version
     local threadsets
     if length(part.cellset) == 1
         threadsets = Vector{Int}[[first(part.cellset)]]
     else
-        alg = ColoringAlgorithm.WorkStream
-        threadsets = Ferrite.create_coloring(grid, part.cellset; alg)
+        #TODO: BezierGrid does not work with create_incidence_matrix, so call them seperatly
+        #threadsets = Ferrite.create_coloring(grid, part.cellset; ColoringAlgorithm.WorkStream)
+        incidence_matrix = hot_fix_create_incidence_matrix(grid, part.cellset)
+        threadsets = Ferrite.workstream_coloring(incidence_matrix, part.cellset)
     end
 
     copy!(part.threadsets, threadsets)
@@ -267,11 +297,14 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state:
 end
 
 function get_part_vtk_grid(part::Part)
-    return part.geometry
+    if part.geometry === nothing
+        return nothing
+    end
+    return vtk_grid("mypart$(minimum(part.cellset))", part.geometry)
 end
 
 function eval_part_field_data(part::Part, dh, state, field_name::Symbol)
-    fh = getfieldhandler(dh, part.cellset)
+    fh = Five.getfieldhandler(dh, first(part.cellset))
     fieldidx = Ferrite.find_field(fh, field_name)
     if fieldidx === nothing #the field does not exist in this part
         return nothing 
@@ -279,11 +312,24 @@ function eval_part_field_data(part::Part, dh, state, field_name::Symbol)
 
     field_offset = Ferrite.field_offset(fh, field_name) #TODO: change to fieldidx
     field_dim    = fh.fields[fieldidx].dim 
+    space_dim = field_dim == 2 ? 3 : field_dim
 
     nnodes = getnnodes(dh.grid)
-    data   = fill(Float64(NaN), field_dim, nnodes)
-    Ferrite.reshape_field_data!(data, dh, state.a, field_offset, field_dim, part.cellset)
-    return data[:, part.geometry.nodeid_mapper]
+    data   = fill(Float64(NaN), space_dim, nnodes)
+    Ferrite.reshape_field_data!(data, dh, state.d, field_offset, field_dim, part.cellset)
+    return data[:, part.geometry.nodemapper]
+end
+
+function eval_part_node_data(part::Part, nodeoutput::VTKNodeOutput{<:StressOutput}, state, globaldata)
+    #Extract stresses to interpolate
+    qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
+    for (ic, cellid) in enumerate(part.cellset)
+        stresses = state.partstates[cellid].stresses
+        push!(qpdata, stresses)
+    end
+    data = zeros(SymmetricTensor{2,3,Float64,6}, getnnodes(globaldata.grid))
+    _collect_nodedata!(data, part, qpdata, globaldata)
+    return data[part.geometry.nodemapper]
 end
 
 function post_part!(dh, part::Part, states::StateVariables)
@@ -388,15 +434,46 @@ function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::StressOutp
     _collect_nodedata!(data, part, qpdata, globaldata)
 end
 
+function L2ProjectorByPassIGA(
+    func_ip::Interpolation,
+    grid::Ferrite.AbstractGrid;
+    qr_lhs::QuadratureRule = Ferrite._mass_qr(func_ip),
+    set = 1:getncells(grid),
+    geom_ip::Interpolation = Ferrite.default_interpolation(typeof(grid.cells[first(set)])),
+    qr_rhs::Union{QuadratureRule,Nothing}=nothing, # deprecated
+)
+
+    Ferrite._check_same_celltype(grid, collect(set)) # TODO this does the right thing, but gives the wrong error message if it fails
+
+    fe_values_mass = CellScalarValues(qr_lhs, func_ip, geom_ip)
+
+    # Create an internal scalar valued field. This is enough since the projection is done on a component basis, hence a scalar field.
+    dh = MixedDofHandler(grid)
+    field = Field(:_, func_ip, 1) # we need to create the field, but the interpolation is not used here
+    fh = FieldHandler([field], Set(set))
+    add!(dh, fh)
+    _, vertex_dict, _, _ = Ferrite.__close!(dh)
+
+    M = Ferrite._assemble_L2_matrix(fe_values_mass, set, dh)  # the "mass" matrix
+    M_cholesky = cholesky(M)
+
+    # For deprecated API
+    fe_values = qr_rhs === nothing ? nothing :
+                CellScalarValues(qr_rhs, func_ip, geom_ip)
+
+    return L2Projector(func_ip, geom_ip, M_cholesky, dh, collect(set), vertex_dict[1], fe_values, qr_rhs)
+end
+
 function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vector{FT}}, globaldata) where {dim,T,FT}
     
     (; grid, ) = globaldata
+
     #Set up quadrature rule
     celltype = getcelltype(part.element)
     geom_ip = Ferrite.default_interpolation(celltype)
     qr = getquadraturerule(part.element)
 
-    projector = Ferrite.L2Projector(geom_ip, grid; set = part.cellset)
+    projector = L2ProjectorByPassIGA(geom_ip, grid; set = part.cellset)
     projecteddata = project(projector, qpdata, qr; project_to_nodes=true); 
 
     #Reorder to the parts vtk
@@ -441,24 +518,4 @@ end
 function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
     asdf
     return nothing, nothing
-end
-
-
-#=function init!(part::Part{<:SolidElement}, dh::DofHandler{dim,T}) where {dim,T}
-    
-    @assert(dim==2)
-end
-
-function get_vtk_part_grid(part::Part{<:SolidElement}, dh::DofHandler{dim,T}) where {dim,T}    
-    return part.vtkcells, part.vtknode_coords
-end
-
-function get_vtk_part_point_data(part::Part{<:SolidElement}, dh::DofHandler{dim,T}, di) where {dim,T}
-    return []
-end=#
-
-function build_output!(part::Part, output::OutputData, state::StateVariables, globaldata)
-
-    
-
 end
