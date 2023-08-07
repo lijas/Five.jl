@@ -42,6 +42,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
 
         fill!(state.system_arrays, 0.0)
 
+        @info "[NEWTONSOLVER] Assembling"
         @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
@@ -49,11 +50,15 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ #- state.system_arrays.Kᵉ
         #Solve 
+        @info "[NEWTONSOLVER] Applying"
         apply_zero!(K, r, ch)
+        
         #Kt = ThreadedSparseMatrixCSC(K)' #Note the transpose
         prob = LinearSolve.LinearProblem(K, -r) 
         precon = solver.preconditioner(K)
         linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
+
+        @info "[NEWTONSOLVER] Solving"
         @timeit "Solve" sol = LinearSolve.solve(linsolve)
         ΔΔd = sol.u
         apply_zero!(ΔΔd, ch)
@@ -63,7 +68,7 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         state.d .+= ΔΔd
         state.v .+= ΔΔd # (state.d .- d0)#./state.Δt
 
-        println("---->Normg: $(state.norm_residual), t = $(state.t)")
+        @info "[NEWTONSOLVER] ----resdiual: $(state.norm_residual)"
 
         maxitr = (state.step == 1) ? (solver.maxitr_first_step) : solver.maxitr
         if state.newton_itr >= maxitr || state.norm_residual > solver.max_residual

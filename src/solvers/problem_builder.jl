@@ -3,7 +3,7 @@ export ProblemData, build_problem
 mutable struct ProblemData{dim,T}
     grid::Ferrite.AbstractGrid
     parts::Vector{Five.AbstractPart{dim}}
-    dirichlet::Vector{Union{Ferrite.Dirichlet, Five.FollowerConstraint}}
+    dirichlet::Vector{<:Any}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints::Vector{Five.AbstractExternalForce}
     output::Base.RefValue{Output{T}}
@@ -19,7 +19,7 @@ end
 function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
     
     parts = Five.AbstractPart{dim}[]
-    dbc   = Union{Ferrite.Dirichlet, Five.FollowerConstraint}[]
+    dbc   = Any[]
     exfor = Five.AbstractExternalForce[]
     output = Base.RefValue{Output{T}}()
     outputdata = Dict{String, Five.OutputData}()
@@ -132,7 +132,7 @@ function _check_input(data::ProblemData{dim,T}) where {dim,T}
         set = get_cellset(part)
         for cellid in set
             if cellid in all_cellsets
-                error("$cellid is in two sets")
+                error("$cellid of part $(typeof(part)) in two sets")
             end
         end
         append!(all_cellsets, set)

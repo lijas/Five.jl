@@ -31,21 +31,24 @@ function solvethis(solver::AbstractSolver, state::StateVariables, globaldata)
     dh, output, parts = (globaldata.dh, globaldata.output, globaldata.parts)
 
     #Output initial state
+    @info "[SOLVER] Exporting initial state"
     export!(output, state, globaldata, force=true)
     #outputs!(output, state, globaldata, force=true)
 
     #Some solvers want the store the initial external force vector
-    init_system_arrays!(solver, state, globaldata)
+    @info "[SOLVER] Init system arrays"
+    @timeit "build system arrays" init_system_arrays!(solver, state, globaldata)
 
     prev_state = deepcopy(state)
     while !isdone(solver, state, globaldata)
 
-        println("**Step $(state.step)**")
+        @info "[SOLVER] Step: $(state.step), Time: $(state.t)"
 
         success = false
         ntries = 0
         while true
             state.step += 1
+            @info "[SOLVER] Calling step! $(typeof(solver)), tries: $(ntries)"
             success = step!(solver, state, globaldata, ntries)
             ntries += 1
             
@@ -111,6 +114,7 @@ function solvethis(solver::AbstractSolver, state::StateVariables, globaldata)
     
     print_timer(linechars = :ascii)
 
+    @info "[SOLVER] Saving outputs"
     save_outputs(output)
     set_simulation_termination!(output, NORMAL_TERMINATION)
     
@@ -156,7 +160,7 @@ function init_system_arrays!(solver::AbstractSolver, state, globaldata)
     fill!(state.system_arrays, 0.0)
 
     #Create sparsity pattern
-    state.system_arrays.Kⁱ = create_sparsity_pattern(globaldata.dh, globaldata.dbc)
+    state.system_arrays.Kⁱ = create_sparsity_pattern(globaldata.dh)#, globaldata.dbc)
     fill!(state.system_arrays.Kⁱ.nzval, 1.0)
     for part in globaldata.parts
         K2 = assemble_sparsity_pattern!(part, globaldata)
