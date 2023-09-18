@@ -167,7 +167,7 @@ function Five._assemble_part!(dh::Ferrite.AbstractDofHandler,
 
             cache = part.cache[Threads.threadid()]
             assembler = assemblers[Threads.threadid()]
-#            coords = coordscahce[Threads.threadid()]
+            coords = coordscahce[Threads.threadid()]
             
             (; fe, ke, ue, due, Δue, celldofs, element) = cache
         

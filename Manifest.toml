@@ -271,11 +271,11 @@ version = "0.1.13"
 
 [[deps.IGA]]
 deps = ["Ferrite", "LinearAlgebra", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "406bf1ce8eeccbe1cfa7947b166f83d826b408f2"
-repo-rev = "v0.2.5-checkpoint"
+git-tree-sha1 = "b7c47e6c2d3ff0063d3098bec03e50f129b52e64"
+repo-rev = "v0.2.6"
 repo-url = "https://github.com/lijas/IGA.jl.git"
 uuid = "e7b8d123-e02a-40ba-ad18-d3943ed54f1c"
-version = "0.2.5"
+version = "0.2.6"
 
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
