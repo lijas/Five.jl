@@ -15,7 +15,7 @@ struct LinearSolidElement{
 
     thickness::T #used in 2d
 
-    celltype::Type{<:Cell}
+    celltype::Type{<:Ferrite.AbstractCell}
     cv::CV
     field::Field
     dimstate::DIM
@@ -23,7 +23,7 @@ end
 
 initial_element_state(::LinearSolidElement) = EmptyElementState()
 
-getquadraturerule(e::LinearSolidElement) = e.cv.qr
+getquadraturerule(e::LinearSolidElement) = getquadraturerule(e.cv)
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
@@ -33,7 +33,7 @@ get_fields(e::LinearSolidElement) = return [e.field]
 function LinearSolidElement{dim, order, refshape, T}(;
         thickness = 1.0, 
         qr_order::Int=2, 
-        celltype::Type{<:Cell}, 
+        celltype::Type{<:Ferrite.AbstractCell}, 
         dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()
         ) where {dim, order, refshape, T}
     
@@ -121,13 +121,13 @@ function integrate_forcevector_and_stiffnessmatrix!(
         dΩ = getdetJdV(cellvalues, q_point) * element.thickness
 
         for i in 1:n_basefuncs
-            δɛi = shape_symmetric_gradient(cellvalues, q_point, i)
+            δɛi = symmetric(shape_gradient(cellvalues, q_point, i))
             
             fe[i] += (σ ⊡ δɛi) * dΩ
             
             ɛC = δɛi ⊡ ∂σ∂ɛ
             for j in 1:n_basefuncs 
-                δɛj = shape_symmetric_gradient(cellvalues, q_point, j)
+                δɛj = symmetric(shape_gradient(cellvalues, q_point, j))
                 ke[i, j] += (ɛC ⊡ δɛj) * dΩ 
             end
         end

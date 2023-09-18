@@ -274,7 +274,7 @@ function create_vtk_output(vtkoutput::VTKOutput{FerriteVTKOutput}, state::StateV
     #Partsets
     for (ipart, part) in enumerate(parts)
         data = [NaN for _ in 1:getncells(grid)]
-        data[part.cellset] .= 1.0
+        data[get_cellset(part)] .= 1.0
         vtk_cell_data(vtkgrid, data, "Part $ipart")
     end
 

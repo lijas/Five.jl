@@ -59,6 +59,7 @@ end
                                                   
 function assemble_stiffnessmatrix_and_forcevector!(dh, state::StateVariables, globaldata)
     for (partid, part) in enumerate(globaldata.parts)
+        @info "Assembling for partid $(partid), $(typeof(part))"
         assemble_stiffnessmatrix_and_forcevector!(dh, part, state)
     end
 end

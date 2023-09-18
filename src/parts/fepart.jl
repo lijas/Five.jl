@@ -64,17 +64,6 @@ function Part(;
         geometry)
 end
 
-#Not implemented:
-struct IGAPart{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim}
- 
-    material::M
-    cellset::Vector{Int}
-    element::E
-
-    #Cb::Vector{IGA.BezierExtractionOperator{T}}
-    #cv_plot::CellScalarValues 
-end
-
 struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState
     elementstate::Vector{S}
     materialstates::Vector{M}
