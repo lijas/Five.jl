@@ -182,7 +182,6 @@ function Five._assemble_part!(dh::Ferrite.AbstractDofHandler,
             (assemtype == Five.STIFFMAT) && fill!(ke, 0.0)
 
             Ferrite.getcoordinates!(coords, dh.grid, cellid)
-            coords.beo .= IGA.get_extraction_operator(dh.grid, cellid) # due to bug in IGA
 
             Ferrite.celldofs!(celldofs, dh, cellid)
 
