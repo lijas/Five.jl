@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.2"
+julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "49e83ce9071362eaf9518ea4db6db6dcd469837a"
+project_hash = "8ed599a23d6036e041c537f88f11db74b7603715"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -124,7 +124,7 @@ version = "4.5.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "0.5.2+0"
+version = "1.0.5+0"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
@@ -207,6 +207,14 @@ git-tree-sha1 = "19787ed1e790736e6bffc34c07289f63fbb19e1a"
 uuid = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
 version = "0.3.11"
 
+    [deps.Ferrite.extensions]
+    FerriteBlockArrays = "BlockArrays"
+    FerriteMetis = "Metis"
+
+    [deps.Ferrite.weakdeps]
+    BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+    Metis = "2679e427-3c69-5b7f-982b-ece356f1e94b"
+
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "7be5f99f7d15578798f338f5433b6c432ea8037b"
@@ -260,6 +268,14 @@ deps = ["BitTwiddlingConvenienceFunctions", "IfElse", "Libdl", "Static"]
 git-tree-sha1 = "f64b890b2efa4de81520d2b0fbdc9aadb65bdf53"
 uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
 version = "0.1.13"
+
+[[deps.IGA]]
+deps = ["Ferrite", "LinearAlgebra", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
+git-tree-sha1 = "406bf1ce8eeccbe1cfa7947b166f83d826b408f2"
+repo-rev = "v0.2.5-checkpoint"
+repo-url = "https://github.com/lijas/IGA.jl.git"
+uuid = "e7b8d123-e02a-40ba-ad18-d3943ed54f1c"
+version = "0.2.5"
 
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
@@ -397,7 +413,7 @@ uuid = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 version = "7.2.0"
 
 [[deps.LinearAlgebra]]
-deps = ["Libdl", "libblastrampoline_jll"]
+deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LinearSolve]]
@@ -467,14 +483,14 @@ version = "0.1.0"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.0+0"
+version = "2.28.2+0"
 
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2022.2.1"
+version = "2022.10.11"
 
 [[deps.NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
@@ -513,7 +529,7 @@ version = "1.12.8"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.20+0"
+version = "0.3.21+4"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -538,9 +554,9 @@ uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 version = "0.12.3"
 
 [[deps.Pkg]]
-deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
+deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.8.0"
+version = "1.9.2"
 
 [[deps.Polyester]]
 deps = ["ArrayInterface", "BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "ManualMemory", "PolyesterWeave", "Requires", "Static", "StrideArraysCore", "ThreadingUtilities"]
@@ -695,7 +711,7 @@ version = "1.0.3"
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
 
 [[deps.SparseArrays]]
-deps = ["LinearAlgebra", "Random"]
+deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[deps.Sparspak]]
@@ -730,6 +746,7 @@ version = "1.4.0"
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+version = "1.9.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
@@ -750,7 +767,7 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "5.10.1+0"
+version = "5.10.1+6"
 
 [[deps.SymbolicIndexingInterface]]
 deps = ["DocStringExtensions"]
@@ -761,7 +778,7 @@ version = "0.2.1"
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-version = "1.0.0"
+version = "1.0.3"
 
 [[deps.TableTraits]]
 deps = ["IteratorInterfaceExtensions"]
@@ -778,7 +795,7 @@ version = "1.10.0"
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.10.1"
+version = "1.10.0"
 
 [[deps.Tensors]]
 deps = ["ForwardDiff", "LinearAlgebra", "SIMD", "SnoopPrecompile", "StaticArrays", "Statistics"]
@@ -847,7 +864,7 @@ version = "2.10.3+0"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.12+3"
+version = "1.2.13+0"
 
 [[deps.ZygoteRules]]
 deps = ["MacroTools"]
@@ -856,9 +873,9 @@ uuid = "700de1a5-db45-46bc-99cf-38207098b444"
 version = "0.2.2"
 
 [[deps.libblastrampoline_jll]]
-deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
+deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.1.1+0"
+version = "5.8.0+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]

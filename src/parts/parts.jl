@@ -33,8 +33,16 @@ assemble_forcevector!
 """
 assemble_dissipation!
 
+"""
+    assemble_sparsity_pattern!(dh::AbstractDofHandler, part::AbstractPart, state::StateVariables)
+"""
+function assemble_sparsity_pattern!(::AbstractPart, globaldata)
+    return sparse(Int[], Int[], Float64[], ndofs(globaldata.dh), ndofs(globaldata.dh))
+end
+
 
 include("fepart.jl")
+include("igapart.jl")
 include("cohesive_part.jl")
 #include("rigidbody/rigidpart.jl")
 
