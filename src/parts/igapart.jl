@@ -161,7 +161,7 @@ function Five._assemble_part!(dh::Ferrite.AbstractDofHandler,
 
     Δt = state.Δt
 
-    #coordscahce = [IGA.getcoordinates(dh.grid, first(first(part.threadsets))) for _ in 1:Threads.nthreads()]
+    coordscahce = [IGA.getcoordinates(dh.grid, first(first(part.threadsets))) for _ in 1:Threads.nthreads()]
     for tset in part.threadsets
         Threads.@threads :static for cellid in tset
 
@@ -181,7 +181,9 @@ function Five._assemble_part!(dh::Ferrite.AbstractDofHandler,
             fill!(fe, 0.0)
             (assemtype == Five.STIFFMAT) && fill!(ke, 0.0)
 
-            coords = Ferrite.getcoordinates(dh.grid, cellid)#Ferrite.getcoordinates!(coords, dh.grid, cellid)
+            Ferrite.getcoordinates!(coords, dh.grid, cellid)
+            coords.beo .= IGA.get_extraction_operator(dh.grid, cellid) # due to bug in IGA
+
             Ferrite.celldofs!(celldofs, dh, cellid)
 
             Δue .= state.v[celldofs] #Dont need both Δue and (v and Δt)
