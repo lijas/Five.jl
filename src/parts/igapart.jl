@@ -228,16 +228,59 @@ function Five.eval_part_field_data(part::IGAPart, dh, state, field_name::Symbol)
     return data
 end
 
+Ferrite._mass_qr(::IGA.BernsteinBasis{3, (2, 2, 2)}) = QuadratureRule{3, RefCube}(3)
 function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{<:Five.StressOutput}, state, globaldata)
     #Extract stresses to interpolate
     qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
     for (ic, cellid) in enumerate(part.cellset)
         stresses = state.partstates[cellid].stresses
+        for i in 1:length(stresses)
+            stresses[i] = rand(SymmetricTensor{2,3,Float64,6})
+        end
         push!(qpdata, stresses)
     end
-    data = zeros(SymmetricTensor{2,3,Float64,6}, getnnodes(globaldata.grid))
-    _collect_nodedata!(data, part, qpdata, globaldata)
-    return data[part.geometry.nodemapper]
+    
+    #
+    #
+    #Set up quadrature rule
+    celltype = getcelltype(part.element)
+    geom_ip = Ferrite.default_interpolation(celltype)
+    qr = getquadraturerule(part.element)
+    vtktype = Ferrite.cell_to_vtkcell(celltype)
+    reorder = IGA.Ferrite_to_vtk_order(celltype)
+
+    projector = L2Projector(geom_ip, globaldata.grid; set = part.cellset)
+    projecteddata = IGA.igaproject(projector, qpdata, qr; project_to_nodes=true); 
+    #
+    #
+
+
+    #
+    #
+    local_node_coords = Ferrite.reference_coordinates(geom_ip)
+    n_eval_points = length(local_node_coords)
+
+    offset = 0
+    data = zeros(6, size(part.geometry.coords,2))
+    for cellid in part.geometry.cellset
+
+        cellnodes = globaldata.grid.cells[cellid].nodes
+        nodevalues = projecteddata[collect(cellnodes)]
+        IGA._distribute_vtk_point_data!(globaldata.grid.beo[cellid], data, nodevalues, offset)
+        #vtk_cellnodes = collect((1:n_eval_points) .+ offset)
+        #for (nodeid, vtknodeid) in zip(cellnodes, vtk_cellnodes)
+        #    σ = projecteddata[nodeid]
+        #    data[1:6, vtknodeid] .= tovoigt(σ)
+        #end
+
+        offset += n_eval_points
+    end
+
+    #
+    #
+    #
+
+    return data
 end
 
 function Five.post_part!(dh, part::IGAPart, states::StateVariables)
@@ -495,7 +538,6 @@ function _evaluate_at_geometry_nodes!(data, dh, a, ip, drange, field_dim, geomet
     n_eval_points = length(local_node_coords)
     qr = QuadratureRule{field_dim,RefCube}(zeros(length(local_node_coords)), local_node_coords)
     cv = IGA.BezierCellValues( CellVectorValues(qr, ip) )
-    reorder = IGA.Ferrite_to_vtk_order(typeof(dh.grid.cells[first(geometry.cellset)]))
 
     offset = 0
     for cellid in geometry.cellset
@@ -519,3 +561,4 @@ function _evaluate_at_geometry_nodes!(data, dh, a, ip, drange, field_dim, geomet
 
     return data
 end
+
