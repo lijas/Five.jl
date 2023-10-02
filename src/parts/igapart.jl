@@ -1,3 +1,19 @@
+function IGALinearSolidElement(;
+    thickness = 1.0, 
+    qr_order::Int=2, 
+    celltype::Type{<:IGA.BezierCell}, 
+    dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()
+) where {dim}
+
+    geom_ip = Ferrite.default_interpolation(celltype)
+    ip = geom_ip
+    
+    qr = QuadratureRule{dim, RefCube}(qr_order)
+
+    cv = IGA.BezierCellValues(CellVectorValues(qr, ip, geom_ip))
+    return Five.LinearSolidElement{dim, (2,2,2), RefCube, Float64, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
+end
+
 #Name it Part instead of Fe-part because it is the standard...
 struct IGAPart{dim, T, E<:Five.AbstractElement, M<:MaterialModels.AbstractMaterial} <: Five.AbstractPart{dim}
     material::M

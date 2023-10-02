@@ -37,15 +37,17 @@ function LinearSolidElement{dim, order, refshape, T}(;
         dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()
         ) where {dim, order, refshape, T}
     
+    @assert !(celltype <: IGA.BezierCell) #TODO: Removet this. (Temporary check so this method is not called with IGA-elements
+
     ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
 
     qr = QuadratureRule{dim, refshape}(qr_order)
 
     cv = CellVectorValues(qr, ip, geom_ip)
+
     return LinearSolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
-
 
 function integrate_forcevector!(
         element::LinearSolidElement{dim, order, shape, T}, 
