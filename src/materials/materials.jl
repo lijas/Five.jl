@@ -12,6 +12,7 @@ heaviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
 #end
 
 materialstate_type(::Type{<:LinearElastic}) = LinearElasticState
+materialstate_type(::Type{<:TransverselyIsotropic}) = TransverselyIsotropicState
 
 """
     is_dissipative
@@ -23,8 +24,8 @@ function constitutive_driver_dissipation(::AbstractMaterial, ε::T, args...; kwa
 end
 
 #include("matelastic.jl")
-include("mattransvlinearelastic.jl")
-include("mattransverseisotropic2.jl")
+#include("mattransvlinearelastic.jl")
+#include("mattransverseisotropic2.jl")
 #include("matyeoh.jl")
 #include("mathyper.jl")
 #include("matplast_largedef.jl")
