@@ -251,7 +251,7 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
     for (ic, cellid) in enumerate(part.cellset)
         stresses = state.partstates[cellid].stresses
         for i in 1:length(stresses)
-            stresses[i] = rand(SymmetricTensor{2,3,Float64,6})
+            stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
         end
         push!(qpdata, stresses)
     end
@@ -278,6 +278,66 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
 
     offset = 0
     data = zeros(6, size(part.geometry.coords,2))
+    for cellid in part.geometry.cellset
+
+        cellnodes = globaldata.grid.cells[cellid].nodes
+        nodevalues = projecteddata[collect(cellnodes)]
+        IGA._distribute_vtk_point_data!(globaldata.grid.beo[cellid], data, nodevalues, offset)
+        #vtk_cellnodes = collect((1:n_eval_points) .+ offset)
+        #for (nodeid, vtknodeid) in zip(cellnodes, vtk_cellnodes)
+        #    σ = projecteddata[nodeid]
+        #    data[1:6, vtknodeid] .= tovoigt(σ)
+        #end
+
+        offset += n_eval_points
+    end
+
+    #
+    #
+    #
+
+    return data
+end
+
+function eval_part_node_data(part::IGAPart, nodeoutput::VTKNodeOutput{MaterialStateOutput{MaterialState_t}}, state, globaldata) where MaterialState_t
+    
+    #Extract stresses to interpolate
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
+    if !hasproperty(first_state, nodeoutput.type.field) 
+        return
+    end
+    
+    qpdata = Vector{MaterialState_t}[]
+    for (ic, cellid) in enumerate(part.cellset)
+        matstates = state.partstates[cellid].materialstates
+        field_states = getproperty.(matstates, nodeoutput.type.field)
+        push!(qpdata, field_states)
+    end
+    
+    #
+    #
+    #Set up quadrature rule
+    celltype = getcelltype(part.element)
+    geom_ip = Ferrite.default_interpolation(celltype)
+    qr = getquadraturerule(part.element)
+    vtktype = Ferrite.cell_to_vtkcell(celltype)
+    reorder = IGA.Ferrite_to_vtk_order(celltype)
+
+    projector = L2Projector(geom_ip, globaldata.grid; set = part.cellset)
+    projecteddata = IGA.igaproject(projector, qpdata, qr; project_to_nodes=true); 
+    #
+    #
+
+
+    #
+    #
+    local_node_coords = Ferrite.reference_coordinates(geom_ip)
+    n_eval_points = length(local_node_coords)
+
+    offset = 0
+    ncomp = length(first(projecteddata))
+    data = zeros(ncomp, size(part.geometry.coords,2))
     for cellid in part.geometry.cellset
 
         cellnodes = globaldata.grid.cells[cellid].nodes
