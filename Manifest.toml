@@ -2,7 +2,7 @@
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "8ed599a23d6036e041c537f88f11db74b7603715"
+project_hash = "6f4a2e007ec0fe80f7266d536b7f954deaa74f60"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -473,8 +473,8 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[deps.MaterialModels]]
-deps = ["DiffResults", "ForwardDiff", "NLsolve", "Reexport", "Rotations", "StaticArrays", "Tensors"]
-git-tree-sha1 = "be36d6eb0d01e49da3811876e9834a876809dd7f"
+deps = ["DiffResults", "ForwardDiff", "NLsolve", "Rotations", "StaticArrays", "Tensors"]
+git-tree-sha1 = "30180c955d6cea1fab6f23e3fdecfc73ff1efe10"
 repo-rev = "main"
 repo-url = "https://github.com/kimauth/MaterialModels.jl.git"
 uuid = "d7e62f90-dad9-4fee-a9a8-264218a34fd2"
@@ -806,6 +806,12 @@ version = "1.13.1"
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[deps.ThreadedSparseArrays]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "c186105125af2813bfdd7e5a3086607063711663"
+uuid = "59d54670-b8ac-4d81-ab7a-bb56233e17ab"
+version = "0.2.2"
 
 [[deps.ThreadingUtilities]]
 deps = ["ManualMemory"]

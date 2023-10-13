@@ -5,7 +5,8 @@ using ForwardDiff
 import LinearSolve
 import Preconditioners
 import IncompleteLU
-using MKLSparse
+#using MKLSparse
+using ThreadedSparseArrays
 
 using Parameters
 using TimerOutputs

@@ -3,28 +3,28 @@
 using Five
 
 data = ProblemData(
-    dim = 2,
-    tend = 1.0
+    dim = 3,
+    tend = 0.1
 )
 
-data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+data.grid = generate_grid(Hexahedron, (50,20,20), Vec((0.0, 0.0, 0.0)), Vec((10.0, 4.0, 1.0)))
 
-addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
+addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 4.0  && x[3] == 1.0)
 
-#=material = MatLinearElastic(
+material = LinearElastic(
     E = 1e5,
-    nu = 0.3
-)=#
+    ν = 0.3
+)
 
-material = MatTransvLinearElastic(;    
-    E1 = 100.0,   
-    E2 = 100.0,   
+#=material = TransverselyIsotropic(;    
+    EL = 100.0,   
+    ET = 100.0,   
 
     ν_12 = 0.3, 
     G_12 = 100.0/(2(1.3)),
     ρ = 1.0,
     α =0.0
-)
+)=#
 
 #= material = MatHyperElasticPlastic(
     elastic_material = MatNeoHook(
@@ -37,9 +37,9 @@ material = MatTransvLinearElastic(;
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
-    func = (x,t) -> (0.0, 0.0),
+    func = (x,t) -> (0.0, 0.0, 0.0),
     field = :u,
-    dofs = [1,2]
+    dofs = [1,2,3]
 )
 push!(data.dirichlet, con1)
 
@@ -53,11 +53,11 @@ con1 = Dirichlet(
 push!(data.dirichlet, con1)=#
 
 part = Part(
-    element  = Five.LinearSolidElement{2,1,RefCube,Float64}(
+    element  = Five.LinearSolidElement{3,1,RefCube,Float64}(
         thickness = 1.0, 
         qr_order = 2,
-        celltype = Quadrilateral,
-        dimstate = PlaneStrain()
+        celltype = Hexahedron,
+        #dimstate = PlaneStrain()
     ),
     material = material,
     cellset = collect(1:getncells(data.grid))
@@ -100,7 +100,7 @@ Five.push_vtkoutput!(data.output[], vtkoutput)=#
 
 force = PointForce(
     field = :u,
-    comps = [2],
+    comps = [3],
     set = getvertexset(data.grid, "topright"),
     func = (X,t) -> -10.0*t
 )
@@ -109,7 +109,9 @@ push!(data.external_forces, force)
 solver = NewtonSolver(
     Δt0 = 0.1,
     Δt_max = 0.1,
-    linearsolver = Five.LinearSolve.KrylovJL_CG(itmax = 1000, verbose=0, atol = 1e-15),
+    tol = 1e-4,
+    linearsolver = Five.LinearSolve.KrylovJL_CG(itmax = 100000, verbose=1, atol = 1e-8),
+    #preconditioner = Five.Preconditioners.DiagonalPreconditioner
     preconditioner = Five.Preconditioners.AMGPreconditioner{Five.Preconditioners.RugeStuben}#Five.IncompleteLU.ilu#Five.IdentityProconditioner #Five.IncompleteLU.ilu
 )
 

@@ -185,6 +185,18 @@ function numdiff(f!::Function, ue_interface::AbstractVector{T}, nms::AbstractVec
 
 end
 
+function threaded_mul!(y::Vector{T}, A::SparseMatrixCSC{T}, x::Vector{T}) where T <: Number
+    A.m == A.n || error("A is not a square matrix!")
+    Threads.@threads for i = 1 : A.n
+        tmp = zero(T)
+        @inbounds for j = A.colptr[i] : (A.colptr[i+1] - 1)
+        tmp += A.nzval[j] * x[A.rowval[j]]
+        end
+        @inbounds y[i] = tmp
+    end
+    return y
+end
+
 export showm
 macro showm(M)
     return esc(:(display("text/plain", $M)))
