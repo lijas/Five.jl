@@ -56,16 +56,17 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         K_thread = ThreadedSparseMatrixCSC(K) #Note the transpose        
         #opK = LinearOperator(Float64, ndofs(dh), ndofs(dh), true, true, (y, v) -> threaded_mul!(y, K, v))
 
-        prob = LinearSolve.LinearProblem(K_thread, -r) 
-        precon = solver.preconditioner(K_thread)
-        linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
+        #prob = LinearSolve.LinearProblem(K_thread, -r) 
+        #precon = solver.preconditioner(K)
+        #linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
 
         @info "[NEWTONSOLVER] Solving"
+        #@timeit "Solve" sol = LinearSolve.solve(linsolve)
+        #ΔΔd = sol.u
         @info "kyrlov cg"
-        @timeit "Solve" sol = LinearSolve.solve(linsolve)
-        #preconditioner = Preconditioners.DiagonalPreconditioner(Kt)
-        #@timeit "Solve" ΔΔd, stat = LinearSolve.Krylov.cg(Kt, -r; M=preconditioner, ldiv=true, rtol = 1e-10, verbose=1)
-        ΔΔd = sol.u
+        preconditioner = Preconditioners.DiagonalPreconditioner(K_thread)
+        @timeit "Solve" ΔΔd, stat = LinearSolve.Krylov.cg(K_thread, -r; M=preconditioner, ldiv=true, rtol = 1e-10, verbose=1)
+        
         apply_zero!(ΔΔd, ch)
         
         state.norm_residual = norm(r)
