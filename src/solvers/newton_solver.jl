@@ -53,26 +53,35 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         @info "[NEWTONSOLVER] Applying"
         apply_zero!(K, r, ch)
         
-        K_thread = ThreadedSparseMatrixCSC(K)' #Note the transpose        
-        #opK = LinearOperator(Float64, ndofs(dh), ndofs(dh), true, true, (y, v) -> threaded_mul!(y, K, v))
-
-        #prob = LinearSolve.LinearProblem(K_thread, -r) 
-        #precon = solver.preconditioner(K)
-        #linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
-
         @info "[NEWTONSOLVER] Solving"
-        #@timeit "Solve" sol = LinearSolve.solve(linsolve)
-        #ΔΔd = sol.u
-        @info "kyrlov cg"
-        #preconditioner = Preconditioners.DiagonalPreconditioner(K_thread)
-        I = [i for i=1:ndofs(dh)]
-        J = [i for i=1:ndofs(dh)]
-        V = [K[i,i] ≠ 0 ? 1 / abs(K[i,i]) : 1 for i=1:ndofs(dh)]
-        preconditioner = ThreadedSparseMatrixCSC(sparse(I,J,V))'
-        @timeit "Solve" ΔΔd, stat = LinearSolve.Krylov.cg(K_thread, -r; M=preconditioner, ldiv=false, rtol = 1e-10, verbose=1)
+        
+        #Special case. If you are using a iterative solver and diagonal precon
+        local ΔΔd
+        if solver.linearsolver !== nothing && solver.preconditioner <: Preconditioners.DiagonalPreconditioner
+            @info "Inside special case: Solving wiht cg and diagonal precon"
+            #Thread matrix
+            K_thread = ThreadedSparseMatrixCSC(K)' 
+
+            #Thread preconditioner
+            I = [i for i=1:ndofs(dh)]
+            J = [i for i=1:ndofs(dh)]
+            V = [K[i,i] ≠ 0 ? 1 / abs(K[i,i]) : 1 for i=1:ndofs(dh)]
+            preconditioner = ThreadedSparseMatrixCSC(sparse(I,J,V))'
+
+            #Solve with cg
+            @timeit "Solve" ΔΔd, stat = LinearSolve.Krylov.cg(K_thread, -r; M=preconditioner, ldiv=false, rtol = 1e-10, verbose=1)
+        else
+            @info "Solving with direct solver"
+            @assert solver.preconditioner <: IdentityProconditioner
+            #Direct solver since linearsolver === nothing
+            prob = LinearSolve.LinearProblem(K, -r) 
+            precon = solver.preconditioner(K)
+            linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
+            @timeit "Solve" sol = LinearSolve.solve(linsolve)
+            ΔΔd = sol.u
+        end
         
         apply_zero!(ΔΔd, ch)
-        
         state.norm_residual = norm(r)
 
         state.d .+= ΔΔd
