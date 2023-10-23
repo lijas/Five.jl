@@ -4,21 +4,11 @@ LinearSolidElement
 
 """
 
-struct LinearSolidElement{
-        dim,
-        order,
-        shape,
-        T         <: AbstractFloat,
-        CV        <: Ferrite.Values,
-        DIM       <: MaterialModels.AbstractDim
-    } <: AbstractElement{dim}
-
-    thickness::T #used in 2d
-
+struct LinearSolidElement{sdim,CV<:Ferrite.AbstractCellValues, DIMSTATE<:MaterialModels.AbstractDim} <: AbstractElement{sdim}
     celltype::Type{<:Ferrite.AbstractCell}
     cv::CV
-    field::Field
-    dimstate::DIM
+    dimstate::DIMSTATE
+    thickness::Float64
 end
 
 initial_element_state(::LinearSolidElement) = EmptyElementState()
@@ -28,44 +18,42 @@ Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
 has_constant_massmatrix(::LinearSolidElement) = true
-get_fields(e::LinearSolidElement) = return [e.field]
+get_fields(e::LinearSolidElement) = return [(:u, e.cv.ip)]
 
-function LinearSolidElement{dim, order, refshape, T}(;
-        thickness = 1.0, 
-        qr_order::Int=2, 
-        celltype::Type{<:Ferrite.AbstractCell}, 
-        dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()
-        ) where {dim, order, refshape, T}
+function LinearSolidElement(;
+        celltype::Type{<:Ferrite.AbstractCell{refshape}}, 
+        thickness                   = 1.0, 
+        qr_order::Int               = 2, 
+        dimstate::AbstractDim{sdim} = MaterialModels.Dim{3}(),
+        ip::Interpolation           = Ferrite.default_interpolation(celltype),
+    ) where {refshape, sdim}
     
-    @assert !(celltype <: IGA.BezierCell) #TODO: Removet this. (Temporary check so this method is not called with IGA-elements
+    @assert Ferrite.getrefshape(ip) == refshape "refshape of element does not match that of the given interpolation"
 
-    ip = Lagrange{dim, refshape, order}()
-    geom_ip = Ferrite.default_interpolation(celltype)
+    geo_ip = Ferrite.default_interpolation(celltype)
+    qr = QuadratureRule{refshape}(qr_order)
+    cv = CellValues(qr, ip^sdim, geo_ip^sdim)
 
-    qr = QuadratureRule{dim, refshape}(qr_order)
-
-    cv = CellVectorValues(qr, ip, geom_ip)
-
-    return LinearSolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
+    return LinearSolidElement{sdim}(celltype, cv, dimstate, thickness)
 end
 
 function integrate_forcevector!(
-        element::LinearSolidElement{dim, order, shape, T}, 
+        element::LinearSolidElement{dim}, 
         elementstate::AbstractVector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
-        stresses::Vector{<:SymmetricTensor{2,3,T}},
-        strains::Vector{<:SymmetricTensor{2,3,T}},
+        stresses::Vector{<:SymmetricTensor{2,3}},
+        strains::Vector{<:SymmetricTensor{2,3}},
         fe::Vector, 
-        cell, 
+        coords, 
         Δue::Vector,
         ue::Vector,
         due::Vector,
-        dt::T) where {dim, order, shape, T}
+        dt::AbstractFloat) where dim
 
     cellvalues = element.cv
   
-    reinit!(cellvalues, cell)
+    reinit!(cellvalues, coords)
 
     n_basefuncs = getnbasefunctions(cellvalues)
 
@@ -77,7 +65,7 @@ function integrate_forcevector!(
         σ, ∂σ∂ɛ, new_matstate = material_response(element.dimstate, material, ɛ, materialstate[q_point])
         materialstate[q_point] = new_matstate
         stresses[q_point] = dim==3 ? σ : MaterialModels.increase_dim(σ)
-        strains[q_point] = dim==3 ? ɛ : MaterialModels.increase_dim(ɛ)
+        strains[q_point]  = dim==3 ? ɛ : MaterialModels.increase_dim(ɛ)
         dΩ = getdetJdV(cellvalues, q_point) * element.thickness
         
         for i in 1:n_basefuncs
@@ -89,23 +77,23 @@ function integrate_forcevector!(
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(
-        element::LinearSolidElement{dim, order, shape, T}, 
+        element::LinearSolidElement{dim}, 
         elementstate::AbstractVector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
-        stresses::Vector{<:SymmetricTensor{2,3,T}},
-        strains::Vector{<:SymmetricTensor{2,3,T}},
+        stresses::Vector{<:SymmetricTensor{2,3}},
+        strains::Vector{<:SymmetricTensor{2,3}},
         ke::AbstractMatrix, 
         fe::Vector, 
-        cell, 
+        coords, 
         Δue::Vector,
         ue::Vector,
         due::Vector,
-        dt::T) where {dim, order, shape, T}
+        dt::AbstractFloat) where {dim}
 
     cellvalues = element.cv
   
-    reinit!(cellvalues, cell)
+    reinit!(cellvalues, coords)
 
     n_basefuncs = getnbasefunctions(cellvalues)
 

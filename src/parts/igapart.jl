@@ -9,9 +9,11 @@ function IGALinearSolidElement(;
     ip = geom_ip
     
     qr = QuadratureRule{dim, RefCube}(qr_order)
+#    orders = IGA.getorders(celltype)
+orders = (2,2)
 
     cv = IGA.BezierCellValues(CellVectorValues(qr, ip, geom_ip))
-    return Five.LinearSolidElement{dim, (2,2,2), RefCube, Float64, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
+    return Five.LinearSolidElement{dim, orders, RefCube, Float64, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
 
 #Name it Part instead of Fe-part because it is the standard...
@@ -630,6 +632,7 @@ function _evaluate_at_geometry_nodes!(data, dh, a, ip, drange, field_dim, geomet
         for iqp in 1:n_eval_points
             u = function_value(cv, iqp, ae)
             data[1:field_dim, cellnodes[iqp]] .= u
+            data[(field_dim+1):end, cellnodes[iqp]] .= 0.0 # purge the NaN
         end
 
         offset += n_eval_points

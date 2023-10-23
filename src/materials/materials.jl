@@ -1,11 +1,8 @@
-export LayeredMaterial, MatLinearElastic, Material2D
-export PlaneStressMaterial, PlaneStrainMaterial
 
 density(m::M) where M <: MaterialModels.AbstractMaterial = m.density
-
 mac₊(x::T) where T = x < 0.0 ? zero(T) : x 
 mac₋(x::T) where T = x > 0.0 ? zero(T) : x 
-heaviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
+heviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
 
 #@generated function materialstate_type(::Type{T}) where {T<:AbstractMaterial}
 #
@@ -23,21 +20,9 @@ function constitutive_driver_dissipation(::AbstractMaterial, ε::T, args...; kwa
     return zero(Float64), zero(ε)
 end
 
-#include("matelastic.jl")
-#include("mattransvlinearelastic.jl")
-#include("mattransverseisotropic2.jl")
-#include("matyeoh.jl")
-#include("mathyper.jl")
-#include("matplast_largedef.jl")
-
-
-#include("cohesive/cohesive.jl")
 include("cohesive/matczbilinear.jl")
-#include("cohesive/matczbilinear_singlemode.jl")
 include("cohesive/matczexponential.jl")
 include("phasefield_material.jl")
-#include("cohesive/mat_temp.jl")
-#include("cohesive/matczbilinear2.jl")
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # MatElasticSpring - Massless spring 
