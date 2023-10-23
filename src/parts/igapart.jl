@@ -10,8 +10,10 @@ function IGALinearSolidElement(;
     
     qr = QuadratureRule{dim, RefCube}(qr_order)
 
+    orders = ntuple(i->2, dim)
+
     cv = IGA.BezierCellValues(CellVectorValues(qr, ip, geom_ip))
-    return Five.LinearSolidElement{dim, (2,2,2), RefCube, Float64, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
+    return Five.LinearSolidElement{dim, orders, RefCube, Float64, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
 
 #Name it Part instead of Fe-part because it is the standard...
@@ -250,12 +252,11 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
     qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
     for (ic, cellid) in enumerate(part.cellset)
         stresses = state.partstates[cellid].stresses
-        for i in 1:length(stresses)
-            stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
-        end
+        #for i in 1:length(stresses)
+        #    stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
+        #end
         push!(qpdata, stresses)
     end
-    
     #
     #
     #Set up quadrature rule
@@ -299,7 +300,7 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
     return data
 end
 
-function eval_part_node_data(part::IGAPart, nodeoutput::VTKNodeOutput{MaterialStateOutput{MaterialState_t}}, state, globaldata) where MaterialState_t
+function Five.eval_part_node_data(part::IGAPart, nodeoutput::VTKNodeOutput{MaterialStateOutput{MaterialState_t}}, state, globaldata) where MaterialState_t
     
     #Extract stresses to interpolate
     _cellid = first(part.cellset)
@@ -630,6 +631,7 @@ function _evaluate_at_geometry_nodes!(data, dh, a, ip, drange, field_dim, geomet
         for iqp in 1:n_eval_points
             u = function_value(cv, iqp, ae)
             data[1:field_dim, cellnodes[iqp]] .= u
+            data[(field_dim+1):end, cellnodes[iqp]] .= 0.0 # purge the NaN
         end
 
         offset += n_eval_points
