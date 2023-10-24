@@ -250,9 +250,9 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
     qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
     for (ic, cellid) in enumerate(part.cellset)
         stresses = state.partstates[cellid].stresses
-        for i in 1:length(stresses)
-            stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
-        end
+        #for i in 1:length(stresses)
+        #    stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
+        #end
         push!(qpdata, stresses)
     end
     
@@ -630,6 +630,7 @@ function _evaluate_at_geometry_nodes!(data, dh, a, ip, drange, field_dim, geomet
         for iqp in 1:n_eval_points
             u = function_value(cv, iqp, ae)
             data[1:field_dim, cellnodes[iqp]] .= u
+            data[(field_dim+1):end, cellnodes[iqp]] .= 0.0 # purge the NaN
         end
 
         offset += n_eval_points
