@@ -7,33 +7,27 @@ data = ProblemData(
     tend = 1.0
 )
 
+vtkoutput = VTKNodeOutput(
+    type = StressOutput()
+)
+push!(data.vtk_output, vtkoutput)
+
+vtkoutput = VTKNodeOutput(
+    type = MaterialStateOutput(
+        field = :ϵᵖ,
+        type = SymmetricTensor{2,3,Float64,6}
+    )
+)
+push!(data.vtk_output, vtkoutput)
+
 data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
 
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
-#=material = MatLinearElastic(
-    E = 1e5,
-    nu = 0.3
-)=#
-
-material = MatTransvLinearElastic(;    
+material = LinearElastic(;    
     E1 = 100.0,   
     E2 = 100.0,   
-
-    ν_12 = 0.3, 
-    G_12 = 100.0/(2(1.3)),
-    ρ = 1.0,
-    α =0.0
 )
-
-#= material = MatHyperElasticPlastic(
-    elastic_material = MatNeoHook(
-        E = 1.0e5,
-        ν = 0.3
-    ),
-    τ₀ = 400.0,
-    H = 1.0e5/20
-) |> PlaneStrainMaterial =#
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
@@ -41,22 +35,13 @@ con1 = Dirichlet(
     field = :u,
     dofs = [1,2]
 )
-push!(data.dirichlet, con1)
-
-#=
-con1 = Dirichlet(
-    set = getfaceset(data.grid, "right"),
-    func = (x,t) -> (t*1.0),
-    field = :u,
-    dofs = [2]
-)
-push!(data.dirichlet, con1)=#
+push!(data.constraints_ferrite, con1)
 
 part = Part(
-    element  = Five.LinearSolidElement{2,1,RefCube,Float64}(
-        thickness = 1.0, 
-        qr_order = 2,
+    element  = Five.LinearSolidElement(
         celltype = Quadrilateral,
+        qr_order = 2,
+        thickness = 1.0, 
         dimstate = PlaneStrain()
     ),
     material = material,
@@ -97,7 +82,6 @@ Five.push_vtkoutput!(data.output[], vtkoutput)
 )
 Five.push_vtkoutput!(data.output[], vtkoutput)=#
 
-
 force = PointForce(
     field = :u,
     comps = [2],
@@ -109,8 +93,8 @@ push!(data.external_forces, force)
 solver = NewtonSolver(
     Δt0 = 0.1,
     Δt_max = 0.1,
-    linearsolver = Five.LinearSolve.KrylovJL_CG(itmax = 1000, verbose=0, atol = 1e-15),
-    preconditioner = Five.Preconditioners.AMGPreconditioner{Five.Preconditioners.RugeStuben}#Five.IncompleteLU.ilu#Five.IdentityProconditioner #Five.IncompleteLU.ilu
+    #linearsolver = Five.LinearSolve.KrylovJL_CG(itmax = 1000, verbose=0, atol = 1e-15),
+    #preconditioner = Five.Preconditioners.AMGPreconditioner{Five.Preconditioners.RugeStuben}#Five.IncompleteLU.ilu#Five.IdentityProconditioner #Five.IncompleteLU.ilu
 )
 
 state, data = build_problem(data)

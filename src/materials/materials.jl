@@ -8,8 +8,8 @@ heviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
 #
 #end
 
-materialstate_type(::Type{<:LinearElastic}) = LinearElasticState
-materialstate_type(::Type{<:TransverselyIsotropic}) = TransverselyIsotropicState
+get_material_state_type(::Type{<:LinearElastic}) = LinearElasticState
+get_material_state_type(::Type{<:TransverselyIsotropic}) = TransverselyIsotropicState
 
 """
     is_dissipative

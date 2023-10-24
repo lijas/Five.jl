@@ -16,8 +16,8 @@ abstract type AbstractElementState end
 #Many elementstates will be empty, so create default empty one
 struct EmptyElementState <: AbstractElementState end
 
-EmptyElementState(::AbstractElement) = EmptyElementState() 
-elementstate_type(::Type{T}) where {T<:AbstractElement} = EmptyElementState
+initial_element_state(::AbstractElement) = EmptyElementState() 
+get_element_state_type(::Type{T}) where {T<:AbstractElement} = EmptyElementState
 
 Ferrite.getdim(::AbstractElement{dim}) where dim = dim
 

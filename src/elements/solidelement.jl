@@ -1,22 +1,12 @@
 """
-SolidElement{dim,order,shape,T,CV<:Ferrite.Values}
+SolidElement
 """
 
-struct SolidElement{
-        dim,
-        order,
-        shape,
-        T          <: AbstractFloat,
-        CV         <: Ferrite.Values,
-        DIM       <: MaterialModels.AbstractDim
-    } <: AbstractElement{dim}
-
-    thickness::T #used in 2d
-
-    celltype::Type{<:Cell}
+struct SolidElement{sdim,CV<:Ferrite.AbstractCellValues, DIMSTATE<:MaterialModels.AbstractDim} <: AbstractElement{sdim}
+    celltype::Type{<:Ferrite.AbstractCell}
     cv::CV
-    field::Field
-    dimstate::DIM
+    dimstate::DIMSTATE
+    thickness::Float64
 end
 
 initial_element_state(::SolidElement)  = EmptyElementState()
@@ -26,24 +16,26 @@ Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::SolidElement) = e.celltype
 has_constant_massmatrix(::SolidElement) = true
-get_fields(e::SolidElement) = [e.field]
+get_fields(e::SolidElement) = [(:u, e.cv.ip)]
 
-function SolidElement{dim,order,refshape,T}(;
-        thickness::Float64 = 1.0, 
-        qr_order::Int=2, 
-        celltype::Type{<:Cell}, #Todo: Should be obtained from the grid instead...
-        dimstate::AbstractDim{dim} = MaterialModels.Dim{3}()) where {dim, order, refshape, T}
-    
-    ip = Lagrange{dim, refshape, order}()
-    geom_ip = Ferrite.default_interpolation(celltype)
+function SolidElement(;
+        celltype::Type{<:Ferrite.AbstractCell{refshape}}, 
+        thickness                   = 1.0, 
+        qr_order::Int               = 2, 
+        dimstate::AbstractDim{sdim} = MaterialModels.Dim{3}(),
+        ip::Interpolation           = Ferrite.default_interpolation(celltype),
+    ) where {refshape, sdim}
 
-    qr = QuadratureRule{dim, refshape}(qr_order)
+    @assert Ferrite.getrefshape(ip) == refshape "refshape of element does not match that of the given interpolation"
 
-    cv = CellVectorValues(qr, ip, geom_ip)
-    return SolidElement{dim, order, refshape, T, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
+    geo_ip = Ferrite.default_interpolation(celltype)
+    qr = QuadratureRule{refshape}(qr_order)
+    cv = CellValues(qr, ip^sdim, geo_ip^sdim)
+
+    return SolidElement{sdim}(celltype, cv, dimstate, thickness)
 end
 
-function integrate_fstar!(element::SolidElement{dim, order, shape, T}, 
+function integrate_fstar!(element::SolidElement, 
     elementstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     materialstate::AbstractVector{<:AbstractMaterialState},
@@ -52,13 +44,13 @@ function integrate_fstar!(element::SolidElement{dim, order, shape, T},
     Δue::Vector,
     ue::Vector,
     due::Vector,
-    Δt::T) where {dim, order, shape, T}
+    Δt::AbstractFloat) 
     
     integrate_forcevector_and_stiffnessmatrix!(element, elementstate,
      material, materialstate, zeros(T, length(fe), length(fe)), fe, cell, Δue, ue, due, Δt)
 end
 
-function integrate_forcevector!(element::SolidElement{dim, order, shape, T}, 
+function integrate_forcevector!(element::SolidElement{dim}, 
         elementstate::Vector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
@@ -69,7 +61,7 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
         Δue::Vector,
         ue::Vector,
         due::Vector,
-        Δt::T) where {dim, order, shape, T}
+        Δt::T) where {dim, T}
 
 
     cv = element.cv
@@ -105,13 +97,13 @@ function integrate_forcevector!(element::SolidElement{dim, order, shape, T},
 end
 
 function integrate_massmatrix!(
-    element::SolidElement{dim, order, shape, T, M}, 
+    element::SolidElement{dim}, 
     elementstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     coords, 
     me::Matrix, 
     ue::AbstractVector, 
-    due::AbstractVector) where {dim, order, shape, T, M}
+    due::AbstractVector) where {dim}
 
     cv = element.cv
     reinit!(cv, coords)
@@ -129,7 +121,7 @@ function integrate_massmatrix!(
     end
 end
 
-function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, order, shape, T}, 
+function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim}, 
     elementstate::Vector{<:AbstractElementState}, 
     material::AbstractMaterial, 
     materialstate::AbstractVector{<:AbstractMaterialState},
@@ -141,7 +133,7 @@ function integrate_forcevector_and_stiffnessmatrix!(element::SolidElement{dim, o
     Δue::Vector,
     ue::Vector,
     due::Vector,
-    Δt::T) where {dim, order, shape, T}
+    Δt::T) where {dim, T}
 
     cv = element.cv
     reinit!(cv, cell)
@@ -187,8 +179,8 @@ end
 
 
 function integrate_dissipation!(
-    element       :: SolidElement{dim_p,dim_s,CV},
-    elementstate  ::Vector{<:AbstractElementState}, 
+    element       :: SolidElement,
+    elementstate  :: Vector{<:AbstractElementState}, 
     material      :: AbstractMaterial,
     materialstate :: AbstractArray{<:AbstractMaterialState},
     fe            :: Vector{T},
@@ -197,8 +189,8 @@ function integrate_dissipation!(
     Δue           :: Vector,
     ue            :: Vector,
     due           :: Vector,
-    Δt            :: T
-    ) where {dim_p,dim_s,CV,T}
+    Δt            :: AbstractFloat
+    ) where T
 
     cv = element.cv
     reinit!(cv, coords)

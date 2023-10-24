@@ -1,25 +1,18 @@
 export PhaseFieldElement
 """
-PhaseFieldElement{dim,order,shape,T,CV<:Ferrite.Values}
+PhaseFieldElement
 
 """
 
-struct PhaseFieldElement{dim,order,shape,T,CV1<:Ferrite.Values,CV2<:Ferrite.Values, DIM <: MaterialModels.AbstractDim} <: AbstractElement{dim}
-    thickness::T #used in 2d
-
-    celltype::Type{<:Cell}
+struct PhaseFieldElement{dim, CV1<:Ferrite.AbstractCellValues,CV2<:Ferrite.AbstractCellValues,DIM<:MaterialModels.AbstractDim} <: AbstractElement{dim}
+    celltype::Type{<:Ferrite.AbstractCell}
     cv_u::CV1
     cv_d::CV2
     dimstate::DIM
+    thickness::Float64
 end
 
-struct PhaseFieldElementState <: AbstractElementState
-end
-
-initial_element_state(::PhaseFieldElement) = PhaseFieldElementState()
 is_dissipative(::PhaseFieldElement) = true
-
-elementstate_type(::Type{<:PhaseFieldElement}) = PhaseFieldElementState
 
 getquadraturerule(e::PhaseFieldElement) = e.cv_u.qr
 Ferrite.getnquadpoints(e::PhaseFieldElement) = getnquadpoints(e.cv_u)
@@ -29,36 +22,37 @@ getncoords(s::PhaseFieldElement) = Ferrite.getngeobasefunctions(s.cv_u)
 
 has_constant_massmatrix(::PhaseFieldElement) = true
 
-get_fields(::PhaseFieldElement{dim,order,shape,T}) where {dim,order,shape,T} = return [Field(:u, Lagrange{dim,shape,order}(), dim), Field(:d, Lagrange{dim,shape,order}(), 1)]
+get_fields(e::PhaseFieldElement{dim,order,shape,T}) where {dim,order,shape,T} = return [(:u, e.cv_u.ip), (:d, e.cv_d.ip)]
 
-function PhaseFieldElement{dim,order,refshape,T}(;
-    thickness = 1.0,     
-    qr_order::Int=2, 
-    celltype::Type{<:Cell},
-    dimstate::Optional{MaterialModels.AbstractDim} = nothing) where {dim, order, refshape, T}
+function PhaseFieldElement(;
+    celltype::Type{<:Ferrite.AbstractCell},
+    thickness         = 1.0,     
+    qr_order::Int     = 2,
+    ip::Interpolation = Ferrite.default_interpolation(celltype), 
+    dimstate::Optional{MaterialModels.AbstractDim} = nothing) where {}
     
-    qr = QuadratureRule{dim, refshape}(qr_order)
-    
-    ip = Lagrange{dim, refshape, order}()
     geom_ip = Ferrite.default_interpolation(celltype)
+    refshape = Ferrite.getrefshape(geom_ip)
+    sdim = Ferrite.getdim(ip)
 
-    cv_u = CellVectorValues(qr, ip, geom_ip)
-    cv_d = CellScalarValues(qr, ip, geom_ip)
+    qr = QuadratureRule{refshape}(qr_order)
+    cv_u = CellValues(qr, ip^sdim, geom_ip^sdim)
+    cv_d = CellValues(qr, ip, geom_ip^sdim)
 
     if dimstate === nothing
-        if dim == 3
+        if sdim == 3
             dimstate = MaterialModels.Dim{3}()
-        else
-            error("No dimstate given.")
+        else sdim == 2
+            dimstate = MaterialModels.PlaneStrain()
         end
     end
 
-    return PhaseFieldElement{dim,order,refshape,T,typeof(cv_u),typeof(cv_d),typeof(dimstate)}(thickness, celltype, cv_u, cv_d, dimstate)
+    return PhaseFieldElement(celltype, cv_u, cv_d, dimstate, thickness)
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(
-        element::PhaseFieldElement{dim, order, shape, T}, 
-        elementstate::AbstractVector{PhaseFieldElementState}, 
+        element::PhaseFieldElement{dim,}, 
+        elementstate::AbstractVector{<:AbstractElementState}, 
         material::AbstractMaterial, 
         materialstate::AbstractVector{<:AbstractMaterialState},
         stresses::Vector{<:SymmetricTensor{2,3,T}},
@@ -69,7 +63,7 @@ function integrate_forcevector_and_stiffnessmatrix!(
         Δue::Vector,
         a::Vector,
         due::Vector,
-        Δt::T) where {dim, order, shape, T}
+        Δt::T) where {dim, T}
 
         
     cv_u = element.cv_u
@@ -163,8 +157,8 @@ end
 
 
 function integrate_dissipation!(
-    element       :: PhaseFieldElement{dim, order, shape, T}, 
-    elementstate  ::AbstractVector{PhaseFieldElementState}, 
+    element       :: PhaseFieldElement{dim}, 
+    elementstate  ::AbstractVector{<:AbstractElementState}, 
     material      :: AbstractMaterial,
     materialstate :: AbstractArray{<:AbstractMaterialState},
     fe            :: Vector{T},
@@ -174,7 +168,7 @@ function integrate_dissipation!(
     Δa            :: Vector,
     due           :: Vector,
     Δt            :: T
-    ) where {dim, order, shape, T}
+    ) where {dim, T}
     
     cv_u = element.cv_u
     cv_d = element.cv_d

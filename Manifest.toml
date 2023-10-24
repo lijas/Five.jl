@@ -2,7 +2,7 @@
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "8ed599a23d6036e041c537f88f11db74b7603715"
+project_hash = "f3797084bf6f846ceb0aa3b1eda5a5584ad60a4c"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -85,6 +85,12 @@ deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
 git-tree-sha1 = "38f7a08f19d8810338d4f5085211c7dfa5d5bdd8"
 uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
 version = "0.1.4"
+
+[[deps.ChunkSplitters]]
+deps = ["TestItems"]
+git-tree-sha1 = "66fddc60e350bd15282b1d8be610a10b7ceca334"
+uuid = "ae650224-84b6-46f8-82ea-d812ca08434e"
+version = "2.0.0"
 
 [[deps.CloseOpenIntervals]]
 deps = ["ArrayInterface", "Static"]
@@ -202,10 +208,12 @@ uuid = "29a986be-02c6-4525-aec4-84b980013641"
 version = "1.2.8"
 
 [[deps.Ferrite]]
-deps = ["EnumX", "LinearAlgebra", "NearestNeighbors", "Preferences", "Reexport", "SparseArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "19787ed1e790736e6bffc34c07289f63fbb19e1a"
+deps = ["EnumX", "LinearAlgebra", "NearestNeighbors", "Preferences", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
+git-tree-sha1 = "fd866018f00005320edd0b35d0d5670fa0666756"
+repo-rev = "master"
+repo-url = "https://github.com/Ferrite-FEM/Ferrite.jl.git"
 uuid = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
-version = "0.3.11"
+version = "0.3.14"
 
     [deps.Ferrite.extensions]
     FerriteBlockArrays = "BlockArrays"
@@ -268,14 +276,6 @@ deps = ["BitTwiddlingConvenienceFunctions", "IfElse", "Libdl", "Static"]
 git-tree-sha1 = "f64b890b2efa4de81520d2b0fbdc9aadb65bdf53"
 uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
 version = "0.1.13"
-
-[[deps.IGA]]
-deps = ["Ferrite", "LinearAlgebra", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "b7c47e6c2d3ff0063d3098bec03e50f129b52e64"
-repo-rev = "v0.2.6"
-repo-url = "https://github.com/lijas/IGA.jl.git"
-uuid = "e7b8d123-e02a-40ba-ad18-d3943ed54f1c"
-version = "0.2.6"
 
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
@@ -806,6 +806,11 @@ version = "1.13.1"
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[deps.TestItems]]
+git-tree-sha1 = "8621ba2637b49748e2dc43ba3d84340be2938022"
+uuid = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
+version = "0.1.1"
 
 [[deps.ThreadingUtilities]]
 deps = ["ManualMemory"]

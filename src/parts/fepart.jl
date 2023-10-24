@@ -1,5 +1,3 @@
-export Part
-export PartState
 
 struct PartCache{dim,T,E}
     ue::Vector{T}
@@ -11,14 +9,6 @@ struct PartCache{dim,T,E}
     coords::Vector{Vec{dim,T}}
     element::E
 end
-
-struct PartVTKExport{dim,T}
-    nodeid_mapper::Dict{Int,Int}
-    vtkcells::Vector{MeshCell}
-    vtknodes::Vector{Vec{dim,T}}
-end
-
-PartVTKExport{dim,T}() where {dim,T} = PartVTKExport{dim,T}(Dict{Int,Int}(), MeshCell[], Vec{dim,T}[])
 
 function PartCache{dim,T}(ndofs, ncoords, element::E) where {dim,T,E} 
     PartCache{dim,T,E}(
@@ -64,11 +54,11 @@ function Part(;
         geometry)
 end
 
-struct PartState{S<:AbstractElementState, M<:AbstractMaterialState} <: AbstractPartState
-    elementstate::Vector{S}
-    materialstates::Vector{M}
-    stresses::Vector{SymmetricTensor{2,3,Float64,6}}
-    strains::Vector{SymmetricTensor{2,3,Float64,6}}
+struct PartState{ES<:AbstractElementState, MS<:AbstractMaterialState} <: AbstractPartState
+    elementstate   ::Vector{Vector{ES}}
+    materialstates ::Vector{Vector{MS}}
+    stresses       ::Vector{Vector{SymmetricTensor{2,3,Float64,6}}}
+    strains        ::Vector{Vector{SymmetricTensor{2,3,Float64,6}}}
 end
 
 get_fields(part::Part) = get_fields(part.element)
@@ -77,79 +67,43 @@ get_cellset(part::Part) = part.cellset
 function construct_partstates(part::Part{dim,T,ET,MT}) where {dim,T,ET,MT}
 
     ncells = length(part.cellset)
-    nqp = getnquadpoints(part.element)
+    nqp    = getnquadpoints(part.element)
 
-    MaterialStateType = typeof( initial_material_state(part.material) )
-    ElementStateType = elementstate_type(ET)
+    materialstate_type = get_material_state_type(MT)
+    elementstate_type = get_element_state_type(ET)
 
-    states = Vector{PartState{ElementStateType,MaterialStateType}}(undef, ncells)
-
+    estates = Vector{elementstate_type}[]
+    mstates = Vector{materialstate_type}[]
+    stresses = Vector{SymmetricTensor{2,3,Float64,6}}[]
+    strains = Vector{SymmetricTensor{2,3,Float64,6}}[]
     for i in 1:ncells
-        #@show MaterialStateType,ElementStateType
-        _materialstates = Vector{MaterialStateType}(undef, nqp)
-        _elementstates = Vector{ElementStateType}(undef, nqp)
-        for j in 1:nqp
-            _materialstates[j] = initial_material_state(part.material)
-            _elementstates[j] = initial_element_state(part.element)
-        end
-
-        states[i] = PartState(_elementstates, _materialstates, zeros(SymmetricTensor{2,3,Float64,6}, nqp), zeros(SymmetricTensor{2,3,Float64,6}, nqp))
-    end
-    return states
-end
-
-function hot_fix_create_incidence_matrix(g::Ferrite.AbstractGrid, cellset)
-    cell_containing_node = Dict{Int, Set{Int}}()
-    for cellid in cellset
-        cell = getcells(g, cellid)
-        for v in cell.nodes
-            _set = get!(Set{Int}, cell_containing_node, v)
-            push!(_set, cellid)
-        end
+        push!(estates, [initial_element_state(part.element) for i in 1:nqp])
+        push!(mstates, [initial_material_state(part.material) for i in 1:nqp])
+        push!(stresses, zeros(SymmetricTensor{2,3,Float64,6}, nqp))
+        push!(strains, zeros(SymmetricTensor{2,3,Float64,6}, nqp))
     end
 
-    I, J, V = Int[], Int[], Bool[]
-    for (_, cells) in cell_containing_node
-        for cell1 in cells # All these cells have a neighboring node
-            for cell2 in cells
-                # if true # cell1 != cell2
-                if cell1 != cell2
-                    push!(I, cell1)
-                    push!(J, cell2)
-                    push!(V, true)
-                end
-            end
-        end
-    end
-
-    incidence_matrix = sparse(I, J, V, getncells(g), getncells(g))
-    return incidence_matrix
+    pstate = PartState(estates, mstates, stresses, strains)
+    return pstate
 end
 
 function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {dim,T}
     grid = dh.grid
 
-    _ndofs = ndofs(part.element)
-    _nnodes = Ferrite.nnodes(getcelltype(part.element))
-
+    _ndofs   = ndofs(part.element)
+    _nnodes  = Ferrite.nnodes(getcelltype(part.element))
     nthreads = Threads.nthreads()
-    
-    resize!(part.cache, nthreads)
-    for i in 1:nthreads
+    nchunks = nthreads*10 #TODO: How many chunks?
+
+    resize!(part.cache, nchunks)
+    for i in 1:nchunks
         part.cache[i] = PartCache{dim,T}(_ndofs, _nnodes, part.element)
     end
 
-    #Hot fix cells for parts with only one cell (bar_example.jl)
-    #TODO: this is fixed in latest ferrite version
-    local threadsets
-    if length(part.cellset) == 1
-        threadsets = Vector{Int}[[first(part.cellset)]]
-    else
-        #TODO: BezierGrid does not work with create_incidence_matrix, so call them seperatly
-        #threadsets = Ferrite.create_coloring(grid, part.cellset; ColoringAlgorithm.WorkStream)
-        incidence_matrix = hot_fix_create_incidence_matrix(grid, part.cellset)
-        threadsets = Ferrite.workstream_coloring(incidence_matrix, part.cellset)
-    end
+    #TODO: BezierGrid does not work with create_incidence_matrix, so call them seperatly
+    #threadsets = Ferrite.create_coloring(grid, part.cellset; ColoringAlgorithm.WorkStream)
+    incidence_matrix = hot_fix_create_incidence_matrix(grid, part.cellset)
+    threadsets = Ferrite.workstream_coloring(incidence_matrix, part.cellset)
 
     copy!(part.threadsets, threadsets)
 end
@@ -195,64 +149,68 @@ end
 
 function _assemble_part!(dh::Ferrite.AbstractDofHandler, 
     part::Part{dim,T,ET,MT},
+    partstate::PartState,
     state::StateVariables{T},
     assemtype::ASSEMBLETYPE) where {dim,T,ET,MT}
 
-    assemblers = [start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false) for _ in 1:Threads.nthreads()]
+    nchunks = length(part.cache)
+    assemblers = [start_assemble(state.system_arrays.Kⁱ, state.system_arrays.fⁱ, fillzero=false) for _ in 1:nchunks]
    
-    ElementState = elementstate_type(ET)
-    MaterialState = materialstate_type(MT)
+    for color in part.threadsets
+        Threads.@threads for (chunkrange, ichunk) in ChunkSplitters.chunks(color, nchunks) 
+            for i in chunkrange
+                cellid = color[i]
+                lcellid = searchsortedfirst(part.cellset, cellid)
+                
+                partcache = part.cache[ichunk]
+                assembler = assemblers[ichunk]
 
-    Δt = state.Δt
-
-    for tset in part.threadsets
-        Threads.@threads :static for cellid in tset
-
-            cache = part.cache[Threads.threadid()]
-            assembler = assemblers[Threads.threadid()]
-
-            (; fe, ke, ue, due, Δue, coords, celldofs, element) = cache
-        
-            partstate::PartState{ElementState, MaterialState} = state.partstates[cellid]
-
-            materialstate = partstate.materialstates
-            cellstate     = partstate.elementstate
-            stresses      = partstate.stresses
-            strains       = partstate.strains
-
-            fill!(fe, 0.0)
-            (assemtype == STIFFMAT) && fill!(ke, 0.0)
-
-            Ferrite.cellcoords!(coords, dh, cellid)
-            Ferrite.celldofs!(celldofs, dh, cellid)
-
-            Δue .= state.v[celldofs] #Dont need both Δue and (v and Δt)
-            ue .= state.d[celldofs]
-            due .= state.v[celldofs]
-            
-            if assemtype == STIFFMAT
-                integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, stresses, strains, ke, fe, coords, Δue, ue, due, Δt)
-                assemble!(assembler, celldofs, fe, ke)
-            elseif assemtype == FORCEVEC
-                integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
-                state.system_arrays.fⁱ[celldofs] += fe
-            elseif assemtype == FSTAR
-                error("Broken code, fix")
-                prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
-                prev_materialstate = prev_partstate.materialstates
-
-                integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
-                state.system_arrays.fᴬ[celldofs] += fe
-            elseif assemtype == DISSI
-                ge = Base.RefValue(zero(T))
-                integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
-                state.system_arrays.fᴬ[celldofs] += fe
-                state.system_arrays.G[] += ge[]
+                _assemble_cell(part, partstate, partcache, cellid, lcellid,  assembler, state, dh, assemtype)
             end
-
         end
     end
+            
     
+end
+
+function _assemble_cell(part::Part, partstate::PartState, cache::PartCache, cellid, lcellid, assembler, state, dh, assemtype)
+    (; fe, ke, ue, due, Δue, coords, celldofs, element) = cache
+
+    materialstate = partstate.materialstates[lcellid]
+    cellstate     = partstate.elementstate[lcellid]
+    stresses      = partstate.stresses[lcellid]
+    strains       = partstate.strains[lcellid]
+
+    fill!(fe, 0.0)
+    (assemtype == STIFFMAT) && fill!(ke, 0.0)
+
+    Ferrite.cellcoords!(coords, dh, cellid)
+    Ferrite.celldofs!(celldofs, dh, cellid)
+
+    Δue .= state.v[celldofs] 
+    ue  .= state.d[celldofs]
+    due .= state.v[celldofs]
+    
+    if assemtype == STIFFMAT
+        integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, stresses, strains, ke, fe, coords, Δue, ue, due, state.Δt)
+        assemble!(assembler, celldofs, fe, ke)
+    elseif assemtype == FORCEVEC
+        integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
+        state.system_arrays.fⁱ[celldofs] += fe
+    elseif assemtype == FSTAR
+        error("Broken code, fix")
+        prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
+        prev_materialstate = prev_partstate.materialstates
+
+        integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
+        state.system_arrays.fᴬ[celldofs] += fe
+    elseif assemtype == DISSI
+        ge = Base.RefValue(zero(T))
+        integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+        state.system_arrays.fᴬ[celldofs] += fe
+        state.system_arrays.G[] += ge[]
+    end
+
 end
 
 function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables)

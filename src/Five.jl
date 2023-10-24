@@ -5,14 +5,13 @@ using ForwardDiff
 import LinearSolve
 import Preconditioners
 import IncompleteLU
-using MKLSparse
 
+import ChunkSplitters
 using Parameters
 using TimerOutputs
 using StaticArrays
 using LinearAlgebra
 using SparseArrays
-using Statistics: mean
 import Base: isdone
 
 import Logging
@@ -21,8 +20,7 @@ using InteractiveUtils
 
 #import JLD2
 import FileIO: save
-using JLD2
-import IGA #https://github.com/lijas/IGA.jl.git
+import JLD2
 
 
 @reexport using Ferrite
@@ -34,18 +32,6 @@ LOG = Logging.global_logger()
 #function _getT() end
 #function _getdim() end
 
-# IdentityProconditioner
-struct IdentityProconditioner <: Preconditioners.AbstractPreconditioner end
-function IdentityProconditioner(K::AbstractMatrix) 
-    IdentityProconditioner()
-end
-function LinearAlgebra.ldiv!(y, ::IdentityProconditioner, x)
-    copyto!(y, x)
-end
-function LinearAlgebra.ldiv!(::IdentityProconditioner, x)
-    x
-end
-
 const Optional{T} = Union{T,Nothing}
 
 abstract type AbstractPart{dim} end
@@ -55,15 +41,7 @@ abstract type AbstractPartState end
 @enum SimulationTermination NORMAL_TERMINATION ERROR_TERMINATION ABORTED_SIMULATION _NO_TERMINATION
 
 abstract type AbstractSolver{T} end
-
-export SystemArrays, StateVariables, GlobalData
-
 abstract type AbstractSystemArrays{T} end
-
-@with_kw struct InitialCondition
-    field::Symbol
-    func::Function
-end
 
 """
     SystemArrays(T::Type, ndofs::Int)
@@ -75,7 +53,6 @@ mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
     Kⁱ::SparseArrays.SparseMatrixCSC{T,Int}
 
     fᵉ::Vector{T} #External force vector
-    Kᵉ::SparseArrays.SparseMatrixCSC{T,Int}
     
     Mᵈⁱᵃᵍ::SparseArrays.SparseMatrixCSC{T,Int}
     M    ::SparseArrays.SparseMatrixCSC{T,Int}
@@ -85,6 +62,7 @@ mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
 
     #For dissipation solver:
     fᴬ::Vector{T}
+    fᴮ::Vector{T}
 
     G::Base.RefValue{T}
 end
@@ -124,9 +102,9 @@ Remove all Δ-variables, and require two states instead, (previous and current)
 """
 mutable struct StateVariables{T} <: AbstractStateVariables{T}
     
-    d::Vector{T}
-    v::Vector{T}
-    a::Vector{T}
+    d::Vector{T} # displacement
+    v::Vector{T} # velocity
+    a::Vector{T} # acceleration
     t::T
     Δt::T
 
@@ -197,11 +175,11 @@ function transfer_state!(a::StateVariables, b::StateVariables)
 end
 
 #TODO: change to fillzero!()
-function Base.fill!(sa::SystemArrays{T}, v::T) where T
+function zero_out_systemarrays!(sa::SystemArrays{T}) where T
+    v = zero(T)
     fill!(sa.fⁱ, v)
     fill!(sa.Kⁱ, v)
     fill!(sa.fᵉ, v)
-    fill!(sa.Kᵉ, v)
     fill!(sa.fᴬ, v)
     sa.G[] = v
 end
@@ -216,9 +194,9 @@ include("outputs/output.jl")
 include("outputs/dof_value.jl")
 include("outputs/material_output.jl")
 
+#Solvers
 include("solvers/solver_utils.jl")
 include("solvers/solver.jl")
-# include("solvers/dissipation_solver.jl")
 include("solvers/local_dissipation_solver.jl")
 include("solvers/newton_solver.jl")
 include("solvers/arclength_solver.jl")
@@ -228,14 +206,16 @@ include("solvers/arclength_solver.jl")
 include("parts/parts.jl")
 include("assembling.jl")
 
+#Forces
 include("externalforce/external_forces.jl")
-include("constraints/Constraints.jl")
-include("utils/follower_constraint.jl")
 
+#Constraints
+include("constraints/Constraints.jl")
+include("constraints/follower_constraint.jl")
+
+#Utils
 include("utils/utils.jl")
-include("utils/celliterator2.jl")
 include("utils/juafemutils.jl")
-include("utils/stresses_through_thickness.jl")
 include("utils/adaptive.jl")
 
 include("solvers/problem_builder.jl")
@@ -246,26 +226,22 @@ include("solvers/problem_builder.jl")
 Contains all information about the problem being solved, e.g Forces, Boundary conditions, Parts
 
 """
-mutable struct GlobalData{dim,T,DH<:Ferrite.AbstractDofHandler}
-    dbc::ConstraintHandler{DH,T}
-
-    grid::Ferrite.AbstractGrid{dim}
+mutable struct GlobalData{G,DH,CH}
+    
+    grid::G
     dh::DH
+    dbc::CH
     
     constraints::Constraints
-    efh::ExternalForceHandler{T}
+    efh::ExternalForceHandler
     contact::AbstractContactSearchAlgorithm
     
-    parts::Vector{AbstractPart{dim}}
-
-    output::Output{T}
+    parts::Vector{AbstractPart}
+    output::Output
 
     t0::T
     tend::T
-
     adaptive::Bool
 end
-
-export get_fields
 
 end

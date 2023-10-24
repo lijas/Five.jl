@@ -11,8 +11,6 @@ struct LinearSolidElement{sdim,CV<:Ferrite.AbstractCellValues, DIMSTATE<:Materia
     thickness::Float64
 end
 
-initial_element_state(::LinearSolidElement) = EmptyElementState()
-
 getquadraturerule(e::LinearSolidElement) = getquadraturerule(e.cv)
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
@@ -125,7 +123,7 @@ function integrate_forcevector_and_stiffnessmatrix!(
     
 end
 
-function integrate_massmatrix!(element::LinearSolidElement{dim, order, shape, T, M}, ::AbstractVector{<:AbstractElementState}, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim, order, shape, T, M}
+function integrate_massmatrix!(element::LinearSolidElement{dim}, ::AbstractVector{<:AbstractElementState}, material::AbstractMaterial, cell, me::Matrix, ue::AbstractVector, due::AbstractVector) where {dim}
 
     cv = element.cv
     reinit!(cv, cell)
@@ -145,7 +143,7 @@ end
 
 
 function integrate_dissipation!(
-    element       :: LinearSolidElement{dim_p,dim_s,CV},
+    element       :: LinearSolidElement,
     elementstate  :: Vector{<:AbstractElementState}, 
     material      :: AbstractMaterial,
     materialstate :: AbstractArray{<:AbstractMaterialState},
@@ -156,7 +154,7 @@ function integrate_dissipation!(
     ue            :: Vector,
     due           :: Vector,
     Δt            :: T
-    ) where {dim_p,dim_s,CV,T}
+    ) where T
 
     error("function not implemented for $(typeof(element))")
     

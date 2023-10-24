@@ -9,37 +9,31 @@ Any order, any shape, any dim,
 
 struct CohesiveElement{dim_s,CV} <: AbstractElement{dim_s}
     thickness2d::Float64
-
-    field::Field
-    celltype::Type{<:CohesiveCell}
+    celltype::Type{<:AbstractCohesiveCell}
     cv::CV
 end
-
-initial_element_state(::CohesiveElement) = EmptyElementState()
 
 getquadraturerule(e::CohesiveElement) = e.cv.qr
 Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::CohesiveElement) = e.celltype
 has_constant_massmatrix(::CohesiveElement) = true
-get_fields(e::CohesiveElement) = return [e.field]
+get_fields(e::CohesiveElement{dim_s}) where dim_s = return [:u, e.cv.ip^dim_s]
 
 
 function CohesiveElement(;
+        celltype::Type{<:AbstractCohesiveCell},
         thickness::Float64 = 1.0, 
-        order::Int, 
-        nqp::Int = order+1,
-        celltype::Type{<:CohesiveCell{dim_s}}
-        ) where {dim_s}
-
-    ip = CohesiveZoneInterpolation(Lagrange{dim_s-1,RefCube,order}())
-    
+        qp_order::Int = 2,
+        )
+    ip      = Ferrite.default_interpolation(celltype)
     geom_ip = Ferrite.default_interpolation(celltype)
-    mid_qr = QuadratureRule{dim_s-1,RefCube}(nqp)
+    mid_qr = QuadratureRule{RefCube}(qp_order)
 
+    sdim = Ferrite.getdim(ip)
     cv = SurfaceVectorValues(mid_qr, ip, geom_ip)
 
-    return CohesiveElement{dim_s,typeof(cv)}(thickness, Field(:u, ip, dim_s), celltype, cv)
+    return CohesiveElement{sdim}(thickness, celltype, cv)
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(

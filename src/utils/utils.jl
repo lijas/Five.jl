@@ -1,6 +1,18 @@
 export nodeset_to_vertexset
 
 
+# IdentityProconditioner
+struct IdentityProconditioner <: Preconditioners.AbstractPreconditioner end
+function IdentityProconditioner(K::AbstractMatrix) 
+    IdentityProconditioner()
+end
+function LinearAlgebra.ldiv!(y, ::IdentityProconditioner, x)
+    copyto!(y, x)
+end
+function LinearAlgebra.ldiv!(::IdentityProconditioner, x)
+    x
+end
+
 """
 nodeset_to_vertexset(grid::AbstractGrid, nodeset::Set{Int}) 
 
@@ -183,6 +195,34 @@ function numdiff(f!::Function, ue_interface::AbstractVector{T}, nms::AbstractVec
 
     return fu, ke
 
+end
+
+function hot_fix_create_incidence_matrix(g::Ferrite.AbstractGrid, cellset)
+    cell_containing_node = Dict{Int, Set{Int}}()
+    for cellid in cellset
+        cell = getcells(g, cellid)
+        for v in cell.nodes
+            _set = get!(Set{Int}, cell_containing_node, v)
+            push!(_set, cellid)
+        end
+    end
+
+    I, J, V = Int[], Int[], Bool[]
+    for (_, cells) in cell_containing_node
+        for cell1 in cells # All these cells have a neighboring node
+            for cell2 in cells
+                # if true # cell1 != cell2
+                if cell1 != cell2
+                    push!(I, cell1)
+                    push!(J, cell2)
+                    push!(V, true)
+                end
+            end
+        end
+    end
+
+    incidence_matrix = sparse(I, J, V, getncells(g), getncells(g))
+    return incidence_matrix
 end
 
 export showm
