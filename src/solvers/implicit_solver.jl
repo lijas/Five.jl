@@ -49,7 +49,7 @@ function step!(solver::ImplicitSolver{T}, state, globaldata) where {T}
         state.newton_itr = 0 
         while true
             state.newton_itr +=1;
-            fill!(state.system_arrays, 0.0)
+           zero_out_systemarrays!(state.system_arrays)
 
             #Get internal force                                                                       
             @timeit "Assembling" assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)

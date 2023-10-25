@@ -13,7 +13,7 @@ struct FieldDimUpgradeInstruction
 end
 
 
-function update_dofhandler!(dh::MixedDofHandler, state::StateVariables{T}, instructions::Vector{FieldDimUpgradeInstruction}) where T
+function update_dofhandler!(dh::DofHandler, state::StateVariables{T}, instructions::Vector{FieldDimUpgradeInstruction}) where T
 
     vertexdict = Dict{Int, Array{Int}}()
 
@@ -24,7 +24,6 @@ function update_dofhandler!(dh::MixedDofHandler, state::StateVariables{T}, instr
     resize!(state.system_arrays.fᵉ, ndofs(dh))
     resize!(state.system_arrays.fⁱ, ndofs(dh))
     resize!(state.system_arrays.fᴬ, ndofs(dh))
-    state.system_arrays.Kᵉ = spzeros(T, ndofs(dh), ndofs(dh))
     state.system_arrays.Kⁱ = create_sparsity_pattern(dh)
 
     #Resize the velocites anc accelerations since they are not used
@@ -33,7 +32,7 @@ function update_dofhandler!(dh::MixedDofHandler, state::StateVariables{T}, instr
 
 end
 
-function _update!(dh::MixedDofHandler, state::StateVariables, instr::FieldDimUpgradeInstruction, vertexdict)
+function _update!(dh::DofHandler, state::StateVariables, instr::FieldDimUpgradeInstruction, vertexdict)
 
     _celldofs = celldofs(dh, instr.cellid)
 

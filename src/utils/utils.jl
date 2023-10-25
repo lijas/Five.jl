@@ -34,28 +34,35 @@ function nodeset_to_vertexset(grid::Ferrite.AbstractGrid, nodeset::Set{Int})
 end
 
 
-function indexdofs(dh, element::FieldHandler, index::Ferrite.BoundaryIndex, field_name::Symbol, components::Vector{Int})
+function indexdofs(dh, element::SubDofHandler, index::Ferrite.BoundaryIndex, field_name::Symbol, components::Vector{Int})
     _dofs_on_something(dh, element, index, field_name, components, Ferrite.boundaryfunction(typeof(index)))
 end
-dofs_on_edge(dh, element::FieldHandler, faceindex::FaceIndex, field_name::Symbol, components::Vector{Int}) = 
-    _dofs_on_something(dh, element, faceindex, field_name, components, Ferrite.edges)
-dofs_on_face(dh, element::FieldHandler, faceindex::FaceIndex, field_name::Symbol, components::Vector{Int}) = 
-    _dofs_on_something(dh, element, faceindex, field_name, components, Ferrite.faces)
-dofs_on_vertex(dh, element::FieldHandler, vertexindex::VertexIndex, field_name::Symbol, components::Vector{Int}) = 
-    _dofs_on_something(dh, element, vertexindex, field_name, components, Ferrite.vertices)
-function _dofs_on_something(dh::Ferrite.AbstractDofHandler, fh::FieldHandler, faceindex, field_name::Symbol, components::Vector{Int}, faces_or_vertices::F) where {dim,T,F}
+dofs_on_edge(dh, element::SubDofHandler, faceindex::FaceIndex, field_name::Symbol, components::Vector{Int}) = 
+    _dofs_on_something(dh, element, faceindex, field_name, components, Ferrite.dirichlet_edgedof_indices)
+dofs_on_face(dh, element::SubDofHandler, faceindex::FaceIndex, field_name::Symbol, components::Vector{Int}) = 
+    _dofs_on_something(dh, element, faceindex, field_name, components, Ferrite.dirichlet_facedof_indices)
+dofs_on_vertex(dh, element::SubDofHandler, vertexindex::VertexIndex, field_name::Symbol, components::Vector{Int}) = 
+    _dofs_on_something(dh, element, vertexindex, field_name, components, Ferrite.dirichlet_vertexdof_indices)
+function _dofs_on_something(dh::Ferrite.AbstractDofHandler, fh::SubDofHandler, faceindex, field_name::Symbol, components::Vector{Int}, faces_or_vertices::F) where {dim,T,F}
     
     #components = 1:dim
     #field =  element.fields[1]
     fieldidx = Ferrite.find_field(fh, field_name)
-    field = fh.fields[fieldidx]
-    offset = Ferrite.field_offset(fh, field_name)
-    local_face_dofs = Int[]
-    face = faces_or_vertices(field.interpolation)[faceindex[2]]
+
     
-    for fdof in face, d in 1:field.dim
+    fieldip = Ferrite.getfieldinterpolation(fh, fieldidx)
+    if fieldip isa VectorizedInterpolation
+        fieldip = fieldip.ip
+    end
+    fielddim = Ferrite.getfielddim(fh, fieldidx)
+    offset = Ferrite.field_offset(fh, fieldidx)
+
+    local_face_dofs = Int[]
+    face = faces_or_vertices(fieldip)[faceindex[2]]
+
+    for fdof in face, d in 1:fielddim
         if d ∈ components # skip unless this component should be constrained
-            push!(local_face_dofs, (fdof-1)*field.dim + d + offset)
+            push!(local_face_dofs, (fdof-1)*fielddim + d + offset)
         end
     end
     
@@ -111,7 +118,7 @@ function get_x0(dh::Ferrite.AbstractDofHandler)
     nnodes = getnnodes(dh.grid)
     x0 = zeros(T, ndofs(dh))
     visited = falses(nnodes)
-    for (ie, element) in enumerate(dh.fieldhandlers)
+    for (ie, element) in enumerate(dh.subdofhandlers)
 
         idx = findfirst(i->i == :u, Ferrite.getfieldnames(element))
         field = element.fields[idx]

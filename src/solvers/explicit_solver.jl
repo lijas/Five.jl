@@ -44,7 +44,7 @@ function step!(solver::ExplicitSolver, state, globaldata)
     @show maximum(abs.(state.d))
     @show any(isnan.(state.d))
 
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
 
     #Get internal force                                                                       
     @timeit "Assembling" assemble_forcevector!(globaldata.dh, state, globaldata)

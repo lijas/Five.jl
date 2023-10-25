@@ -40,13 +40,14 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
     while true
         state.newton_itr += 1
 
-        fill!(state.system_arrays, 0.0)
+        zero_out_systemarrays!(state.system_arrays)
 
         @info "[NEWTONSOLVER] Assembling"
         @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
 
+        @show sum(state.system_arrays.fᵉ)
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ #- state.system_arrays.Kᵉ
         #Solve 

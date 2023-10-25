@@ -8,7 +8,7 @@ struct WeakBoundaryCondition{dim,T,FV<:Ferrite.Values} <: AbstractExternalForce
     facevalues::FV
 end
 
-function WeakBoundaryCondition{dim,T}(dh::Ferrite.AbstractDofHandler, faces, prescribed_displacement::Function, components, facevalues::FV) where {dim,T,FV<:Ferrite.Values{dim,T}}
+function WeakBoundaryCondition{dim,T}(dh::Ferrite.AbstractDofHandler, faces, prescribed_displacement::Function, components, facevalues::FV) where {dim,T,FV<:Ferrite.AbstractFaceValues}
    # @assert(length(prescribed_displacement(0.0,0.0))==length(components))
 
     celltype = typeof(dh.grid.cells[first(faces)[1]])
@@ -31,7 +31,7 @@ function WeakBoundaryCondition{dim,T}(dh::Ferrite.AbstractDofHandler, faces, pre
     return WeakBoundaryCondition{dim,T,FV}(faces, prescribed_displacement, local_dofs, facevalues)
 end
 
-function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:Ferrite.Values}
+function apply_external_force!(dh::Ferrite.AbstractDofHandler, ef::WeakBoundaryCondition{dim,T,FV}, state::StateVariables, prev_state::StateVariables, system_arrays::SystemArrays, globaldata) where {dim,T,FV<:Ferrite.AbstractFaceValues}
     
     fv = ef.facevalues
     local_dofs = ef.local_dofs

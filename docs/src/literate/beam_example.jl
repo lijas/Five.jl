@@ -3,9 +3,15 @@
 using Five
 
 data = ProblemData(
+    runname = "Beamexample",
     dim = 2,
-    tend = 1.0
+    tend = 1.0,
+    vtk_output_interval = 0.1,
+    vtkoutputtype = Five.FerriteVTKOutput(),
 )
+
+data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
 vtkoutput = VTKNodeOutput(
     type = StressOutput()
@@ -14,20 +20,28 @@ push!(data.vtk_output, vtkoutput)
 
 vtkoutput = VTKNodeOutput(
     type = MaterialStateOutput(
-        field = :ϵᵖ,
-        type = SymmetricTensor{2,3,Float64,6}
+        field    = :κ,
+        datatype = Float64
     )
 )
 push!(data.vtk_output, vtkoutput)
 
-data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
-
-addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
+output = OutputData(
+    type = DofValueOutput(
+        field = :u,
+        dofs = [2]
+    ),
+    interval = 0.1,
+    set = getvertexset(data.grid, "topright")
+)
+data.outputdata["reactionforce"] = output
 
 material = LinearElastic(;    
-    E1 = 100.0,   
-    E2 = 100.0,   
+    E = 100.0,   
+    ν = 0.3,   
 )
+
+material = Plastic(E=200e3, ν=0.3, σ_y=200., H=50., r=0.5, κ_∞=13., α_∞=13.)
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),
@@ -48,39 +62,6 @@ part = Part(
     cellset = collect(1:getncells(data.grid))
 )
 push!(data.parts, part)
-
-data.output[] = Output(
-    interval = -0.1,
-    runname = "Beamexample",
-    savepath = "."
-)
-
-output = OutputData(
-    type = DofValueOutput(
-        field = :u,
-        dofs = [2]
-    ),
-    interval = 0.1,
-    set = getvertexset(data.grid, "topright")
-)
-data.outputdata["reactionforce"] = output
-
-vtkoutput = VTKNodeOutput(
-    type = MaterialStateOutput(
-        field = :σ,
-        datatype = SymmetricTensor{2,3,Float64,6}
-    ),
-    func = mean,
-)
-Five.push_vtkoutput!(data.output[], vtkoutput)
-
-#=vtkoutput = VTKNodeOutput(
-    type = MaterialStateOutput(
-        field = :ϵᵖ
-    ),
-    func = mean,
-)
-Five.push_vtkoutput!(data.output[], vtkoutput)=#
 
 force = PointForce(
     field = :u,

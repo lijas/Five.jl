@@ -83,7 +83,7 @@ function solvethis(solver::AbstractSolver, state::StateVariables, globaldata)
                 globaldata.dbc.free_dofs .= 1:ndofs(dh)    
 
                 #Update q for dissipation solver
-                fill!(state.system_arrays, 0.0)
+               zero_out_systemarrays!(state.system_arrays)
                 apply_external_forces!(dh, globaldata.efh, state, globaldata)
                 Ferrite.copy!!(state.system_arrays.q, state.system_arrays.fᵉ)
 
@@ -157,9 +157,10 @@ end
 
 function init_system_arrays!(solver::AbstractSolver, state, globaldata)
    
-    fill!(state.system_arrays, 0.0)
+    zero_out_systemarrays!(state.system_arrays)
 
     #Create sparsity pattern
+    #TODO: DYnamic Sparsity Pattern :( 
     state.system_arrays.Kⁱ = create_sparsity_pattern(globaldata.dh)#, globaldata.dbc)
     fill!(state.system_arrays.Kⁱ.nzval, 1.0)
     for part in globaldata.parts

@@ -1,8 +1,6 @@
 export EdgeVectorValues, EdgeValues
 
-abstract type EdgeValues{dim,T,refshape} <: Ferrite.Values{dim,T,refshape} end
-
-struct EdgeVectorValues{dim,T<:Real,refshape<:Ferrite.AbstractRefShape,M} <: EdgeValues{dim,T,refshape}
+struct EdgeVectorValues{dim,T<:Real,refshape<:Ferrite.AbstractRefShape,M} 
     N::Array{Vec{dim,T},3}
     dNdx::Array{Tensor{2,dim,T,M},3}
     dNdξ::Array{Tensor{2,dim,T,M},3}

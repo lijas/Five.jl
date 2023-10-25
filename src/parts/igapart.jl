@@ -392,45 +392,6 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}
     return node_coords
 end=#
 
-function Five.get_vtk_field(dh::Ferrite.AbstractDofHandler, part::IGAPart{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
-    fh = FieldHandler(get_fields(part), Set([1]))
-    fieldidx = Ferrite.find_field(fh, field_name)
-    @assert(fieldidx !== nothing)
-
-    offset = Ferrite.field_offset(fh, field_name)
-    fdim   = fh.fields[fieldidx].dim 
-
-    n_vtk_nodes = length(part.vtkexport.vtknodes)
-    #Special case displacement (it needs 3 datapoints)
-    if field_name == :u
-        data = zeros(T, (dim == 2 ? 3 : dim), n_vtk_nodes)
-    else
-        data = zeros(T, fdim, n_vtk_nodes)
-    end
-    _get_vtk_field!(data, dh, part, state, offset, fdim)
-    return data
-end
-
-function Five._get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::IGAPart{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
-
-    celldofs = part.cache.celldofs
-    for cellid in part.cellset
-        cell = dh.grid.cells[cellid]
-        
-        celldofs!(celldofs, dh, cellid)
-        ue = state.d[celldofs]
-        counter = 1
-        for (i,nodeid) in enumerate(cell.nodes)
-            local_id = part.vtkexport.nodeid_mapper[nodeid]
-            for d in 1:nvars
-                data[d, local_id] = ue[counter + offset]
-                counter += 1
-            end
-        end
-    end
-    
-end
-
 function Five.collect_nodedata!(data::Vector{FT}, part::IGAPart{dim}, output::MaterialStateOutput{FT}, state::StateVariables{T}, globaldata) where {dim,FT,T}
 
     #Check if field exist in materialstate
@@ -590,7 +551,7 @@ function _evaluate_at_geometry_nodes!(
 
     # Assume that only one of the field handlers can "project" to the geometry
     local fh
-    for _fh in dh.fieldhandlers
+    for _fh in dh.subdofhandlers
         if first(compcells) in _fh.cellset
             fh = _fh
             @assert Set{Int}(compcells) == _fh.cellset

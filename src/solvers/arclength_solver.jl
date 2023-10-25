@@ -81,7 +81,7 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
     while true
         state.newton_itr += 1
 
-        fill!(state.system_arrays, 0.0)
+       zero_out_systemarrays!(state.system_arrays)
 
         @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)

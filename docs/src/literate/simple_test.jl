@@ -100,7 +100,7 @@ state, globaldata = build_problem(data)
     #
     #Traction force right 
     #
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
     force = Five.TractionForce(
         set = getfaceset(data.grid, "right"),
         traction = (X,t) -> (1.0, 0.0, 0.0), #Force per area
@@ -113,7 +113,7 @@ state, globaldata = build_problem(data)
     #
     #Point force
     #
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
 
     force = PointForce(
         field = :u,
@@ -144,7 +144,7 @@ end
     output = Five.build_outputdata(output, globaldata.dh)
 
     #translate all nodes
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
     fill!(state.d, 1.337)
     fill!(state.system_arrays.fⁱ, 1.337)
     fill!(state.system_arrays.fᵉ, 13.337)
@@ -169,7 +169,7 @@ end
     output = Five.build_outputdata(output, globaldata.dh)
 
     #translate all nodes
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
     fill!(state.d, 1.337)
     fill!(state.system_arrays.fⁱ, 1.337)
     fill!(state.system_arrays.fᵉ, 13.337)

@@ -105,7 +105,7 @@ end
 
     #Traction force right
 
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
     force = Five.TractionForce(
         set = getfaceset(globaldata.grid, "right"),
         traction = (X,t) -> (1.0, 0.0, 0.0), #Force per area
@@ -117,7 +117,7 @@ end
 
     #Point force
 
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
 
     force = PointForce(
         field = :u,

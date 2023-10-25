@@ -32,7 +32,7 @@ function LinearSolidElement(;
     qr = QuadratureRule{refshape}(qr_order)
     cv = CellValues(qr, ip^sdim, geo_ip^sdim)
 
-    return LinearSolidElement{sdim}(celltype, cv, dimstate, thickness)
+    return LinearSolidElement{sdim,typeof(cv),typeof(dimstate)}(celltype, cv, dimstate, thickness)
 end
 
 function integrate_forcevector!(

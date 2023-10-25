@@ -20,7 +20,7 @@ end
 
 function Ferrite.add!(ch::ConstraintHandler, c::FollowerConstraint)
     cellid, faceid = first(c.faces) #assume all cells in the cellset are the same
-    fh            = getfieldhandler(ch.dh, cellid)
+    fh            = getsubdofhandler(ch.dh, cellid)
     field_idx     = Ferrite.find_field(fh, c.field_name)
     interpolation = Ferrite.getfieldinterpolation(fh, field_idx)
     field_dim     = Ferrite.getfielddim(fh, field_idx)
@@ -28,11 +28,6 @@ function Ferrite.add!(ch::ConstraintHandler, c::FollowerConstraint)
 
     _add!(ch, c, interpolation, field_dim, offset)
     return ch
-end
-
-#TODO: make work with general meshes
-function Ferrite.add!(ch::ConstraintHandler, fh::FieldHandler, c::FollowerConstraint)
-    Ferrite.add!(ch, c)
 end
 
 function _add!(ch::ConstraintHandler, c::FollowerConstraint, interpolation::Interpolation, field_dim::Int, offset::Int)

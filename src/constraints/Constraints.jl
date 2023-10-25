@@ -44,7 +44,7 @@ function add_lagrange_constraints!(c::Constraints, constraint::AbstractConstrain
 end
 
 
-function Ferrite.close!(ef::Constraints, dh::MixedDofHandler)
+function Ferrite.close!(ef::Constraints, dh::DofHandler)
     for (i, e) in enumerate(ef.external_forces)
         ForceType = typeof(e)
         ef.external_forces[i] = init_external_force!(e, dh)

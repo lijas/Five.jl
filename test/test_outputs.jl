@@ -126,7 +126,7 @@ end
     output = Five.build_outputdata(output, globaldata.dh)
 
     #translate all nodes
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
     fill!(state.d, 1.337)
     fill!(state.system_arrays.fⁱ, 1.337)
     fill!(state.system_arrays.fᵉ, 13.337)
@@ -150,7 +150,7 @@ end
     output = Five.build_outputdata(output, globaldata.dh)
 
     #translate all nodes
-    fill!(state.system_arrays, 0.0)
+   zero_out_systemarrays!(state.system_arrays)
     fill!(state.d, 1.337)
     fill!(state.system_arrays.fⁱ, 1.337)
     fill!(state.system_arrays.fᵉ, 13.337)

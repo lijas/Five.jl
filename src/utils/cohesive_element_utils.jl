@@ -31,7 +31,7 @@ end
 _sign_mapper(::Lagrange{RefLine,1}, _i::Int) = [-1,-1,+1,+1][_i]
 _sign_mapper(::Lagrange{RefLine,2}, _i::Int) = [-1,-1,+1,+1,-1,+1][_i]
 _sign_mapper(::Lagrange{RefQuadrilateral,1}, _i::Int) = [-1,-1,-1,-1,+1,+1,+1,+1][_i]
-_sign_mapper(::Lagrange{RefLine,1}, _i::Int) = [-1,-1,-1,+1,+1,+1][_i]
+_sign_mapper(::Lagrange{RefTriangle,1}, _i::Int) = [-1,-1,-1,+1,+1,+1][_i]
 function Ferrite.value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) where dim_p
     _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
     sign = _sign_mapper(ip.interpolation, _i)

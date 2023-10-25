@@ -89,6 +89,7 @@ end
 
 function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {dim,T}
     grid = dh.grid
+    Ferrite._check_same_celltype(grid, part.cellset)
 
     _ndofs   = ndofs(part.element)
     _nnodes  = Ferrite.nnodes(getcelltype(part.element))
@@ -112,31 +113,35 @@ end
 
 function assemble_stiffnessmatrix_and_forcevector!(dh::Ferrite.AbstractDofHandler, 
     part::Part,
+    partstate::PartState,
     state::StateVariables)
 
-    _assemble_part!(dh, part,state, STIFFMAT)
+    _assemble_part!(dh, part, partstate, state, STIFFMAT)
 
 end
 
 function assemble_forcevector!(dh::Ferrite.AbstractDofHandler, 
     part::Part,
+    partstate::PartState,
     state::StateVariables)
 
-    _assemble_part!(dh, part,state, FORCEVEC)
+    _assemble_part!(dh, part, partstate, state, FORCEVEC)
 
 end
 
 function assemble_fstar!(dh::Ferrite.AbstractDofHandler, 
     part::Part,
+    partstate::PartState,
     state::StateVariables)
 
-    _assemble_part!(dh, part,state, FSTAR)
+    _assemble_part!(dh, part, partstate, state, FSTAR)
 
 end
 
 function assemble_dissipation!(
     dh    ::Ferrite.AbstractDofHandler, 
-    part  ::Part,
+    part::Part,
+    partstate::PartState,
     state ::StateVariables)
 
     if !(is_dissipative(part.material) || is_dissipative(part.element))
@@ -251,7 +256,7 @@ function get_part_vtk_grid(part::Part)
 end
 
 function eval_part_field_data(part::Part, dh, state, field_name::Symbol)
-    fh = Five.getfieldhandler(dh, first(part.cellset))
+    fh = Five.getsubdofhandler(dh, first(part.cellset))
     fieldidx = Ferrite.find_field(fh, field_name)
     if fieldidx === nothing #the field does not exist in this part
         return nothing 
@@ -310,44 +315,6 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}
     return node_coords
 end=#
 
-function get_vtk_field(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, field_name::Symbol) where {dim,T}
-    fh = FieldHandler(get_fields(part), Set([1]))
-    fieldidx = Ferrite.find_field(fh, field_name)
-    @assert(fieldidx !== nothing)
-
-    offset = Ferrite.field_offset(fh, field_name)
-    fdim   = fh.fields[fieldidx].dim 
-
-    n_vtk_nodes = length(part.vtkexport.vtknodes)
-    #Special case displacement (it needs 3 datapoints)
-    if field_name == :u
-        data = zeros(T, (dim == 2 ? 3 : dim), n_vtk_nodes)
-    else
-        data = zeros(T, fdim, n_vtk_nodes)
-    end
-    _get_vtk_field!(data, dh, part, state, offset, fdim)
-    return data
-end
-
-function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
-
-    celldofs = part.cache.celldofs
-    for cellid in part.cellset
-        cell = dh.grid.cells[cellid]
-        
-        celldofs!(celldofs, dh, cellid)
-        ue = state.d[celldofs]
-        counter = 1
-        for (i,nodeid) in enumerate(cell.nodes)
-            local_id = part.vtkexport.nodeid_mapper[nodeid]
-            for d in 1:nvars
-                data[d, local_id] = ue[counter + offset]
-                counter += 1
-            end
-        end
-    end
-    
-end
 
 function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput{FT}, state::StateVariables{T}, globaldata) where {dim,FT,T}
 
@@ -369,47 +336,18 @@ function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::MaterialSt
     _collect_nodedata!(data, part, qpdata, globaldata)
 end
 
-function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}
+function collect_nodedata!(data::Vector{FT}, part::Part{dim}, partstate::PartState, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}
 
     #Extract stresses to interpolate
     qpdata = Vector{SymmetricTensor{2,3,T,6}}[]
     for (ic, cellid) in enumerate(part.cellset)
-        stresses = state.partstates[cellid].stresses
+        stresses = partstate.stresses[cellid]
         push!(qpdata, stresses)
     end
 
     _collect_nodedata!(data, part, qpdata, globaldata)
 end
 
-function L2ProjectorByPassIGA(
-    func_ip::Interpolation,
-    grid::Ferrite.AbstractGrid;
-    qr_lhs::QuadratureRule = Ferrite._mass_qr(func_ip),
-    set = 1:getncells(grid),
-    geom_ip::Interpolation = Ferrite.default_interpolation(typeof(grid.cells[first(set)])),
-    qr_rhs::Union{QuadratureRule,Nothing}=nothing, # deprecated
-)
-
-    Ferrite._check_same_celltype(grid, collect(set)) # TODO this does the right thing, but gives the wrong error message if it fails
-
-    fe_values_mass = CellScalarValues(qr_lhs, func_ip, geom_ip)
-
-    # Create an internal scalar valued field. This is enough since the projection is done on a component basis, hence a scalar field.
-    dh = MixedDofHandler(grid)
-    field = Field(:_, func_ip, 1) # we need to create the field, but the interpolation is not used here
-    fh = FieldHandler([field], Set(set))
-    add!(dh, fh)
-    _, vertex_dict, _, _ = Ferrite.__close!(dh)
-
-    M = Ferrite._assemble_L2_matrix(fe_values_mass, set, dh)  # the "mass" matrix
-    M_cholesky = cholesky(M)
-
-    # For deprecated API
-    fe_values = qr_rhs === nothing ? nothing :
-                CellScalarValues(qr_rhs, func_ip, geom_ip)
-
-    return L2Projector(func_ip, geom_ip, M_cholesky, dh, collect(set), vertex_dict[1], fe_values, qr_rhs)
-end
 
 function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vector{FT}}, globaldata) where {dim,T,FT}
     
@@ -420,7 +358,7 @@ function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vec
     geom_ip = Ferrite.default_interpolation(celltype)
     qr = getquadraturerule(part.element)
 
-    projector = L2ProjectorByPassIGA(geom_ip, grid; set = part.cellset)
+    projector = L2Projector(geom_ip, grid; set = part.cellset)
     projecteddata = project(projector, qpdata, qr; project_to_nodes=true); 
 
     #Reorder to the parts vtk
@@ -454,15 +392,4 @@ function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::StressOutp
         stresses = state.partstates[cellid].stresses
         data[cellid] = output.func(stresses)
     end
-end
-
-
-function get_vtk_celldata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
-    asdf
-    return nothing, nothing
-end
-
-function get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::Part, state::StateVariables) 
-    asdf
-    return nothing, nothing
 end

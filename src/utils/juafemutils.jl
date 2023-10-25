@@ -1,101 +1,15 @@
-#
-# Stuff that I think should be in Ferrite
-#
-#Base.getindex(fi::FaceIndex, i::Int) = fi.idx[i]
-Ferrite.getdim(::Type{Cell{dim,N,M}}) where {dim,N,M} = dim
-
-Ferrite.vertices(::Lagrange{2,RefCube,1}) = (1,2,3,4)
-Ferrite.vertices(::Lagrange{3,RefCube,1}) = (1,2,3,4,5,6,7,8)
-
-Ferrite.vertices(::Lagrange{3,RefTetrahedron,1}) = (1,2,3,4)
-
-Ferrite.vertices(c::Cell{dim,1,0}) where dim= (c.nodes[1],) #c.nodes[1]??
-Ferrite.faces(::Cell{dim,1,0}) where dim = ()
-
-Ferrite.cell_to_vtkcell(::Type{Cell{3,27,6}}) = VTKCellTypes.VTK_BIQUADRATIC_QUADRATIC_HEXAHEDRON 
-
-Ferrite.vertices(::Lagrange{2,RefCube,2}) = ntuple(i->i, 9)
-
-Ferrite.vertices(c::Cell{2,2,1}) = (c.nodes[1], c.nodes[2])
-Ferrite.default_interpolation(::Type{Cell{2,2,1}}) = Lagrange{1,RefCube,1}()
-Ferrite.vertices(::Interpolation{1,RefCube}) = (1,2)
-
-Ferrite.getdim(::MixedDofHandler{dim,C,T}) where {dim,C,T} = dim
-getT(::MixedDofHandler{dim,C,T}) where {dim,C,T} = T
-
-Ferrite.FaceIndex(array_or_set, b::Int) = [FaceIndex(a,b) for a in array_or_set]
-
 Ferrite.cellid(f::Ferrite.BoundaryIndex) = f[1]
 
-Ferrite.FieldHandler() = FieldHandler(Field[],Set([0])) 
-
-#For cohesive zones
-Ferrite.vertices(::Lagrange{1,RefCube,1}) = (1,2)
-Ferrite.vertices(::Lagrange{1,RefCube,2}) = (1,2)
-
+_ntupelcomponents(::Type{NTuple{N,Int}}) where N = N
+Ferrite.nnodes(c::Type{<:Ferrite.AbstractCell}) = _ntupelcomponents(fieldtypes(c)[1])
 
 function Ferrite.Dirichlet(;field::Symbol,set::Set{T},func::Function,dofs::Vector{Int}) where T
     return Ferrite.Dirichlet(field, set, func, dofs)
 end
 
-function getfieldhandler(dh::MixedDofHandler, cellid::Int)
-    for fh in dh.fieldhandlers
-        if cellid in fh.cellset
-            return fh
-        end
-    end
-    error("cellid not found in any field")
+function getsubdofhandler(dh::DofHandler, cellid::Int)
+    return dh.subdofhandlers[dh.cell_to_subdofhandler[cellid]]
 end
-##
-#
-##
-function Ferrite.create_face_quad_rule(quad_rule::QuadratureRule{0,shape,T}, ::Interpolation{2,shape}) where {T,shape<:RefCube}
-    w = getweights(quad_rule)
-    vertex_quad_rule = QuadratureRule{2,shape,T}[]
-
-    # Vertex 1
-    new_points = [Vec{2,T}((-one(T), -one(T)))] 
-    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
-    # Vertex 2
-    new_points = [Vec{2,T}((one(T), -one(T)))] 
-    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
-    # Vertex 3
-    new_points = [Vec{2,T}((one(T), one(T)))] 
-    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
-    # Vertex 4
-    new_points = [Vec{2,T}((-one(T), one(T)))] 
-    push!(vertex_quad_rule, QuadratureRule{2,shape,T}(w, new_points))
-
-    return vertex_quad_rule
-end
-
-##
-# 
-##
-Ferrite.faces(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
-Ferrite.vertices(c::Cell{2,2,2}) = (c.nodes[1], c.nodes[2])
-#Ferrite.vertices(c::Cell{3,4,2}) where dim = (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
-
-##
-# Serendipity
-##
-Ferrite.default_interpolation(::Type{Cell{2,2,2}}) = Lagrange{1,RefCube,1}()
-Ferrite.default_interpolation(::Type{Cell{dim,1,0}}) where dim = Serendipity{dim,RefCube,0}()
-Ferrite.getnbasefunctions(::Serendipity{dim,RefCube,0}) where dim = 1
-Ferrite.vertices(::Serendipity{dim,RefCube,0}) where dim = (1,)
-Ferrite.ncelldofs(::Serendipity{dim,RefCube,0}) where dim = 1
-Ferrite.faces(::Serendipity{dim,RefCube,0}) where dim = ()
-Ferrite.value(::Serendipity{3,RefCube,0}, ::Int64, ::Tensor{1,3,T,3}) where T = T(1.0)
-
-
-#Face interpolation
-faceinterpolation(::Type{Triangle}) = Lagrange{1,RefCube,1}()
-faceinterpolation(::Type{Hexahedron}) = Lagrange{2,RefCube,1}()
-
-#
-Ferrite.cell_to_vtkcell(::Type{Cell{3,4,2}}) = VTKCellTypes.VTK_QUAD
-Ferrite.default_interpolation(::Type{Cell{3,4,2}}) = Lagrange{2,RefCube,1}()
-
 
 Tensors.cross(v::Vec{2}) = Vec{2}((-v[2], v[1]))
 
@@ -156,11 +70,6 @@ function faceset_to_cellset(grid, master_faceset)
     end
     return face_nodes_set
 
-end
-
-function cellcoords(dh::MixedDofHandler, i::Int)
-    @assert Ferrite.isclosed(dh)
-    return dh.cell_coords[i]
 end
 
 function Base.getindex(v::AbstractArray, i::Vec{2,Int})
@@ -395,43 +304,6 @@ function Ferrite.spatial_coordinate(fe_v::Ferrite.ScalarValues{dim_p}, q_point::
 end
 ##
 =#
-
-function facedofs(dh::Ferrite.AbstractDofHandler, fieldhandler::FieldHandler, faceindx::FaceIndex; field_name::Symbol = :all, components::Vector{Int} = [])
-
-
-    local_face_dofs = Int[]
-    for field in fieldhandler.fields
-
-        interpolation = field.interpolation
-        field_dim = field.dim
-
-        local _components
-        if field_name != :all
-            if field_name != field.name
-                continue
-            else
-                _components = components
-            end
-        else
-            _components = 1:field_dim
-        end
-
-        offset = Ferrite.field_offset(fieldhandler, field.name)
-        
-        face = Ferrite.faces(interpolation)[faceindx[2]]
-        
-        for fdof in face, d in 1:field_dim
-            if d ∈ _components # skip unless this component should be constrained
-                push!(local_face_dofs, (fdof-1)*field_dim + d + offset)
-            end
-        end
-
-    end
-
-    facedofs = celldofs(dh, faceindx[1])[local_face_dofs]
-    
-    return facedofs
-end
 
 function gridmerge(grids::Vararg{Grid{dim,C,T}}) where dim where T where C
     

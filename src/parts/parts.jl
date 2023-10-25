@@ -40,13 +40,3 @@ function assemble_sparsity_pattern!(::AbstractPart, globaldata)
     return sparse(Int[], Int[], Float64[], ndofs(globaldata.dh), ndofs(globaldata.dh))
 end
 
-
-include("fepart.jl")
-include("igapart.jl")
-include("cohesive_part.jl")
-#include("rigidbody/rigidpart.jl")
-
-#init!
-#assemble_stiffnessmatrix_and_forcevector!
-#get_vtk_part_grid
-#get_vtk_part_point_data

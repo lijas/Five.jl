@@ -62,7 +62,6 @@ mutable struct SystemArrays{T} <: AbstractSystemArrays{T}
 
     #For dissipation solver:
     fᴬ::Vector{T}
-    fᴮ::Vector{T}
 
     G::Base.RefValue{T}
 end
@@ -70,7 +69,7 @@ end
 function SystemArrays(T::Type, ndofs::Int)
     Mᵈⁱᵃᵍ = spzeros(T,ndofs,ndofs)
     M = spzeros(T,ndofs,ndofs)
-    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), spzeros(T,ndofs,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
+    return SystemArrays(zeros(T,ndofs), spzeros(T,ndofs,ndofs), zeros(T,ndofs), Mᵈⁱᵃᵍ, M, zeros(T,ndofs), zeros(T,ndofs), Ref(0.0))
 end
 
 abstract type AbstractStateVariables{T} end
@@ -204,6 +203,8 @@ include("solvers/arclength_solver.jl")
 # include("solvers/implicit_solver.jl")
 
 include("parts/parts.jl")
+include("parts/fepart.jl")
+include("parts/cohesive_part.jl")
 include("assembling.jl")
 
 #Forces
@@ -226,7 +227,7 @@ include("solvers/problem_builder.jl")
 Contains all information about the problem being solved, e.g Forces, Boundary conditions, Parts
 
 """
-mutable struct GlobalData{G,DH,CH}
+mutable struct GlobalData{T,G<:Ferrite.AbstractGrid,DH<:Ferrite.DofHandler,CH<:Ferrite.ConstraintHandler}
     
     grid::G
     dh::DH
@@ -241,7 +242,20 @@ mutable struct GlobalData{G,DH,CH}
 
     t0::T
     tend::T
-    adaptive::Bool
+    adaptive::Bool #Not really used anymore
 end
+
+#Exports
+
+#problem_builder.jl
+export 
+ProblemData,
+build_problem,
+
+#outputs
+StressOutput,
+
+#parts
+Part
 
 end

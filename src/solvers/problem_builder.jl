@@ -5,28 +5,33 @@ mutable struct ProblemData{dim,T}
     constraints_ferrite::Vector{<:Any}
     external_forces::Vector{Five.AbstractExternalForce}
     constraints_five::Vector{Five.AbstractExternalForce}
-    outputs::Dict{String, Five.AbstractOutput}
+    outputdata::Dict{String, Five.AbstractOutput}
     vtk_output::Vector{Union{VTKNodeOutput, VTKCellOutput}}
     materialstates::Dict{Int, Vector{Any}}
-    initial_condition::Vector{Five.InitialCondition}
+    # initial_condition::Vector{Five.InitialCondition} 
 
+    runname::String
+    savepath::String
+    vtkoutputtype::AbstractVTKOutputType
+    vtk_output_interval::T
     t0::T
     tend::T
     adaptive::Bool
 end
 
-function ProblemData(; tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false)
+function ProblemData(; runname::String, savepath = ".", tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false, vtk_output_interval=0.0, vtkoutputtype = FiveVTKOutput())
     
+    grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
     parts = Five.AbstractPart{dim}[]
     dbc   = Any[]
     exfor = Five.AbstractExternalForce[]
-    outputdata = Dict{String, Five.OutputData}()
     cnstr = Five.AbstractExternalForce[]
+    outputdata = Dict{String, Five.OutputData}()
+    vtkoutput = Vector{Union{VTKNodeOutput, VTKCellOutput}}()
     states = Dict{Int, Vector{Any}}()
-    grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
-    ic = Five.InitialCondition[]
+    #ic = Five.InitialCondition[]
 
-    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, output, outputdata, states, ic, t0, tend, adaptive)
+    return ProblemData{dim,T}(grid, parts, dbc, exfor, cnstr, outputdata, vtkoutput, states, runname, savepath, vtkoutputtype, vtk_output_interval, t0, tend, adaptive)
 end
 
 function build_problem(data::ProblemData)
@@ -37,23 +42,26 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     
     _check_input(data)
 
+    nparts = length(data.parts)
+
     #
     dh = DofHandler(data.grid)
     for part in data.parts
         set = get_cellset(part)
-        sdh = SubDofHandler(dh, set)
+        sdh = SubDofHandler(dh, Set(set))
         length(set) == 0 && continue 
         for (field_name, field_ip) in get_fields(part)
             add!(sdh, field_name, field_ip)
         end
+        init_part!(part, dh)
     end
     close!(dh)
     
     #
-    partstates = Vector{AbstractPartState}(undef, getncells(data.grid))
+    partstates = Vector{AbstractPartState}()
     for (partid, part) in enumerate(data.parts)
         state = construct_partstates(part)
-        partstates[partid] .= state
+        push!(partstates, state)
     end
 
     #
@@ -82,15 +90,26 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     end
     close!(ch, dh)
 
-    #output = Output(dh)
-    for (name, o) in data.outputdata
-        push_output!(data.output[], name, o)
+    output = Output(; 
+        savepath=data.savepath,
+        runname = data.runname, 
+        interval = data.vtk_output_interval, 
+        #export_rawdata=false, 
+        #export_vtk=true, 
+        vtkoutputtype = FerriteVTKOutput
+    )
+    for o in data.vtk_output
+        push_vtkoutput!(output, o)
     end
-    close!(data.output[], dh) 
+    
+    for (name, o) in data.outputdata
+        push_output!(output, name, o)
+    end
+    close!(output, dh) 
 
     contact = Contact_Node2Segment{dim,T}() #not used
 
-    globaldata = GlobalData(dch, data.grid, dh, ch, ef, contact, data.parts, data.output[], data.t0, data.tend, data.adaptive)
+    globaldata = GlobalData(data.grid, dh, dch, ch, ef, contact, data.parts, output, data.t0, data.tend, data.adaptive)
 
     for part in globaldata.parts
         init_part!(part, dh)

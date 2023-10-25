@@ -62,7 +62,7 @@ function step!(solver::DissipationSolver, state::StateVariables, globaldata)
         ntries += 1
         while true
             state.newton_itr += 1
-            fill!(state.system_arrays, 0.0)
+           zero_out_systemarrays!(state.system_arrays)
 
             #Get internal force                                                                       
             assemble_stiffnessmatrix_and_forcevector!(globaldata.dh, state, globaldata)

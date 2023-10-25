@@ -65,7 +65,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     while true
         state.newton_itr += 1
 
-        fill!(state.system_arrays, 0.0)
+       zero_out_systemarrays!(state.system_arrays)
         
         @timeit "Calculate dissipation" assemble_dissipation!(globaldata.dh, state, globaldata)
         Δg = state.system_arrays.G[]

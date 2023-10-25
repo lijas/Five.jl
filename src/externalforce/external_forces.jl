@@ -2,12 +2,12 @@ export ExternalForceHandler, PointForce
 
 abstract type AbstractExternalForce end
 
-struct ExternalForceHandler{T,DH<:Ferrite.MixedDofHandler}
+struct ExternalForceHandler{T,DH<:DofHandler}
     dh::DH
     external_forces::Vector{AbstractExternalForce}
 end
 
-function ExternalForceHandler{T}(dh::MixedDofHandler) where T
+function ExternalForceHandler{T}(dh::DofHandler) where T
     return ExternalForceHandler{T, typeof(dh)}(dh, AbstractExternalForce[])
 end
 
@@ -32,23 +32,22 @@ struct PointForce <: AbstractExternalForce
     comps::Vector{Int}
     set::Vector{VertexIndex}
     func::Function
-    
-    fieldhandler::FieldHandler
 end
 
 function PointForce(; field::Symbol, comps::AbstractVector{Int}, set, func::Function)
-    return PointForce(field, collect(comps), collect(set), func, FieldHandler())
+    return PointForce(field, collect(comps), collect(set), func)
 end
 
-function init_external_force!(force::PointForce, dh::MixedDofHandler)
+function init_external_force!(force::PointForce, dh::DofHandler)
     Ferrite._check_same_celltype(dh.grid, cellid.(force.set))
-    fh = getfieldhandler(dh, cellid(first(force.set)))
-    return PointForce(force.field, force.comps, force.set, force.func, fh)
+    fh = getsubdofhandler(dh, cellid(first(force.set)))
+    return PointForce(force.field, force.comps, force.set, force.func)
 end
 
 function apply_external_force!(force::PointForce, state::StateVariables, globaldata)
     for vertex in force.set
-        dofs = dofs_on_vertex(globaldata.dh, force.fieldhandler, vertex, force.field, force.comps)
+        sdh = getsubdofhandler(globaldata.dh, cellid(vertex))
+        dofs = dofs_on_vertex(globaldata.dh, sdh, vertex, force.field, force.comps)
         X = Vec((0.0,0.0)) # TODO: position
         state.system_arrays.fᵉ[dofs] .= force.func(X, state.t)
     end
@@ -58,7 +57,7 @@ end
 #
 #
 #
-struct TractionForce{FV<:Ferrite.Values} <: AbstractExternalForce
+struct TractionForce{FV<:Ferrite.AbstractFaceValues} <: AbstractExternalForce
     set::Union{Vector{FaceIndex}, Vector{VertexIndex}, Vector{EdgeIndex}}
     traction::Function
     facevalues::FV
@@ -80,7 +79,7 @@ function TractionForce(;
     return TractionForce(collect(set), traction)
 end
 
-function init_external_force!(force::TractionForce, dh::MixedDofHandler)
+function init_external_force!(force::TractionForce, dh::DofHandler)
 
     Ferrite._check_same_celltype(dh.grid, force.set)
 
@@ -100,7 +99,7 @@ function init_external_force!(force::TractionForce, dh::MixedDofHandler)
     return TractionForce(force.set, force.traction, facevalues, udofs)
 end
 
-function apply_external_force!(ef::TractionForce{FV}, state::StateVariables{T}, globaldata) where {T,FV<:Ferrite.Values}
+function apply_external_force!(ef::TractionForce{FV}, state::StateVariables{T}, globaldata) where {T,FV<:Ferrite.AbstractFaceValues}
     
     dh = globaldata.dh
     fv = ef.facevalues
@@ -138,7 +137,7 @@ function apply_external_force!(ef::TractionForce{FV}, state::StateVariables{T}, 
 end
 
 
-function _compute_external_traction_force!(fe::AbstractVector, fv::Ferrite.Values{dim,T}, coords, faceid, traction::Function, time::T) where {dim,T}
+function _compute_external_traction_force!(fe::AbstractVector, fv::Ferrite.AbstractFaceValues, coords, faceid, traction::Function, time::T) where {T}
 
     reinit!(fv, coords, faceid)
     dA = 0

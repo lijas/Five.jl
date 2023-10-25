@@ -111,13 +111,3 @@ include("cohesive_element.jl")
 # # # # #
 # Element defintions
 # # # # #
-export SolidElementQuad, SolidElementHexa, SolidElementTria, SolidElementTetra
-
-const LinearSolidElementQuad = LinearSolidElement{2,1,RefCube,Float64}
-const LinearSolidElementTria = LinearSolidElement{2,1,RefTetrahedron,Float64}
-const LinearSolidElementHexa = LinearSolidElement{3,1,RefCube,Float64}
-
-const SolidElementQuad = SolidElement{2,1,RefCube,Float64}
-const SolidElementHexa = SolidElement{3,1,RefCube,Float64}
-const SolidElementTria = SolidElement{2,1,RefTetrahedron,Float64}
-const SolidElementTetra = SolidElement{3,1,RefTetrahedron,Float64}
