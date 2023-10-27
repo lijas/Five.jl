@@ -234,11 +234,11 @@ end
 
 
 
-function Five.get_part_vtk_grid(part::IGAPart)
+function Five.get_part_vtk_grid(filename, part::IGAPart)
     if part.geometry === nothing
         return nothing
     end
-    return vtk_grid("mypart$(minimum(part.cellset))", part.geometry)
+    return vtk_grid(filename, part.geometry)
 end
 
 function Five.eval_part_field_data(part::IGAPart, dh, state, field_name::Symbol)
@@ -517,7 +517,6 @@ function Five.get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::IGAPart, st
     asdf
     return nothing, nothing
 end
-
 
 
 
