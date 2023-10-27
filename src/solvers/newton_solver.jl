@@ -35,14 +35,12 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
     #Apply boundary conditions
     update!(ch, state.t)
     apply!(state.d, ch)
-    
     state.newton_itr = 0
     while true
         state.newton_itr += 1
 
         fill!(state.system_arrays, 0.0)
 
-        @info "[NEWTONSOLVER] Assembling"
         @timeit "Assembling"       assemble_stiffnessmatrix_and_forcevector!(dh, state, globaldata)
         @timeit "ExternalForces"   apply_external_forces!(dh, globaldata.efh, state, globaldata)
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
@@ -50,7 +48,6 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         r = state.system_arrays.fⁱ - state.system_arrays.fᵉ
         K = state.system_arrays.Kⁱ #- state.system_arrays.Kᵉ
         #Solve 
-        @info "[NEWTONSOLVER] Applying"
         apply_zero!(K, r, ch)
         
         #Kt = ThreadedSparseMatrixCSC(K)' #Note the transpose
@@ -58,7 +55,6 @@ function step!(solver::NewtonSolver, state::StateVariables, globaldata, ntries=0
         precon = solver.preconditioner(K)
         linsolve = LinearSolve.init(prob, solver.linearsolver, Pl=precon)
 
-        @info "[NEWTONSOLVER] Solving"
         @timeit "Solve" sol = LinearSolve.solve(linsolve)
         ΔΔd = sol.u
         apply_zero!(ΔΔd, ch)
