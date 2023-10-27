@@ -4,7 +4,7 @@ function generate_enf_grid(nelx, nely, L, h, a0, SolidCellType, CohesiveCellType
 
     grid1 = generate_grid(SolidCellType,(nelx,nely),Vec((0.0,0.0)),Vec((L,h)))
     grid2 = generate_grid(SolidCellType,(nelx,nely),Vec((0.0,h)),Vec((L,h*2)))
-    grid = gridmerge(grid1,grid2)
+    grid = Five.gridmerge(grid1,grid2)
 
     addvertexset!(grid, "mid", (x)-> x[1] ≈ L/2 && x[2] ≈ h*2)
     @assert(length(getvertexset(grid, "mid")) == 2)
@@ -65,10 +65,8 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String, C
             push!(cz_nodes, botcell.nodes[j])
         end
 
-        if CohesiveCellType === CohesiveCell{2,6,2}
+        if CohesiveCellType === Five.CZQuadraticLine
             push!(cz_nodes, topcell.nodes[7])
-        end
-        if CohesiveCellType === CohesiveCell{2,6,2}
             push!(cz_nodes, botcell.nodes[5])
         end
 

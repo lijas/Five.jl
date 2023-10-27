@@ -48,8 +48,7 @@ function MaterialModels.initial_material_state(mp::MatCZBilinear{T}, d::T=zero(T
     return MatCZBilinearState(δᴹᵃˣₘ, d,t,J, 0.0, zero(Vec{3,T}))
 end
 
-materialstate_type(::Type{MatCZBilinear{T}}) where {T} = MatCZBilinearState{T}
-get_material_state_type(::MatCZBilinear{T}) where {T} = MatCZBilinearState{T} #TODO DEPRICATE
+get_material_state_type(::Type{MatCZBilinear{T}}) where {T} = MatCZBilinearState{T} #TODO DEPRICATE
 
 is_dissipative(::MatCZBilinear) = true
 

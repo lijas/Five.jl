@@ -18,22 +18,23 @@ Ferrite.getnquadpoints(e::CohesiveElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::CohesiveElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::CohesiveElement) = e.celltype
 has_constant_massmatrix(::CohesiveElement) = true
-get_fields(e::CohesiveElement{dim_s}) where dim_s = return [:u, e.cv.ip^dim_s]
+get_fields(e::CohesiveElement{dim_s}) where dim_s = return [(:u, e.cv.ip^dim_s)]
 
 
 function CohesiveElement(;
         celltype::Type{<:AbstractCohesiveCell},
         thickness::Float64 = 1.0, 
-        qp_order::Int = 2,
+        qr_order::Int = 2,
         )
+    
     ip      = Ferrite.default_interpolation(celltype)
     geom_ip = Ferrite.default_interpolation(celltype)
-    mid_qr = QuadratureRule{RefCube}(qp_order)
-
-    sdim = Ferrite.getdim(ip)
+    refshape = Ferrite.getrefshape(ip)
+    mid_qr = QuadratureRule{refshape}(qr_order)
+    sdim = Ferrite.getdim(ip)+1
     cv = SurfaceVectorValues(mid_qr, ip, geom_ip)
 
-    return CohesiveElement{sdim}(thickness, celltype, cv)
+    return CohesiveElement{sdim,typeof(cv)}(thickness, celltype, cv)
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(

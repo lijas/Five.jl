@@ -21,7 +21,7 @@ function EdgeVectorValues(::Type{T}, quad_rule::QuadratureRule{dim_qr,shape}, fu
 
     @assert Ferrite.getdim(func_interpol) == Ferrite.getdim(geom_interpol)
     @assert Ferrite.getrefshape(func_interpol) == Ferrite.getrefshape(geom_interpol) == shape
-    n_qpoints = length(getweights(quad_rule))
+    n_qpoints = length(Ferrite.getweights(quad_rule))
     dim = dim_qr + 2
 
     edge_quad_rule = create_edge_quad_rule(quad_rule, func_interpol)
@@ -105,8 +105,8 @@ Ferrite.getn_scalarbasefunctions(cv::EdgeVectorValues{dim}) where {dim} = size(c
 # All RefCube 3D #
 ##################
 function create_edge_quad_rule(quad_rule::QuadratureRule{1,shape,T}, ::Ferrite.Interpolation{3,shape}) where {T,shape<:RefCube}
-    w = getweights(quad_rule)
-    p = getpoints(quad_rule)
+    w = Ferrite.getweights(quad_rule)
+    p = Ferrite.getpoints(quad_rule)
     n_points = length(w)
     edge_quad_rule = QuadratureRule{3,shape,T}[]
 

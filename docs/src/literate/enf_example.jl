@@ -8,7 +8,7 @@ include("enf_grid_generator.jl")
 a0 = 30.9
 
 #Celltype
-CohesiveCellType = CohesiveCell{2,4,2} 
+CohesiveCellType = Five.CZLine
 SolidCellType = Ferrite.Quadrilateral
 
 #Dimension
@@ -25,6 +25,7 @@ b = 20.0
 data = ProblemData(
     dim = DIM,
     tend = 1.0,
+    runname = "ENF"
 )
 
 #grid
@@ -39,7 +40,7 @@ MatCZBilinear(
 ) 
 
 material = 
-Five.TransverseIsotropicEngineeringConstants(
+Five.TransverselyIsotropic(
     E_L = 126e3, 
     E_T = 10e3, 
     G_LT = 8e3,
@@ -49,7 +50,7 @@ Five.TransverseIsotropicEngineeringConstants(
 
 #
 solidpart = Part(
-    element  = Five.SolidElement{2,1,RefCube,Float64}(
+    element  = Five.LinearSolidElement(
         thickness = b, 
         qr_order = 2,
         celltype = SolidCellType,
@@ -63,9 +64,8 @@ push!(data.parts, solidpart)
 #
 part = Part(
     element = CohesiveElement(
-        order = 1,
+        qr_order = 2,
         thickness = b,
-        nqp = 2,
         celltype = CohesiveCellType
     ),
     material = interfacematerial,
@@ -92,7 +92,7 @@ dbc1 = Ferrite.Dirichlet(
     func = (x,t)->[0.0, 0.0],
     dofs =  [1,2]
 )
-push!(data.dirichlet, dbc1)
+push!(data.constraints_ferrite, dbc1)
 
 dbc1 = Ferrite.Dirichlet(
     field = :u,
@@ -100,7 +100,7 @@ dbc1 = Ferrite.Dirichlet(
     func   = (x,t)->[0.0],
     dofs  = [2]
 )
-push!(data.dirichlet, dbc1)
+push!(data.constraints_ferrite, dbc1)
 
 
 #
@@ -111,13 +111,6 @@ force = PointForce(
     func = (X,t) -> -1.0
 )
 push!(data.external_forces, force)
-
-#
-data.output[] = Output(
-    interval = 0.0,
-    runname = "enf_a0$(floor(Int,a0))_locdis_",
-    savepath = "."
-)
 
 #
 output = OutputData(
@@ -134,7 +127,7 @@ vtkoutput = VTKNodeOutput(
     type = Five.StressOutput(),
     func = mean,
 )
-Five.push_vtkoutput!(data.output[], vtkoutput)
+Five.push!(data.vtk_output, vtkoutput)
 
 vtkoutput = VTKCellOutput(
     type = MaterialStateOutput(
@@ -143,12 +136,12 @@ vtkoutput = VTKCellOutput(
     ),
     func = mean,
 )
-Five.push_vtkoutput!(data.output[], vtkoutput)
+Five.push!(data.vtk_output, vtkoutput)
 
 vtkoutput = VTKNodeOutput(
     type = Five.StressOutput(),
 )
-Five.push_vtkoutput!(data.output[], vtkoutput)
+Five.push!(data.vtk_output, vtkoutput)
 
 state, globaldata = build_problem(data)
 

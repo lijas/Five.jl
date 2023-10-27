@@ -7,15 +7,16 @@ export CohesiveCell
 struct CohesiveZoneInterpolation{refshape,order,I<:Ferrite.ScalarInterpolation} <: Ferrite.ScalarInterpolation{refshape,order} 
     interpolation::I
     function CohesiveZoneInterpolation(interpolation)
-        dim = Ferrite.getdim(interpolation) + 1
+        refshape = Ferrite.getrefshape(interpolation)
         order = Ferrite.getorder(interpolation)
-        new{dim,order,typeof(interpolation)}(interpolation)
+        new{refshape,order,typeof(interpolation)}(interpolation)
     end
 end
 
 Ferrite.getnbasefunctions(ip::CohesiveZoneInterpolation) = getnbasefunctions(ip.interpolation)*2
 Ferrite.vertexdof_indices(::CohesiveZoneInterpolation{RefLine,1}) = (1,2,3,4)
 Ferrite.facedof_indices(ip::CohesiveZoneInterpolation{RefLine,1}) = ((1,2), (3,4))
+Ferrite.adjust_dofs_during_distribution(::CohesiveZoneInterpolation{RefLine,1}) = false
 
 _mapper(::Lagrange{RefLine,1}, _i::Int) = [1,2,1,2][_i]
 _mapper(::Lagrange{RefLine,2}, _i::Int) = [1,2,1,2,3,3][_i]
@@ -91,7 +92,7 @@ struct SurfaceVectorValues{dim_p,dim_s,T<:Real,M2,refshape<:Ferrite.AbstractRefS
     detJdA::Vector{T}
     M::Matrix{T}  # Shape values for geometric interp
     dMdξ::Matrix{Vec{dim_p,T}}
-    qr::QuadratureRule{dim_p,refshape,T}
+    qr::QuadratureRule{refshape,T}
     covar_base::Vector{Tensor{2,dim_s,T}}
     ip::Interpolation
 end
@@ -105,14 +106,16 @@ end
 @inline getR(cv::SurfaceVectorValues, qp::Int) = cv.R[qp]
 
 function SurfaceVectorValues(::Type{T},
-    quad_rule::QuadratureRule{dim_p,refshape},
-    func_interpol::CohesiveZoneInterpolation{dim_s},
-    geom_interpol::CohesiveZoneInterpolation{dim_s}=func_interpol) where {dim_p,dim_s,T,refshape}
+    quad_rule::QuadratureRule{refshape},
+    func_interpol::CohesiveZoneInterpolation,
+    geom_interpol::CohesiveZoneInterpolation=func_interpol) where {T,refshape}
 
     @assert Ferrite.getdim(func_interpol) == Ferrite.getdim(geom_interpol)
     @assert Ferrite.getrefshape(func_interpol) == Ferrite.getrefshape(geom_interpol)
+    dim_p = Ferrite.getdim(func_interpol)
+    dim_s = dim_p+1
 
-    n_qpoints = length(getweights(quad_rule))
+    n_qpoints = length(Ferrite.getweights(quad_rule))
 
     # Function interpolation
     n_func_basefuncs = getnbasefunctions(func_interpol) * dim_s #Note, multipy with two

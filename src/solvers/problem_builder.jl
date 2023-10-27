@@ -66,7 +66,16 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
 
     #
     for cellid in keys(data.materialstates)
-        partstates[cellid].materialstates .= data.materialstates[cellid]
+        found_part = false
+        for partid in 1:nparts
+            partcells = get_cellset(data.parts[partid])
+            if insorted(cellid, partcells)
+                found_part = true
+                lcellid = searchsortedfirst(partcells, cellid)
+                partstates[partid].materialstates[lcellid] .= data.materialstates[cellid]
+            end
+        end
+        @assert found_part
     end
     
     #
