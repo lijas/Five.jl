@@ -248,11 +248,11 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state:
 
 end
 
-function get_part_vtk_grid(part::Part)
+function get_part_vtk_grid(filename, part::Part)
     if part.geometry === nothing
         return nothing
     end
-    return vtk_grid("mypart$(minimum(part.cellset))", part.geometry)
+    return vtk_grid(filename, part.geometry)
 end
 
 function eval_part_field_data(part::Part, dh, state, field_name::Symbol)

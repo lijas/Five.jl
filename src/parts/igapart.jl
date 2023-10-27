@@ -12,6 +12,8 @@ function IGALinearSolidElement(;
 #    orders = IGA.getorders(celltype)
 orders = (2,2)
 
+    orders = ntuple(i->2, dim)
+
     cv = IGA.BezierCellValues(CellVectorValues(qr, ip, geom_ip))
     return Five.LinearSolidElement{dim, orders, RefCube, Float64, typeof(cv), typeof(dimstate)}(thickness, celltype, cv, Field(:u, ip, dim), dimstate)
 end
@@ -234,11 +236,11 @@ end
 
 
 
-function Five.get_part_vtk_grid(part::IGAPart)
+function Five.get_part_vtk_grid(filename, part::IGAPart)
     if part.geometry === nothing
         return nothing
     end
-    return vtk_grid("mypart$(minimum(part.cellset))", part.geometry)
+    return vtk_grid(filename, part.geometry)
 end
 
 function Five.eval_part_field_data(part::IGAPart, dh, state, field_name::Symbol)
@@ -252,12 +254,11 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
     qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
     for (ic, cellid) in enumerate(part.cellset)
         stresses = state.partstates[cellid].stresses
-        for i in 1:length(stresses)
-            stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
-        end
+        #for i in 1:length(stresses)
+        #    stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
+        #end
         push!(qpdata, stresses)
     end
-    
     #
     #
     #Set up quadrature rule
@@ -301,7 +302,7 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::Five.VTKNodeOutput{
     return data
 end
 
-function eval_part_node_data(part::IGAPart, nodeoutput::VTKNodeOutput{MaterialStateOutput{MaterialState_t}}, state, globaldata) where MaterialState_t
+function Five.eval_part_node_data(part::IGAPart, nodeoutput::VTKNodeOutput{MaterialStateOutput{MaterialState_t}}, state, globaldata) where MaterialState_t
     
     #Extract stresses to interpolate
     _cellid = first(part.cellset)
@@ -479,7 +480,6 @@ function Five.get_vtk_nodedata(dh::Ferrite.AbstractDofHandler, part::IGAPart, st
     asdf
     return nothing, nothing
 end
-
 
 
 

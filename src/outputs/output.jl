@@ -174,15 +174,15 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
     dh    = globaldata.dh
     parts = globaldata.parts
     
-    vtmfile = vtk_multiblock(filename)
+    vtmfile = vtk_multiblock(filename*"_step$(state.step)")
 
     #Ouput to vtk_grid
     for (partid, part) in enumerate(parts)
         #Vtk grid
-        vtkfile = get_part_vtk_grid(part)
+        vtkfile = get_part_vtk_grid("partid$(partid)_step$(state.step)", part)
         vtkfile === nothing && continue
         
-        multiblock_add_block(vtmfile, vtkfile, "partid$partid")
+        multiblock_add_block(vtmfile, vtkfile)
 
         #Export Fields, such :u, etc
         for field in get_fields(part)
@@ -207,9 +207,11 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
         end
 
     end
-
+    
     #collection_add_timestep(output.pvd, vtmfile, state.t)
+    vtk_save(vtmfile)
     vtkoutput.pvd[state.t] = vtmfile
+
 end
 
 
@@ -222,8 +224,7 @@ function export!(output::Output, state::StateVariables, globaldata; force=false)
         filename =  output.runname * string(state.step)
         
         if output.export_vtk
-            vtkfile = create_vtk_output(output.vtkoutput, state, globaldata, filename=filename)
-            vtk_save(vtkfile)
+            create_vtk_output(output.vtkoutput, state, globaldata, filename=filename)
         end
 
         if output.export_rawdata
