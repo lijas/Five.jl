@@ -58,8 +58,8 @@ end
 
                                                   
 function assemble_stiffnessmatrix_and_forcevector!(dh, state::StateVariables, globaldata)
-    for (partid, part) in enumerate(globaldata.parts)
-        assemble_stiffnessmatrix_and_forcevector!(dh, part, state.partstates[partid], state)
+    for (part, partstate) in zip(globaldata.parts, state.partstates)
+        assemble_stiffnessmatrix_and_forcevector!(dh, part,partstate, state)
     end
 end
 
@@ -80,11 +80,8 @@ function assemble_fstar!(dh, state, globaldata)
 end
 
 function assemble_dissipation!(dh::DofHandler, state::StateVariables, globaldata)
-    for (partid, part) in enumerate(globaldata.parts)
-
-        assemble_dissipation!(dh, 
-                                part, 
-                                state)
+    for (part, partstate) in zip(globaldata.parts, state.partstates)
+        assemble_dissipation!(dh, part,partstate, state)
     end
 end
 

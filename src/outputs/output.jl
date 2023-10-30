@@ -179,9 +179,10 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
     #Ouput to vtk_grid
     for (partid, part) in enumerate(parts)
         #Vtk grid
-        vtkfile = get_part_vtk_grid("partid$(partid)_step$(state.step)", part)
-        vtkfile === nothing && continue
+        geometry = default_part_geometry(part)
+        geometry === nothing && continue
         
+        vtkfile = vtk_file("partid$(partid)_step$(state.step)", geometry)
         multiblock_add_block(vtmfile, vtkfile)
 
         #Export Fields, such :u, etc

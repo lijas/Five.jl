@@ -1,43 +1,47 @@
 export CohesiveCell
 
 """
-
 """
 
-struct CohesiveZoneInterpolation{refshape,order,I<:Ferrite.ScalarInterpolation} <: Ferrite.ScalarInterpolation{refshape,order} 
+_get_interface_cell_shape(::Type{RefLine}) = RefQuadrilateral
+_get_interface_cell_shape(::Type{RefTriangle}) = RefPrism
+_get_interface_cell_shape(::Type{RefQuadrilateral}) = RefHexahedron
+
+struct CohesiveZoneInterpolation{refshape,order,ref_cell_shape,I<:Ferrite.ScalarInterpolation} <: Ferrite.ScalarInterpolation{ref_cell_shape,order} 
     interpolation::I
     function CohesiveZoneInterpolation(interpolation)
         refshape = Ferrite.getrefshape(interpolation)
+        ref_cell_shape = _get_interface_cell_shape(refshape)
         order = Ferrite.getorder(interpolation)
-        new{refshape,order,typeof(interpolation)}(interpolation)
+        new{refshape,order,ref_cell_shape,typeof(interpolation)}(interpolation)
     end
 end
 
 Ferrite.getnbasefunctions(ip::CohesiveZoneInterpolation) = getnbasefunctions(ip.interpolation)*2
 Ferrite.vertexdof_indices(::CohesiveZoneInterpolation{RefLine,1}) = (1,2,3,4)
-Ferrite.facedof_indices(ip::CohesiveZoneInterpolation{RefLine,1}) = ((1,2), (3,4))
+Ferrite.facedof_indices(::CohesiveZoneInterpolation{RefLine,1}) = ((1,2), (3,4))
 Ferrite.adjust_dofs_during_distribution(::CohesiveZoneInterpolation{RefLine,1}) = false
 
 _mapper(::Lagrange{RefLine,1}, _i::Int) = [1,2,1,2][_i]
 _mapper(::Lagrange{RefLine,2}, _i::Int) = [1,2,1,2,3,3][_i]
 _mapper(::Lagrange{RefQuadrilateral,1}, _i::Int) = [1,2,3,4,1,2,3,4][_i]
 _mapper(::Lagrange{RefTriangle,1}, _i::Int) = [1,2,3,1,2,3][_i]
-function mid_surf_value(ip::CohesiveZoneInterpolation{}, _i::Int, ξ::Vec{dim_p}) where dim_p
+function mid_surf_value(ip::CohesiveZoneInterpolation{}, ξ::Vec{dim_p}, _i::Int) where dim_p
     _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
     i = _mapper(ip.interpolation, _i)
 
-    return Ferrite.value(ip.interpolation, i, ξ)*0.5
+    return Ferrite.shape_value(ip.interpolation, ξ, i)*0.5
 end
 
 _sign_mapper(::Lagrange{RefLine,1}, _i::Int) = [-1,-1,+1,+1][_i]
 _sign_mapper(::Lagrange{RefLine,2}, _i::Int) = [-1,-1,+1,+1,-1,+1][_i]
 _sign_mapper(::Lagrange{RefQuadrilateral,1}, _i::Int) = [-1,-1,-1,-1,+1,+1,+1,+1][_i]
 _sign_mapper(::Lagrange{RefTriangle,1}, _i::Int) = [-1,-1,-1,+1,+1,+1][_i]
-function Ferrite.value(ip::CohesiveZoneInterpolation, _i::Int, ξ::Vec{dim_p}) where dim_p
+function Ferrite.shape_value(ip::CohesiveZoneInterpolation, ξ::Vec{dim_p}, _i::Int) where dim_p
     _i<=getnbasefunctions(ip) || throw(ArgumentError("no shape function $_i for interpolation $ip"))
     sign = _sign_mapper(ip.interpolation, _i)
     i = _mapper(ip.interpolation, _i)
-    return sign*Ferrite.value(ip.interpolation, i, ξ)
+    return sign*Ferrite.shape_value(ip.interpolation, ξ, i)
 end
 
 Ferrite._mass_qr(::CohesiveZoneInterpolation{RefLine,1}) = QuadratureRule{RefLine}(1)
@@ -54,10 +58,10 @@ end
 """
 
 abstract type AbstractCohesiveCell{refshape} <: Ferrite.AbstractCell{refshape} end
-struct CZLine <: AbstractCohesiveCell{RefLine}          nodes::NTuple{4,Int} end
-struct CZQuadraticLine <: AbstractCohesiveCell{RefLine} nodes::NTuple{6,Int} end
-struct CZQuadrilateral <: AbstractCohesiveCell{RefLine} nodes::NTuple{8,Int} end
-struct CZTriangle      <: AbstractCohesiveCell{RefLine} nodes::NTuple{6,Int} end
+struct CZLine <: AbstractCohesiveCell{RefQuadrilateral}          nodes::NTuple{4,Int} end
+struct CZQuadraticLine <: AbstractCohesiveCell{RefQuadrilateral} nodes::NTuple{6,Int} end
+struct CZQuadrilateral <: AbstractCohesiveCell{RefHexahedron} nodes::NTuple{8,Int} end
+struct CZTriangle      <: AbstractCohesiveCell{RefPrism} nodes::NTuple{6,Int} end
 
 Ferrite.vertices(c::CZLine)= (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
 Ferrite.faces(c::CZLine)   = ((c.nodes[1], c.nodes[2]), (c.nodes[3], c.nodes[4])) 
@@ -133,7 +137,7 @@ function SurfaceVectorValues(::Type{T},
     for (qp, ξ) in enumerate(quad_rule.points)
         basefunc_count = 1
         for basefunc in 1:getnbasefunctions(func_interpol)
-            dNdξ_temp, N_temp = Tensors.gradient(ξ -> Ferrite.value(func_interpol, basefunc, ξ), ξ, :all)
+            dNdξ_temp, N_temp = Tensors.gradient(ξ -> Ferrite.shape_value(func_interpol, ξ, basefunc), ξ, :all)
             for comp in 1:dim_s
                 N_comp = zeros(T, dim_s)
                 N_comp[comp] = N_temp
@@ -148,7 +152,7 @@ function SurfaceVectorValues(::Type{T},
             end
         end
         for i in 1:n_geom_basefuncs 
-            dMdξ[i, qp], M[i, qp] = Tensors.gradient(ξ -> mid_surf_value(geom_interpol, i, ξ), ξ, :all)
+            dMdξ[i, qp], M[i, qp] = Tensors.gradient(ξ -> mid_surf_value(geom_interpol, ξ, i), ξ, :all)
         end
     end
 
@@ -196,11 +200,11 @@ function Ferrite.reinit!(cv::SurfaceVectorValues{dim_p,dim_s}, x::AbstractVector
 
 end
 
+function Ferrite.shape_value(fe_v::SurfaceVectorValues{dim,dim_s}, q_point::Int, i::Int) where {dim,T,dim_s}
+    return fe_v.N[i,q_point]
+end
 
 function Ferrite.function_value(fe_v::SurfaceVectorValues{dim,dim_s}, q_point::Int, u::AbstractVector{T}, dof_range::AbstractVector{Int} = collect(1:length(u))) where {dim,T,dim_s}
-    n_base_funcs = Ferrite.getn_scalarbasefunctions(fe_v)
-    n_base_funcs *= dim_s
-    
     @assert length(u) == length(dof_range)
     val = zero(Vec{dim_s,T})
     for (i, j) in enumerate(dof_range)

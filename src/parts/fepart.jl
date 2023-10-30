@@ -148,7 +148,7 @@ function assemble_dissipation!(
         return 
     end
 
-    _assemble_part!(dh, part, state, DISSI)
+    _assemble_part!(dh, part, partstate, state, DISSI)
 
 end
 
@@ -178,7 +178,7 @@ function _assemble_part!(dh::Ferrite.AbstractDofHandler,
     
 end
 
-function _assemble_cell(part::Part, partstate::PartState, cache::PartCache, cellid, lcellid, assembler, state, dh, assemtype)
+function _assemble_cell(part::Part, partstate::PartState, cache::PartCache, cellid, lcellid, assembler, state::StateVariables{T}, dh, assemtype) where T
     (; fe, ke, ue, due, Δue, coords, celldofs, element) = cache
 
     materialstate = partstate.materialstates[lcellid]
@@ -200,18 +200,15 @@ function _assemble_cell(part::Part, partstate::PartState, cache::PartCache, cell
         integrate_forcevector_and_stiffnessmatrix!(element, cellstate, part.material, materialstate, stresses, strains, ke, fe, coords, Δue, ue, due, state.Δt)
         assemble!(assembler, celldofs, fe, ke)
     elseif assemtype == FORCEVEC
-        integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, Δt)
+        integrate_forcevector!(element, cellstate, part.material, materialstate, fe, coords, Δue, ue, due, state.Δt)
         state.system_arrays.fⁱ[celldofs] += fe
     elseif assemtype == FSTAR
         error("Broken code, fix")
-        prev_partstate::get_partstate_type(part) = state.prev_partstates[cellid]
-        prev_materialstate = prev_partstate.materialstates
-
-        integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, Δt)
-        state.system_arrays.fᴬ[celldofs] += fe
+        #integrate_fstar!(element, cellstate, part.material, prev_materialstate, fe, coords, Δue, ue, due, state.Δt)
+        #state.system_arrays.fᴬ[celldofs] += fe
     elseif assemtype == DISSI
         ge = Base.RefValue(zero(T))
-        integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, Δt)
+        integrate_dissipation!(element, cellstate, part.material, materialstate, fe, ge, coords, Δue, ue, due, state.Δt)
         state.system_arrays.fᴬ[celldofs] += fe
         state.system_arrays.G[] += ge[]
     end
@@ -392,4 +389,8 @@ function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::StressOutp
         stresses = state.partstates[cellid].stresses
         data[cellid] = output.func(stresses)
     end
+end
+
+function default_part_geometry(part, state, globaldata)
+    return SubGridGeometry(grid, cellset)
 end

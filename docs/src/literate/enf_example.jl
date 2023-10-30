@@ -25,7 +25,8 @@ b = 20.0
 data = ProblemData(
     dim = DIM,
     tend = 1.0,
-    runname = "ENF"
+    runname = "ENF",
+    vtkoutputtype = Five.FiveVTKOutput(),
 )
 
 #grid

@@ -12,14 +12,14 @@ mutable struct ProblemData{dim,T}
 
     runname::String
     savepath::String
-    vtkoutputtype::AbstractVTKOutputType
+    vtkoutputtype::Type{<:AbstractVTKOutputType}
     vtk_output_interval::T
     t0::T
     tend::T
     adaptive::Bool
 end
 
-function ProblemData(; runname::String, savepath = ".", tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false, vtk_output_interval=0.0, vtkoutputtype = FiveVTKOutput())
+function ProblemData(; runname::String, savepath = ".", tend::Float64, dim = 3, T = Float64, t0 = 0.0, adaptive = false, vtk_output_interval=0.0, vtkoutputtype = FiveVTKOutput)
     
     grid = Grid(Ferrite.AbstractCell[], Node{dim,T}[])
     parts = Five.AbstractPart{dim}[]
@@ -105,7 +105,7 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         interval = data.vtk_output_interval, 
         #export_rawdata=false, 
         #export_vtk=true, 
-        vtkoutputtype = FerriteVTKOutput
+        vtkoutputtype = data.vtkoutputtype
     )
     for o in data.vtk_output
         push_vtkoutput!(output, o)
@@ -114,6 +114,14 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     for (name, o) in data.outputdata
         push_output!(output, name, o)
     end
+
+    if data.vtkoutputtype == FiveVTKOutput()
+        for partid in 1:nparts
+            pgeometry = default_geometry(parts[partid])
+            error("Keep this?")
+        end
+    end
+
     close!(output, dh) 
 
     contact = Contact_Node2Segment{dim,T}() #not used
