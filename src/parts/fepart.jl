@@ -321,6 +321,28 @@ function eval_part_node_data(part::Part, nodeoutput::VTKNodeOutput{<:StressOutpu
     return data[part.geometry.nodemapper]
 end
 
+function eval_part_node_data(part::Part, nodeoutput::VTKNodeOutput{<:MaterialStateOutput{MaterialState_t}}, state, globaldata) where MaterialState_t
+    
+    #Extract stresses to interpolate
+    _cellid = first(part.cellset)
+    first_state = first(state.partstates[_cellid].materialstates)
+    if !hasproperty(first_state, nodeoutput.type.field) 
+        return
+    end
+    
+    qpdata = Vector{MaterialState_t}[]
+    for (ic, cellid) in enumerate(part.cellset)
+        matstates = state.partstates[cellid].materialstates
+        field_states = getproperty.(matstates, nodeoutput.type.field)
+        push!(qpdata, field_states)
+    end
+
+    data = zeros(MaterialState_t, getnnodes(globaldata.grid))
+    _collect_nodedata!(data, part, qpdata, globaldata)
+    return data[part.geometry.nodemapper]
+
+end
+
 function post_part!(dh, part::Part, states::StateVariables)
     
 end
