@@ -31,7 +31,6 @@ function LinearSolidElement(;
     geo_ip = Ferrite.default_interpolation(celltype)
     qr = QuadratureRule{refshape}(qr_order)
     cv = CellValues(qr, ip^sdim, geo_ip^sdim)
-
     return LinearSolidElement{sdim,typeof(cv),typeof(dimstate)}(celltype, cv, dimstate, thickness)
 end
 
