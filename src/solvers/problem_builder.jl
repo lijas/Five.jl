@@ -13,6 +13,7 @@ mutable struct ProblemData{dim,T}
     runname::String
     savepath::String
     vtkoutputtype::Type{<:AbstractVTKOutputType}
+    #part_output::Dict{Int, :symbol}  :default, :none
     vtk_output_interval::T
     t0::T
     tend::T
@@ -115,10 +116,10 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         push_output!(output, name, o)
     end
 
-    if data.vtkoutputtype == FiveVTKOutput()
+    if data.vtkoutputtype == FiveVTKOutput
         for partid in 1:nparts
-            pgeometry = default_geometry(parts[partid])
-            error("Keep this?")
+            part_geo = default_geometry(data.parts[partid], data.grid)
+            output.vtkoutput.part_geometries[partid] = part_geo
         end
     end
 

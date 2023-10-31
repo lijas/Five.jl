@@ -31,14 +31,12 @@ struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim
     element::E
 
     cache::Vector{PartCache{dim,T,E}} #One for each thread
-    geometry::Optional{Any} # TODO: Where should the visualization geometry live?
 end
 
 function Part(; 
     material::M,
     element::E,
     cellset,
-    geometry=nothing
     ) where {E,M}
 
     dim = Ferrite.getdim(element)
@@ -50,8 +48,7 @@ function Part(;
         _set,
         Vector{Int}[],
         element, 
-        PartCache{dim,T}[],
-        geometry)
+        PartCache{dim,T}[])
 end
 
 struct PartState{ES<:AbstractElementState, MS<:AbstractMaterialState} <: AbstractPartState
@@ -245,40 +242,59 @@ function assemble_massmatrix!(dh::Ferrite.AbstractDofHandler, part::Part, state:
 
 end
 
-function get_part_vtk_grid(filename, part::Part)
-    if part.geometry === nothing
-        return nothing
-    end
-    return vtk_grid(filename, part.geometry)
+function default_geometry(part::Part, grid)
+    return SubGridGeometry(grid, part.cellset)
 end
 
-function eval_part_field_data(part::Part, dh, state, field_name::Symbol)
-    fh = Five.getsubdofhandler(dh, first(part.cellset))
-    fieldidx = Ferrite.find_field(fh, field_name)
-    if fieldidx === nothing #the field does not exist in this part
-        return nothing 
+function eval_part_field_data(geometry::SubGridGeometry, part::Part, dh, state, fieldname::Symbol)
+    sdh = Five.getsubdofhandler(dh, first(part.cellset))
+
+    #
+    field_idx = Ferrite.find_field(dh, fieldname)
+    ip = Ferrite.getfieldinterpolation(dh, field_idx)
+    RT = ip isa ScalarInterpolation ? Float64 : Vec{Ferrite.n_components(ip),Float64}
+
+    # VTK output of solution field (or L2 projected scalar data)
+    n_c = Ferrite.n_components(ip)
+    vtk_dim = n_c == 2 ? 3 : n_c # VTK wants vectors padded to 3D
+    data = fill(NaN * zero(Float64), vtk_dim, getnnodes( Ferrite.get_grid(dh)))
+
+    # Check if this sdh contains this field, otherwise continue to the next
+    field_idx = Ferrite._find_field(sdh, fieldname)
+    @assert field_idx !== nothing
+
+    # Set up CellValues with the local node coords as quadrature points
+    CT = Ferrite.getcelltype(sdh)
+    ip = Ferrite.getfieldinterpolation(sdh, field_idx)
+    ip_geo = Ferrite.default_interpolation(CT)
+    local_node_coords = Ferrite.reference_coordinates(ip_geo)
+    shape = Ferrite.getrefshape(ip)
+
+    qr = QuadratureRule{shape}(zeros(length(local_node_coords)), local_node_coords)
+    if ip isa VectorizedInterpolation
+        # TODO: Remove this hack when embedding works...
+        cv = CellValues(qr, ip.ip, ip_geo)
+    else
+        cv = CellValues(qr, ip, ip_geo)
     end
+    drange = dof_range(sdh, field_idx)
 
-    field_offset = Ferrite.field_offset(fh, field_name) #TODO: change to fieldidx
-    field_dim    = fh.fields[fieldidx].dim 
-    space_dim = field_dim == 2 ? 3 : field_dim
+    # Function barrier
+    Ferrite._evaluate_at_grid_nodes!(data, sdh, state.d, cv, drange, RT)
 
-    nnodes = getnnodes(dh.grid)
-    data   = fill(Float64(NaN), space_dim, nnodes)
-    Ferrite.reshape_field_data!(data, dh, state.d, field_offset, field_dim, part.cellset)
-    return data[:, part.geometry.nodemapper]
+    return data[:, geometry.nodemapper]
 end
 
-function eval_part_node_data(part::Part, nodeoutput::VTKNodeOutput{<:StressOutput}, state, globaldata)
+function eval_part_node_data(geometry::SubGridGeometry, part::Part, partstate::PartState, nodeoutput::VTKNodeOutput{<:StressOutput}, state, globaldata)
     #Extract stresses to interpolate
     qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
-    for (ic, cellid) in enumerate(part.cellset)
-        stresses = state.partstates[cellid].stresses
+    for lcellid in 1:length(part.cellset)
+        stresses = partstate.stresses[lcellid]
         push!(qpdata, stresses)
     end
     data = zeros(SymmetricTensor{2,3,Float64,6}, getnnodes(globaldata.grid))
     _collect_nodedata!(data, part, qpdata, globaldata)
-    return data[part.geometry.nodemapper]
+    return data[geometry.nodemapper]
 end
 
 function post_part!(dh, part::Part, states::StateVariables)
@@ -313,11 +329,10 @@ function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T}
 end=#
 
 
-function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput{FT}, state::StateVariables{T}, globaldata) where {dim,FT,T}
+function collect_nodedata!(data::Vector{FT}, part::Part{dim}, partstate::PartState, output::MaterialStateOutput{FT}, state::StateVariables{T}, globaldata) where {dim,FT,T}
 
     #Check if field exist in materialstate
-    _cellid = first(part.cellset)
-    first_state = first(state.partstates[_cellid].materialstates)
+    first_state = first(first(partstate.materialstates))
     if !hasproperty(first_state, output.field) 
         return
     end
@@ -325,7 +340,7 @@ function collect_nodedata!(data::Vector{FT}, part::Part{dim}, output::MaterialSt
     #Extract field to interpolate
     qpdata = Vector{FT}[] #TODO: allocate
     for (ic, cellid) in enumerate(part.cellset)
-        matstates = state.partstates[cellid].materialstates
+        matstates = partstate.materialstates[ic]
         field_states = getproperty.(matstates, output.field)
         push!(qpdata, field_states)
     end
@@ -338,7 +353,7 @@ function collect_nodedata!(data::Vector{FT}, part::Part{dim}, partstate::PartSta
     #Extract stresses to interpolate
     qpdata = Vector{SymmetricTensor{2,3,T,6}}[]
     for (ic, cellid) in enumerate(part.cellset)
-        stresses = partstate.stresses[cellid]
+        stresses = partstate.stresses[ic]
         push!(qpdata, stresses)
     end
 
@@ -356,12 +371,13 @@ function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vec
     qr = getquadraturerule(part.element)
 
     projector = L2Projector(geom_ip, grid; set = part.cellset)
-    projecteddata = project(projector, qpdata, qr; project_to_nodes=true); 
+    projecteddata = project(projector, qpdata, qr); 
+    projection_at_nodes = evaluate_at_grid_nodes(projector, projecteddata)
 
     #Reorder to the parts vtk
-    for (ic, cellid) in enumerate(part.cellset)
-        for nodeid in globaldata.grid.cells[cellid].nodes
-            data[nodeid] = projecteddata[nodeid]
+    for lcellid in 1:length(part.cellset)
+        for nodeid in globaldata.grid.cells[lcellid].nodes
+            data[nodeid] = projection_at_nodes[nodeid]
         end
     end
 end
@@ -389,8 +405,4 @@ function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::StressOutp
         stresses = state.partstates[cellid].stresses
         data[cellid] = output.func(stresses)
     end
-end
-
-function default_part_geometry(part, state, globaldata)
-    return SubGridGeometry(grid, cellset)
 end

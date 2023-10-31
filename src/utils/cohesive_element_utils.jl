@@ -3,17 +3,17 @@ export CohesiveCell
 """
 """
 
-_get_interface_cell_shape(::Type{RefLine}) = RefQuadrilateral
-_get_interface_cell_shape(::Type{RefTriangle}) = RefPrism
-_get_interface_cell_shape(::Type{RefQuadrilateral}) = RefHexahedron
+#_get_interface_cell_shape(::Type{RefLine}) = RefQuadrilateral
+#_get_interface_cell_shape(::Type{RefTriangle}) = RefPrism
+#_get_interface_cell_shape(::Type{RefQuadrilateral}) = RefHexahedron
 
-struct CohesiveZoneInterpolation{refshape,order,ref_cell_shape,I<:Ferrite.ScalarInterpolation} <: Ferrite.ScalarInterpolation{ref_cell_shape,order} 
+struct CohesiveZoneInterpolation{refshape,order,I<:Ferrite.ScalarInterpolation} <: Ferrite.ScalarInterpolation{refshape,order} 
     interpolation::I
     function CohesiveZoneInterpolation(interpolation)
         refshape = Ferrite.getrefshape(interpolation)
-        ref_cell_shape = _get_interface_cell_shape(refshape)
+        #ref_cell_shape = _get_interface_cell_shape(refshape)
         order = Ferrite.getorder(interpolation)
-        new{refshape,order,ref_cell_shape,typeof(interpolation)}(interpolation)
+        new{refshape,order,typeof(interpolation)}(interpolation)
     end
 end
 
@@ -47,10 +47,8 @@ end
 Ferrite._mass_qr(::CohesiveZoneInterpolation{RefLine,1}) = QuadratureRule{RefLine}(1)
 
 function Ferrite.reference_coordinates(::CohesiveZoneInterpolation{RefLine,1})
-    return [Vec{2,Float64}((-1.0, 0.0)),
-            Vec{2,Float64}((1.0, 0.0)),
-            Vec{2,Float64}((-1.0, 0.0)),
-            Vec{2,Float64}((1.0, 0.0))]
+    return [Vec{1,Float64}((-1.0,)),
+            Vec{1,Float64}((1.0,))]
 end
 
 """
@@ -58,10 +56,10 @@ end
 """
 
 abstract type AbstractCohesiveCell{refshape} <: Ferrite.AbstractCell{refshape} end
-struct CZLine <: AbstractCohesiveCell{RefQuadrilateral}          nodes::NTuple{4,Int} end
-struct CZQuadraticLine <: AbstractCohesiveCell{RefQuadrilateral} nodes::NTuple{6,Int} end
-struct CZQuadrilateral <: AbstractCohesiveCell{RefHexahedron} nodes::NTuple{8,Int} end
-struct CZTriangle      <: AbstractCohesiveCell{RefPrism} nodes::NTuple{6,Int} end
+struct CZLine <: AbstractCohesiveCell{RefLine}          nodes::NTuple{4,Int} end
+struct CZQuadraticLine <: AbstractCohesiveCell{RefLine} nodes::NTuple{6,Int} end
+struct CZQuadrilateral <: AbstractCohesiveCell{RefQuadrilateral} nodes::NTuple{8,Int} end
+struct CZTriangle      <: AbstractCohesiveCell{RefTriangle} nodes::NTuple{6,Int} end
 
 Ferrite.vertices(c::CZLine)= (c.nodes[1], c.nodes[2], c.nodes[3], c.nodes[4])
 Ferrite.faces(c::CZLine)   = ((c.nodes[1], c.nodes[2]), (c.nodes[3], c.nodes[4])) 

@@ -1,90 +1,69 @@
 
-#Cohesive part, just override some plotting stuff
-#=function init_part!(part::Part{dim,T,<:CohesiveElement}, dh::Ferrite.AbstractDofHandler) where {dim,T}
-   #= celltype = typeof(dh.grid.cells[first(part.cellset)])
-    vtk_celltype = Ferrite.cell_to_vtkcell(celltype)
+const CZPart{dim,T} = Part{dim,T,<:CohesiveElement}
 
-    next_node_id = 1
-    for cellid in part.cellset#CellIterator2(dh, part.element, part.cellset)
-        cell = dh.grid.cells[cellid]
-        new_ids = Int[]
-        for i in 1:(Ferrite.nnodes(celltype) ÷ 2) # Mid surface
-            nodeid = cell.nodes[i]
-            if !haskey(part.vtkexport.nodeid_mapper, nodeid)
-                part.vtkexport.nodeid_mapper[nodeid] = next_node_id
-                push!(new_ids, next_node_id)
-                next_node_id += 1
-                push!(part.vtkexport.vtknodes, dh.grid.nodes[nodeid].x)
+#=
+function eval_part_field_data(geometry::SubGridGeometry, part::CZPart, dh, state, fieldname::Symbol)
+    sdh = Five.getsubdofhandler(dh, first(part.cellset))
+
+    #
+    field_idx = Ferrite.find_field(dh, fieldname)
+    ip = Ferrite.getfieldinterpolation(dh, field_idx)
+    RT = ip isa ScalarInterpolation ? Float64 : Vec{Ferrite.n_components(ip),Float64}
+
+    # VTK output of solution field (or L2 projected scalar data)
+    n_c = Ferrite.n_components(ip)
+    vtk_dim = n_c == 2 ? 3 : n_c # VTK wants vectors padded to 3D
+    data = fill(NaN * zero(Float64), vtk_dim, getnnodes( Ferrite.get_grid(dh)))
+
+    # Check if this sdh contains this field, otherwise continue to the next
+    field_idx = Ferrite._find_field(sdh, fieldname)
+    @assert field_idx !== nothing
+
+    # Set up CellValues with the local node coords as quadrature points
+    CT = Ferrite.getcelltype(sdh)
+    ip = Ferrite.getfieldinterpolation(sdh, field_idx)
+    ip_geo = Ferrite.default_interpolation(CT)
+    local_node_coords = Ferrite.reference_coordinates(ip_geo)
+    shape = Ferrite.getrefshape(ip)
+    @show ip
+    qr = QuadratureRule{shape}(zeros(length(local_node_coords)), local_node_coords)
+    cv = SurfaceVectorValues(qr, ip.ip)
+
+    drange = dof_range(sdh, field_idx)
+
+    # Function barrier
+    ##
+    ##
+    ue = zeros(Float64, length(drange))
+    if RT <: Vec && cv isa CellValues{<:ScalarInterpolation}
+        uer = reinterpret(RT, ue)
+    else
+        uer = ue
+    end
+    for cell in CellIterator(sdh)
+        # Note: We are only using the shape functions: no reinit!(cv, cell) necessary
+        @assert getnquadpoints(cv) == length(cell.nodes)
+        for (i, I) in pairs(drange)
+            ue[i] = state.dofs[cell.dofs[I]]
+        end
+        for (qp, nodeid) in pairs(cell.nodes)
+            val = mid_surf_value(cv, qp, uer)
+            if data isa Matrix # VTK
+                data[1:length(val), nodeid] .= val
+                data[(length(val)+1):end, nodeid] .= 0 # purge the NaN
             else
-                _new_id = part.vtkexport.nodeid_mapper[nodeid]
-                push!(new_ids, _new_id)
+                data[nodeid] = val
             end
         end
- #       @show part.vtkexport.vtknodes[new_ids]
-        push!(part.vtkexport.vtkcells, MeshCell(vtk_celltype, new_ids))
     end
-#asdf
-    resize!(part.cache.coords, Ferrite.nnodes(celltype))=#
+
+    return data[:, geometry.nodemapper]
 end=#
 
-function get_vtk_celldata(part::Part{dim,T,<:CohesiveElement}, output::VTKCellOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
-    return nothing
-end
-
-function get_vtk_nodedata(part::Part{dim,T,<:CohesiveElement}, output::VTKNodeOutput{<:StressOutput}, state::StateVariables{T}, globaldata) where {dim,T}
-    return nothing
-end
-
-function get_vtk_displacements(dh::Ferrite.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables) where {dim,T}
-    @assert(length(get_fields(part.element)) == 1 && get_fields(part.element)[1].name == :u)
-
-    node_disp = zeros(Vec{dim,T}, length(part.vtkexport.vtknodes))
-
-    cell = dh.grid.cells[first(part.cellset)]
-    celltype = typeof(cell)
-    n_mid_surface_nodes = (Ferrite.nnodes(celltype) ÷ 2)
-
-    celldofs = part.cache.celldofs
-
-    for cellid in part.cellset
-        cell = dh.grid.cells[cellid]
-
-        celldofs!(celldofs, dh, cellid)
-        ue = state.d[celldofs]
-        uvec = reinterpret(Vec{dim,T}, ue)
-
-        for i in 1:n_mid_surface_nodes
-            nodeid = cell.nodes[i]
-            local_id = part.vtkexport.nodeid_mapper[nodeid] 
-            node_disp[local_id] = (uvec[i] + uvec[i+n_mid_surface_nodes])/2 
-        end
-    end
-    
-    return node_disp
-end
-
-
-function _get_vtk_field!(data::Matrix, dh::Ferrite.AbstractDofHandler, part::Part{dim,T,<:CohesiveElement}, state::StateVariables, offset::Int, nvars::Int) where {dim,T}
-
-    celldofs = part.cache.celldofs
-
-    for cellid in part.cellset
-        cell = dh.grid.cells[cellid]
-        
-        celldofs!(celldofs, dh, cellid)
-        ue = state.d[celldofs]
-        counter = 1
-        for i in 1:(Ferrite.nnodes(cell) ÷ 2) # Mid surface
-            nodeid = cell.nodes[i]
-            local_id = part.vtkexport.nodeid_mapper[nodeid]
-            for d in 1:nvars
-                data[d, local_id] = ue[counter + offset]
-                counter += 1
-            end
-        end
-    end
-    
-end
 
 function collect_nodedata!(data::Vector{FT}, part::Part{dim,T,<:CohesiveElement}, output::StressOutput, state::StateVariables{T}, globaldata) where {dim,FT,T} 
+end
+
+function default_geometry(part::CZPart, grid)
+    return nothing#SubGridGeometry(grid, part.cellset)
 end

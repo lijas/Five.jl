@@ -7,10 +7,10 @@ data = ProblemData(
     dim = 2,
     tend = 1.0,
     vtk_output_interval = 0.1,
-    vtkoutputtype = Five.FerriteVTKOutput(),
+    vtkoutputtype = Five.FerriteVTKOutput,
 )
 
-data.grid = generate_grid(Quadrilateral, (10,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
+data.grid = generate_grid(Quadrilateral, (50,5), Vec((0.0, 0.0)), Vec((10.0, 1.0)))
 addvertexset!(data.grid, "topright", (x) -> x[1] == 10.0 && x[2] == 1.0)
 
 vtkoutput = VTKNodeOutput(
@@ -37,11 +37,11 @@ output = OutputData(
 data.outputdata["reactionforce"] = output
 
 material = LinearElastic(;    
-    E = 100.0,   
+    E = 200e3,   
     ν = 0.3,   
 )
 
-material = Plastic(E=200e3, ν=0.3, σ_y=200., H=50., r=0.5, κ_∞=13., α_∞=13.)
+#material = Plastic(E=200e3, ν=0.3, σ_y=200., H=50., r=0.5, κ_∞=13., α_∞=13.)
 
 con1 = Dirichlet(
     set = getfaceset(data.grid, "left"),

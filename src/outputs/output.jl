@@ -82,11 +82,15 @@ struct VTKOutput{OT <: AbstractVTKOutputType}
     nodeoutputs::Vector{VTKNodeOutput}
 
     last_output::Base.RefValue{Float64}
+
+    # Maps partid to a "geometry" that will used for vtk output.
+    # Only used for FiveVTKOutput()
+    part_geometries::Dict{Int,Optional{Any}}
 end
 
 function VTKOutput{T}(interval::Float64, savepath::String, filename::String) where T
     pvd = paraview_collection(joinpath(savepath, filename))
-    return VTKOutput{T}(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf))
+    return VTKOutput{T}(pvd, interval, VTKCellOutput[], VTKNodeOutput[], Ref(-Inf), Dict{Int,Optional{Any}}())
 end
 
 mutable struct Output{T}
@@ -105,6 +109,7 @@ end
 
 function Output(; savepath=raw".", runname::String, interval::T, export_rawdata=false, export_vtk=true, vtkoutputtype::Type{<:AbstractVTKOutputType} = FerriteVTKOutput) where {T}
 
+    
     vtkoutput = VTKOutput{vtkoutputtype}(interval, savepath, runname)
 
     #Create logging file
@@ -174,38 +179,39 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
     dh    = globaldata.dh
     parts = globaldata.parts
     
-    vtmfile = vtk_multiblock(filename*"_step$(state.step)")
+    vtmfile = vtk_multiblock(filename)
 
     #Ouput to vtk_grid
-    for (partid, part) in enumerate(parts)
-        #Vtk grid
-        geometry = default_part_geometry(part)
+    for (partid, geometry) in vtkoutput.part_geometries
+        @show partid, typeof(geometry)
         geometry === nothing && continue
+        part = globaldata.parts[partid]
+        partstate = state.partstates[partid]
         
-        vtkfile = vtk_file("partid$(partid)_step$(state.step)", geometry)
+        vtkfile = WriteVTK.vtk_grid("partid$(partid)_step$(state.step)", geometry)
         multiblock_add_block(vtmfile, vtkfile)
 
         #Export Fields, such :u, etc
-        for field in get_fields(part)
-            data = eval_part_field_data(part, dh, state, field.name)
-            vtkfile[string(field.name)] = data
+        for (fieldname, ip) in get_fields(part)
+            data = eval_part_field_data(geometry, part, dh, state, fieldname)
+            vtkfile[string(fieldname)] = data
         end
 
         for nodeoutput in vtkoutput.nodeoutputs
-            data = eval_part_node_data(part, nodeoutput, state, globaldata)
+            data = eval_part_node_data(geometry, part, partstate, nodeoutput, state, globaldata)
             if data !== nothing
                 name = outputname(nodeoutput)
                 vtk_point_data(vtkfile, data, name)
             end
         end
 
-        for celloutput in vtkoutput.celloutputs
-            data = eval_part_cell_data(part, celloutput, state, globaldata)
-            if data !== nothing
-                name = outputname(celloutput)
-                vtk_cell_data(vtkfile, data, name)
-            end
-        end
+        #for celloutput in vtkoutput.celloutputs
+        #    data = eval_part_cell_data(part, celloutput, state, globaldata)
+        #    if data !== nothing
+        #        name = outputname(celloutput)
+        #        vtk_cell_data(vtkfile, data, name)
+        #    end
+        #end
 
     end
     
@@ -257,8 +263,10 @@ function create_vtk_output(vtkoutput::VTKOutput{FerriteVTKOutput}, state::StateV
     for nodeoutput in vtkoutput.nodeoutputs
         DT = getdatatype(nodeoutput.type)
         data = [zero(DT)*NaN for _ in 1:getnnodes(grid)]
-        for part in parts
-            collect_nodedata!(data, part, nodeoutput.type, state, globaldata)
+        for ipart in 1:length(parts)
+            part = globaldata.parts[ipart]
+            partstate = state.partstates[ipart]
+            collect_nodedata!(data, part, partstate, nodeoutput.type, state, globaldata)
         end
         vtk_point_data(vtkgrid, data, outputname(nodeoutput.type))
     end 
@@ -267,8 +275,10 @@ function create_vtk_output(vtkoutput::VTKOutput{FerriteVTKOutput}, state::StateV
     for celloutput in vtkoutput.celloutputs
         DT = getdatatype(celloutput.type)
         data = [zero(DT)*NaN for _ in 1:getncells(grid)]
-        for part in parts
-            collect_celldata!(data, part, celloutput.type, state, globaldata)
+        for ipart in 1:length(parts)
+            part = globaldata.parts[ipart]
+            partstate = state.partstates[ipart]
+            collect_celldata!(data, part, partstate, celloutput.type, state, globaldata)
         end
         vtk_cell_data(vtkgrid, data, outputname(celloutput.type))
     end
