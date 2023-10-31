@@ -21,10 +21,6 @@ function constitutive_driver_dissipation(::AbstractMaterial, ε::T, args...; kwa
     return zero(Float64), zero(ε)
 end
 
-include("cohesive/matczbilinear.jl")
-include("cohesive/matczexponential.jl")
-include("phasefield_material.jl")
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # MatElasticSpring - Massless spring 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

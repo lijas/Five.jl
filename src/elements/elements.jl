@@ -98,13 +98,6 @@ integrate_dissipation!
 """
 integrate_fstar!
 
-include("solidelement.jl")
-include("bar_element.jl")
-include("linearsolidelement.jl")
-include("PhaseFieldElement.jl")
-#Cohesive
-include("../utils/cohesive_element_utils.jl")
-include("cohesive_element.jl")
 
 
 

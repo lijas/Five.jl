@@ -185,10 +185,25 @@ end
 
 
 include("materials/materials.jl")
-include("elements/elements.jl")
+include("materials/cohesive/matczbilinear.jl")
+include("materials/cohesive/matczexponential.jl")
+include("materials/phasefield_material.jl")
 
+#Elements
+include("elements/elements.jl")
+include("elements/solidelement.jl")
+include("elements/bar_element.jl")
+include("elements/linearsolidelement.jl")
+include("elements/PhaseFieldElement.jl")
+
+#Cohesive
+include("utils/cohesive_element_utils.jl")
+include("elements/cohesive_element.jl")
+
+#Contact (Not working)
 include("contact/contact.jl") #Needs reviving
 
+#Output
 include("outputs/output.jl")
 include("outputs/dof_value.jl")
 include("outputs/material_output.jl")
@@ -202,10 +217,10 @@ include("solvers/arclength_solver.jl")
 # include("solvers/explicit_solver.jl")
 # include("solvers/implicit_solver.jl")
 
+#Parts
 include("parts/parts.jl")
 include("parts/fepart.jl")
 include("parts/cohesive_part.jl")
-include("assembling.jl")
 
 #Forces
 include("externalforce/external_forces.jl")
@@ -215,11 +230,12 @@ include("constraints/Constraints.jl")
 include("constraints/follower_constraint.jl")
 
 #Utils
+include("assembling.jl")
 include("utils/utils.jl")
 include("utils/juafemutils.jl")
 include("utils/adaptive.jl")
-
 include("solvers/problem_builder.jl")
+
 
 """
     GlobalData{dim,T,DH<:AbstractDofHandler}
