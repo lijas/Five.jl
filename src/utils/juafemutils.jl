@@ -3,7 +3,9 @@ Ferrite.cellid(f::Ferrite.BoundaryIndex) = f[1]
 _ntupelcomponents(::Type{NTuple{N,Int}}) where N = N
 Ferrite.nnodes(c::Type{<:Ferrite.AbstractCell}) = _ntupelcomponents(fieldtypes(c)[1])
 
-getquadraturerule(cv::CellValues) = cv.qr
+
+_getquadraturerule(cv::CellValues) = cv.qr
+_getinterpolation(cv::CellValues) = cv.ip
 
 function Ferrite.Dirichlet(;field::Symbol,set::Set{T},func::Function,dofs::Vector{Int}) where T
     return Ferrite.Dirichlet(field, set, func, dofs)

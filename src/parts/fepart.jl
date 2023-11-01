@@ -89,7 +89,7 @@ function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {d
     Ferrite._check_same_celltype(grid, part.cellset)
 
     _ndofs   = ndofs(part.element)
-    _nnodes  = 9#Ferrite.nnodes(getcelltype(part.element))
+    _nnodes  = Ferrite.nnodes(getcelltype(part.element))
     nthreads = Threads.nthreads()
     nchunks = nthreads*10 #TODO: How many chunks?
 

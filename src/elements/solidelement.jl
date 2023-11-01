@@ -11,7 +11,7 @@ end
 
 initial_element_state(::SolidElement)  = EmptyElementState()
 
-getquadraturerule(e::SolidElement) = e.cv.qr
+getquadraturerule(e::SolidElement) = _getquadraturerule(e.cv)
 Ferrite.getnquadpoints(e::SolidElement) = getnquadpoints(e.cv)
 Ferrite.ndofs(e::SolidElement) = getnbasefunctions(e.cv)
 Ferrite.getcelltype(e::SolidElement) = e.celltype

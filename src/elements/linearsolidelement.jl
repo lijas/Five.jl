@@ -11,12 +11,12 @@ struct LinearSolidElement{sdim,CV<:Ferrite.AbstractCellValues, DIMSTATE<:Materia
     thickness::Float64
 end
 
-getquadraturerule(e::LinearSolidElement) = getquadraturerule(e.cv)
+getquadraturerule(e::LinearSolidElement) = _getquadraturerule(e.cv)
 Ferrite.getnquadpoints(e::LinearSolidElement) = getnquadpoints(e.cv)
 Ferrite.getcelltype(e::LinearSolidElement) = e.celltype
 Ferrite.ndofs(e::LinearSolidElement) = getnbasefunctions(e.cv)
 has_constant_massmatrix(::LinearSolidElement) = true
-get_fields(e::LinearSolidElement) = return [(:u, e.cv.ip)]
+get_fields(e::LinearSolidElement) = return [(:u, _getinterpolation(e.cv))]
 
 function LinearSolidElement(;
         celltype::Type{<:Ferrite.AbstractCell{refshape}}, 
@@ -30,7 +30,7 @@ function LinearSolidElement(;
 
     geo_ip = Ferrite.default_interpolation(celltype)
     qr = QuadratureRule{refshape}(qr_order)
-    cv = CellValues(qr, ip^sdim, geo_ip^sdim)
+    cv = CellValues(qr, ip^sdim, geo_ip)
     return LinearSolidElement{sdim,typeof(cv),typeof(dimstate)}(celltype, cv, dimstate, thickness)
 end
 
