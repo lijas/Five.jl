@@ -1,36 +1,45 @@
 
-struct PartCache{dim,T,E}
+struct PartCache{dim,T,E,coords_t}
     ue::Vector{T}
     due::Vector{T}
     Δue::Vector{T}
     fe::Vector{T}
     ke::Matrix{T}
     celldofs::Vector{Int}
-    coords::Vector{Vec{dim,T}}
+    
+    #Make the coords a type parameter for IGA
+    #For standard fe-problems, coords::Vector{Vec{dim,T}}
+    coords::coords_t #Vec{dim,T}
     element::E
 end
 
-function PartCache{dim,T}(ndofs, ncoords, element::E) where {dim,T,E} 
-    PartCache{dim,T,E}(
-        zeros(T,ndofs), 
-        zeros(T,ndofs), 
-        zeros(T,ndofs), 
-        zeros(T,ndofs), 
-        zeros(T,ndofs,ndofs), 
-        zeros(Int,ndofs), 
-        zeros(Vec{dim,T},ncoords),
+function create_part_cache(element::E) where E<:AbstractElement
+    dim = Ferrite.getdim(element)
+    T = Float64
+    _ndofs   = ndofs(element)
+    _nnodes  = Ferrite.nnodes(getcelltype(element))
+
+    coords_t = Vector{Vec{dim,T}}
+    PartCache{dim,T,E,coords_t}(
+        zeros(T,_ndofs), 
+        zeros(T,_ndofs), 
+        zeros(T,_ndofs), 
+        zeros(T,_ndofs), 
+        zeros(T,_ndofs,_ndofs), 
+        zeros(Int,_ndofs), 
+        zeros(Vec{dim,T},_nnodes),
         deepcopy(element)
     )
 end
 
 #Name it Part instead of Fe-part because it is the standard...
-struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial} <: AbstractPart{dim}
+struct Part{dim, T, E<:AbstractElement, M<:AbstractMaterial, cache_t<:PartCache{dim,T,E}} <: AbstractPart{dim}
     material::M
     cellset::Vector{Int}
     threadsets::Vector{Vector{Int}}
     element::E
 
-    cache::Vector{PartCache{dim,T,E}} #One for each thread
+    cache::Vector{cache_t} #One for each thread
 end
 
 function Part(; 
@@ -41,14 +50,19 @@ function Part(;
 
     dim = Ferrite.getdim(element)
     T = Float64
+
     _set = collect(cellset)
     sort!(_set) # YOLO
-    return Part{dim,T,E,M}(
+
+    coords_t = Vector{Vec{dim,T}}
+    cache_t = PartCache{dim,T,E,coords_t}
+
+    return Part{dim,T,E,M,cache_t}(
         material, 
         _set,
         Vector{Int}[],
         element, 
-        PartCache{dim,T}[])
+        cache_t[])
 end
 
 struct PartState{ES<:AbstractElementState, MS<:AbstractMaterialState} <: AbstractPartState
@@ -88,20 +102,17 @@ function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {d
     grid = dh.grid
     Ferrite._check_same_celltype(grid, part.cellset)
 
-    _ndofs   = ndofs(part.element)
-    _nnodes  = Ferrite.nnodes(getcelltype(part.element))
     nthreads = Threads.nthreads()
     nchunks = nthreads*10 #TODO: How many chunks?
 
     resize!(part.cache, nchunks)
     for i in 1:nchunks
-        part.cache[i] = PartCache{dim,T}(_ndofs, _nnodes, part.element)
+        part.cache[i] = create_part_cache(part.element)
     end
 
-    #TODO: BezierGrid does not work with create_incidence_matrix, so call them seperatly
-    #threadsets = Ferrite.create_coloring(grid, part.cellset; ColoringAlgorithm.WorkStream)
-    incidence_matrix = hot_fix_create_incidence_matrix(grid, part.cellset)
-    threadsets = Ferrite.workstream_coloring(incidence_matrix, part.cellset)
+    #incidence_matrix = hot_fix_create_incidence_matrix(grid, part.cellset)
+    #Ferrite.workstream_coloring(incidence_matrix, part.cellset)
+    threadsets = Ferrite.create_coloring(grid; alg=ColoringAlgorithm.WorkStream) 
 
     copy!(part.threadsets, threadsets)
 end
@@ -186,7 +197,7 @@ function _assemble_cell(part::Part, partstate::PartState, cache::PartCache, cell
     fill!(fe, 0.0)
     (assemtype == STIFFMAT) && fill!(ke, 0.0)
 
-    Ferrite.cellcoords!(coords, dh, cellid)
+    Ferrite.getcoordinates!(coords, dh.grid, cellid)
     Ferrite.celldofs!(celldofs, dh, cellid)
 
     Δue .= state.v[celldofs] 

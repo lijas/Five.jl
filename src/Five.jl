@@ -271,6 +271,10 @@ build_problem,
 #outputs
 StressOutput,
 
+#elements
+LinearSolidElement,
+SolidElement,
+
 #parts
 Part
 

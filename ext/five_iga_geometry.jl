@@ -128,48 +128,40 @@ end
 function Five.eval_part_node_data(geometry::IGASubGridGeometry, part::IGAPart, partstate::Five.PartState, nodeoutput::Five.VTKNodeOutput{<:Five.StressOutput}, state, globaldata)
     #Extract stresses to interpolate
     qpdata = Vector{SymmetricTensor{2,3,Float64,6}}[]
-    for (ic, cellid) in enumerate(part.cellset)
-        stresses = partstate.stresses[cellid]
-        #for i in 1:length(stresses)
-        #    stresses[i] = zero(SymmetricTensor{2,3,Float64,6})
-        #end
+    for ic in 1:length(part.cellset)
+        stresses = partstate.stresses[ic]
         push!(qpdata, stresses)
     end
+    
     #
     #
     #Set up quadrature rule
     celltype = getcelltype(part.element)
     geom_ip = Ferrite.default_interpolation(celltype)
     qr = Five.getquadraturerule(part.element)
-    vtktype = Ferrite.cell_to_vtkcell(celltype)
-    reorder = IGA.Ferrite_to_vtk_order(celltype)
 
     projector = L2Projector(geom_ip, globaldata.grid; set = part.cellset)
-    projecteddata = IGA.igaproject(projector, qpdata, qr; project_to_nodes=true); 
-    #
-    #
+    projecteddata = IGA.project(projector, qpdata, qr); 
+    
 
+    nviznodes = size(geometry.coords, 2)
+    data = fill(Float64(NaN), 6, nviznodes)  # set default value
 
-    #
-    #
-    local_node_coords = Ferrite.reference_coordinates(geom_ip)
-    n_eval_points = length(local_node_coords)
-
-    offset = 0
-    data = zeros(6, size(part.geometry.coords,2))
-    for cellid in part.geometry.cellset
-
-        cellnodes = globaldata.grid.cells[cellid].nodes
-        nodevalues = projecteddata[collect(cellnodes)]
-        IGA._distribute_vtk_point_data!(globaldata.grid.beo[cellid], data, nodevalues, offset)
-        #vtk_cellnodes = collect((1:n_eval_points) .+ offset)
-        #for (nodeid, vtknodeid) in zip(cellnodes, vtk_cellnodes)
-        #    σ = projecteddata[nodeid]
-        #    data[1:6, vtknodeid] .= tovoigt(σ)
-        #end
-
-        offset += n_eval_points
+    # Assume that only one of the field handlers can "project" to the geometry
+    local fh
+    for _fh in globaldata.dh.subdofhandlers
+        if first(part.cellset) in _fh.cellset
+            fh = _fh
+            @assert Set{Int}(part.cellset) == _fh.cellset
+            break
+        end
     end
+
+    refshape = Ferrite.getrefshape(geom_ip)
+    local_node_coords = Ferrite.reference_coordinates(geom_ip)
+    qr = QuadratureRule{refshape}(zeros(length(local_node_coords)), local_node_coords)
+    cv_scalar = CellValues(qr, geom_ip, geom_ip)
+    FIVE_evaluate_at_grid_nodes!(data, cv_scalar, projector.dh, part.cellset, projecteddata)
 
     #
     #
@@ -235,5 +227,49 @@ function Five.eval_part_node_data(part::IGAPart, nodeoutput::VTKNodeOutput{Mater
     #
     #
 
+    return data
+end
+
+
+function FIVE_evaluate_at_grid_nodes!(data::Matrix{T}, cv, dh::DofHandler{dim}, set, u::AbstractVector{S}) where {S,dim,T}
+    ue = zeros(S, getnbasefunctions(cv))
+    dofs = zeros(Int, getnbasefunctions(cv))
+    n_eval_points = Ferrite.getngeobasefunctions(cv)
+    coords = IGA.zero_bezier_coord(dim, T, n_eval_points)
+
+    offset = 0
+    for cellid in set
+        celldofs!(dofs, dh, cellid)
+        getcoordinates!(coords, dh.grid, cellid)
+        reinit!(cv, coords)
+
+        for (i, I) in pairs(dofs)
+            ue[i] = u[I]
+        end
+
+        cellnodes_in_iga_geometry = (1:n_eval_points) .+ offset
+        for qp in 1:n_eval_points
+            # Loop manually over the shape functions since function_value
+            # doesn't like scalar base functions with tensor dofs
+            val = zero(S)
+            for i in 1:getnbasefunctions(cv)
+                val += shape_value(cv, qp, i) * ue[i]
+            end
+
+            #Get the nodeid in the visulaisation IGA - mesh:
+            nodeid = cellnodes_in_iga_geometry[qp]
+
+            if data isa Matrix # VTK
+                dataview = @view data[:, nodeid]
+                fill!(dataview, 0) # purge the NaN
+                Ferrite.toparaview!(dataview, val)
+            else
+                @assert false "data is not matrix-type"
+            end
+
+        end
+
+        offset += n_eval_points
+    end
     return data
 end
