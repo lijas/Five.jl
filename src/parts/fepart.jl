@@ -112,8 +112,7 @@ function init_part!(part::Part{dim, T}, dh::Ferrite.AbstractDofHandler) where {d
 
     #incidence_matrix = hot_fix_create_incidence_matrix(grid, part.cellset)
     #Ferrite.workstream_coloring(incidence_matrix, part.cellset)
-    threadsets = Ferrite.create_coloring(grid; alg=ColoringAlgorithm.WorkStream) 
-
+    threadsets = Ferrite.create_coloring(grid, part.cellset; alg=ColoringAlgorithm.WorkStream) 
     copy!(part.threadsets, threadsets)
 end
 

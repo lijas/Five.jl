@@ -183,7 +183,6 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
 
     #Ouput to vtk_grid
     for (partid, geometry) in vtkoutput.part_geometries
-        @show partid, typeof(geometry)
         geometry === nothing && continue
         part = globaldata.parts[partid]
         partstate = state.partstates[partid]
@@ -290,6 +289,7 @@ function create_vtk_output(vtkoutput::VTKOutput{FerriteVTKOutput}, state::StateV
         vtk_cell_data(vtkgrid, data, "Part $ipart")
     end
 
+    @show state.t
     vtkoutput.pvd[state.t] = vtkgrid
     
 end

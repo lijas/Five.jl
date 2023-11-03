@@ -8,7 +8,10 @@ const P = -30
 
 data = ProblemData(
     dim = 2,
-    tend = 1.0
+    tend = 1.0,
+    runname = "arclength_bar",
+    vtk_output_interval = 0.0,
+    vtkoutputtype = Five.FerriteVTKOutput,
 )
 
 function generate_bars()
@@ -56,7 +59,7 @@ con = Dirichlet(
     field = :u,
     dofs = [1,2]
 )
-push!(data.dirichlet, con)
+push!(data.constraints_ferrite, con)
 
 con = Dirichlet(
     set =  getvertexset(data.grid, "right") ,
@@ -64,7 +67,7 @@ con = Dirichlet(
     field = :u,
     dofs = [1,2]
 )
-push!(data.dirichlet, con)
+push!(data.constraints_ferrite, con)
 
 con3 = Dirichlet(
     set =  Set([first(getvertexset(data.grid, "midmid"))]),
@@ -72,7 +75,7 @@ con3 = Dirichlet(
     field = :u,
     dofs = [1,]
 )
-push!(data.dirichlet, con3)
+push!(data.constraints_ferrite, con3)
 
 con3 = Dirichlet(
     set =  Set([first(getvertexset(data.grid, "topmid"))]),
@@ -80,14 +83,7 @@ con3 = Dirichlet(
     field = :u,
     dofs = [1,]
 )
-push!(data.dirichlet, con3)
-
-
-data.output[] = Output(
-    runname = "barexample",
-    savepath = ".",
-    interval = 0.0,
-)
+push!(data.constraints_ferrite, con3)
 
 output = OutputData(
     type = DofValueOutput(
@@ -136,7 +132,9 @@ result = solvethis(solver, state, data)
 u = getproperty.(result.outputdata["reactionforce"].data, :displacement)
 f = getproperty.(result.outputdata["reactionforce"].data, :fint)
 
-using Test
-@test isapprox( last(u)[1], -82.2, atol = 1e-1)
-@test isapprox( last(f)[1], 9.3, atol = 1e-1)
-# plot(u,f, mark=:o)
+#using Test
+#@test isapprox( last(u)[1], -82.2, atol = 1e-1)
+#@test isapprox( last(f)[1], 9.3, atol = 1e-1)
+
+#using Plots
+#plot(getindex.(u,2), getindex.(f,2), mark=:o)

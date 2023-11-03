@@ -8,6 +8,7 @@ heviside(x::T) where T = x > 0.0 ? one(T) : zero(T)
 #
 #end
 
+get_material_state_type(::Type{<:PhaseFieldSpectralSplit}) = PhaseFieldSpectralSplitState
 get_material_state_type(::Type{<:LinearElastic}) = LinearElasticState
 get_material_state_type(::Type{<:TransverselyIsotropic}) = TransverselyIsotropicState
 get_material_state_type(::Type{<:Plastic}) = PlasticState

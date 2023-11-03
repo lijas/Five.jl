@@ -52,11 +52,8 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
         sdh = SubDofHandler(dh, Set(set))
         length(set) == 0 && continue 
         for (field_name, field_ip) in get_fields(part)
-            @show field_name, field_ip
-            @show _getinterpolation(part.element.cv)
             add!(sdh, field_name, field_ip)
         end
-        init_part!(part, dh)
     end
     close!(dh)
     

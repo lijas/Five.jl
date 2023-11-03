@@ -71,10 +71,10 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
     end
 
     set_initial_guess!(solver, state, ntries)
-
     ΔL = state.ΔL
     detK0 = state.detK
     Δd = state.v #Realias the velocity to Δd
+    state.t += state.Δt #updat psudo-time
     println("Step: $(state.step), λ: $(state.λ), Δλ: $(state.Δλ), ΔL: $(state.ΔL)")
 
     state.newton_itr = 0
@@ -87,7 +87,7 @@ function step!(solver::ArcLengthSolver, state::StateVariables, globaldata, ntrie
         @timeit "Apply constraint" apply_constraints!(dh, globaldata.constraints, state, globaldata)
         
         #Solve
-        Kₜ = state.system_arrays.Kⁱ - state.system_arrays.Kᵉ
+        Kₜ = state.system_arrays.Kⁱ# - state.system_arrays.Kᵉ
         rₜ = state.system_arrays.fⁱ - state.system_arrays.fᵉ - state.λ*q
 
         apply_zero!(Kₜ, rₜ, globaldata.dbc)
@@ -172,6 +172,9 @@ function set_initial_guess!(solver::ArcLengthSolver, state::StateVariables, ntri
     elseif state.ΔL > solver.ΔL_max
         state.ΔL = solver.ΔL_max
     end
+
+    @assert state.ΔL > 0
+    state.Δt = state.ΔL
 
     state.Δλ = _sign*state.ΔL/sqrt(dot(δuₜ,δuₜ))
     state.v .= state.Δλ*δuₜ # ./Δt

@@ -12,6 +12,9 @@ nu = 0.22
 data = ProblemData(
     dim = 2,
     tend = 0.010,
+    runname = "phasefield_paperb",
+    vtk_output_interval = 0.0,
+    vtkoutputtype = Five.FerriteVTKOutput,
 )
 
 #grid
@@ -27,21 +30,6 @@ addfaceset!(data.grid, "bottomhole", x ->  norm(x-h1) <= .010)
 addfaceset!(data.grid, "tophole", x ->  norm(x-h2) <= .010)
 addvertexset!(data.grid, "tophole", x ->  norm(x-h2) <= .010)
 
-material = Five.PhaseFieldSpectralSplit(
-    E = E,
-    ν = nu,    
-    Gc = 2280.0,
-    lc = 0.25e-3*2,
-)
-
-#
-element = PhaseFieldElement{2,1,RefCube,Float64}(
-    thickness = 0.001,     
-    qr_order = 2, 
-    celltype = Quadrilateral,
-    dimstate = MaterialModels.PlaneStrain()
-)
-
 #=element = Five.LinearSolidElement{2,1,RefCube,Float64}(
     thickness = 1.0,
     celltype = Quadrilateral,
@@ -51,8 +39,18 @@ element = PhaseFieldElement{2,1,RefCube,Float64}(
 
 #
 part = Part(
-    element = element,
-    material = material,
+    element =  PhaseFieldElement(
+        thickness = 0.001,     
+        qr_order = 2, 
+        celltype = Quadrilateral,
+        dimstate = MaterialModels.PlaneStrain()
+    ),
+    material = Five.PhaseFieldSpectralSplit(
+        E = E,
+        ν = nu,    
+        Gc = 2280.0,
+        lc = 0.25e-3*2,
+    ),
     cellset  = 1:getncells(data.grid)
 )
 push!(data.parts, part)
@@ -70,7 +68,7 @@ dbc1 = Ferrite.Dirichlet(
     func = (x,t)->[0.0, 0.0],
     dofs =  [1, 2]
 )
-push!(data.dirichlet, dbc1)
+push!(data.constraints_ferrite, dbc1)
 
 dbc1 = Ferrite.Dirichlet(
     field = :u,
@@ -78,7 +76,7 @@ dbc1 = Ferrite.Dirichlet(
     func = (x,t)->[t*1.0],
     dofs =  [2]
 )
-#push!(data.dirichlet, dbc1)
+#push!(data.constraints_ferrite, dbc1)
 
 #
 force = PointForce(
@@ -88,14 +86,6 @@ force = PointForce(
     func = (X,t) -> [1.0]
 )
 push!(data.external_forces, force)
-
-
-#
-data.output[] = Output(
-    interval = -1.0,
-    runname = "phase_comsol",
-    savepath = "."
-)
 
 #
 output = OutputData(
@@ -116,7 +106,6 @@ solver = NewtonSolver(
     tol    = 1e-4,
 )
 
-
 solver = LocalDissipationSolver(
     Δλ0          = 1e-7,
     Δλ_max       = 10.0,
@@ -132,7 +121,7 @@ solver = LocalDissipationSolver(
     optitr       = 7,
     maxitr       = 12,
     maxitr_first_step = 50,
-    maxsteps     = 2,
+    maxsteps     = 200,
     λ_max        = 100.108,
     #λ_max        = 100.0,
     λ_min        = -2000.0,

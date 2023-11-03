@@ -47,7 +47,7 @@ function PhaseFieldElement(;
         end
     end
 
-    return PhaseFieldElement(celltype, cv_u, cv_d, dimstate, thickness)
+    return PhaseFieldElement{sdim,typeof(cv_u),typeof(cv_d),typeof(dimstate)}(celltype, cv_u, cv_d, dimstate, thickness)
 end
 
 function integrate_forcevector_and_stiffnessmatrix!(

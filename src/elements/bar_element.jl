@@ -19,10 +19,9 @@ initial_element_state(::BarElement)  = EmptyElementState()
 #getquadraturerule(e::SolidElement) = QuadratureRule{1,RefCube}(1)
 Ferrite.getnquadpoints(::BarElement) = 1
 Ferrite.ndofs(::BarElement{dim}) where {dim} = dim*2
-Ferrite.getcelltype(::BarElement{2}) = Cell{2,2,1}
-Ferrite.getcelltype(::BarElement{3}) = Cell{3,2,0}
+Ferrite.getcelltype(::BarElement) = Ferrite.Line
 has_constant_massmatrix(::BarElement) = true
-get_fields(e::BarElement{dim}) where dim = return [:u Lagrange{RefLine,1}()^dim]
+get_fields(e::BarElement{dim}) where dim = return [(:u, Lagrange{RefLine,1}()^dim)]
 
 function integrate_forcevector_and_stiffnessmatrix!(element::BarElement{dim}, 
                             elementstate::Vector{<:AbstractElementState}, 
