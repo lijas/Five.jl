@@ -1,6 +1,8 @@
 #
 # Stuff that I think should be in Ferrite
 #
+getquadraturerule(cv::Ferrite.Values) = cv.qr
+
 #Base.getindex(fi::FaceIndex, i::Int) = fi.idx[i]
 Ferrite.getdim(::Type{Cell{dim,N,M}}) where {dim,N,M} = dim
 
