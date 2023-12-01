@@ -24,7 +24,7 @@ function PhaseFieldSpectralSplit(; E::Float64, ν::Float64, Gc::Float64, lc::Flo
     return PhaseFieldSpectralSplit(Gc, lc, μ, λ)
 end
 
-materialstate_type(::Type{<:PhaseFieldSpectralSplit}) = PhaseFieldSpectralSplitState
+get_material_state_type(::Type{<:PhaseFieldSpectralSplit}) = PhaseFieldSpectralSplitState
 
 function my_material_response(mp::PhaseFieldSpectralSplit, ε::SymmetricTensor{2,dim}, φ::AbstractFloat, state::PhaseFieldSpectralSplitState, Δt=nothing; cache=nothing, options=nothing) where dim
     (; Gc, λ, μ) = mp

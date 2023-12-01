@@ -58,7 +58,7 @@ end
 #
 #
 struct TractionForce{FV<:Ferrite.AbstractFaceValues} <: AbstractExternalForce
-    set::Union{Vector{FaceIndex}, Vector{VertexIndex}, Vector{EdgeIndex}}
+    set::Union{Set{FaceIndex}, Set{VertexIndex}, Set{EdgeIndex}}
     traction::Function
     facevalues::FV
     udofs::UnitRange{Int}
@@ -67,7 +67,7 @@ struct TractionForce{FV<:Ferrite.AbstractFaceValues} <: AbstractExternalForce
         return new{FaceValues}(set, traction)
     end
 
-    function TractionForce(set, traction::Function, fv::FaceValues, udofs::UnitRange)
+    function TractionForce(set, traction::Function, fv::Ferrite.AbstractFaceValues, udofs::UnitRange)
         return new{typeof(fv)}(set, traction, fv, udofs)
     end
 end
@@ -76,44 +76,53 @@ function TractionForce(;
         set,
         traction::Function)
 
-    return TractionForce(collect(set), traction)
+    return TractionForce(set, traction)
 end
 
 function init_external_force!(force::TractionForce, dh::DofHandler)
-
+    grid = Ferrite.get_grid(dh)
     Ferrite._check_same_celltype(dh.grid, force.set)
+    cellid, _ = first(force.set)
+    sdh = getsubdofhandler(dh, cellid)
+    intersection_set = Ferrite.filter_dbc_set(grid, sdh.cellset, force.set)
 
-    cellid, faceid = first(force.set)
-    celltype = getcelltype(dh.grid, cellid)
-    fh = getfieldhandler(dh, cellid)
-    udofs = Ferrite.dof_range(fh, :u)
-    i = Ferrite.find_field(fh, :u)
-    i === nothing && error("The cellset containing cellid $(first(force.set)) does not have the field :u")
+    if length(intersection_set) != length(force.set)
+        error("The set given to the traction force contains cells that belong to different subdofhandlers")
+    end
+
+    celltype = getcelltype(grid, cellid)
+    refshape = Ferrite.getrefshape(celltype)
+
+    udofs = Ferrite.dof_range(sdh, :u)
+    field_idx = Ferrite.find_field(sdh, :u)
+    field_idx === nothing && error("The cellset containing cellid $(first(force.set)) does not have the field :u")
     
-    field_ip = fh.fields[i].interpolation
-    geo_ip = Ferrite.default_interpolation(celltype)
-    face_ip = Ferrite.getlowerdim(field_ip)
-    qr = Ferrite._mass_qr(face_ip)
+    field_ip = Ferrite.getfieldinterpolation(sdh, field_idx)
+    geo_ip   = Ferrite.default_interpolation(celltype)
 
-    facevalues = FaceVectorValues(qr, field_ip, geo_ip)
+    qrorder = 3
+    qr = FaceQuadratureRule{refshape}(qrorder)
+    facevalues = FaceValues(qr, field_ip, geo_ip)
+
     return TractionForce(force.set, force.traction, facevalues, udofs)
 end
 
 function apply_external_force!(ef::TractionForce{FV}, state::StateVariables{T}, globaldata) where {T,FV<:Ferrite.AbstractFaceValues}
     
     dh = globaldata.dh
+    grid = Ferrite.get_grid(dh)
+    dim = Ferrite.getdim(grid)
     fv = ef.facevalues
-    dim = Ferrite.getdim(dh)
 
     #Cache this?
-    ndofs_field = getnbasefunctions(fv)
     _fcellid, fidx = first(ef.set)
     ndofs_cell = ndofs_per_cell(dh, _fcellid)
     ncoords = Ferrite.getngeobasefunctions(fv)
 
     fe = zeros(T, length(ef.udofs))
-    coords = zeros(Vec{dim,T}, ncoords)
+    #coords = zeros(Vec{dim,T}, ncoords)
     celldofs = zeros(Int, ndofs_cell)
+    
     total_area = 0.0
     for face in ef.set
         fill!(fe, 0.0)
@@ -122,16 +131,16 @@ function apply_external_force!(ef::TractionForce{FV}, state::StateVariables{T}, 
         cellid, faceid = face
 
         #Get coords and dofs of cell
-        Ferrite.cellcoords!(coords, dh, cellid)
-        Ferrite.celldofs!(celldofs, dh, cellid)
+        coords = getcoordinates(grid, cellid)
+        celldofs!(celldofs, dh, cellid)
 
         #Integrate
         area = _compute_external_traction_force!(fe, fv, coords, faceid, ef.traction, state.t)
 
         #Scatter
         total_area += area
-        for (i,j) in enumerate(ef.udofs)
-            state.system_arrays.fᵉ[celldofs[i]] += fe[j]
+        @inbounds for (i,j) in pairs(ef.udofs)
+            state.system_arrays.fⁱ[celldofs[i]] -= fe[j]
         end
     end
 end

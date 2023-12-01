@@ -59,7 +59,7 @@ end
                                                   
 function assemble_stiffnessmatrix_and_forcevector!(dh, state::StateVariables, globaldata)
     for (part, partstate) in zip(globaldata.parts, state.partstates)
-        assemble_stiffnessmatrix_and_forcevector!(dh, part,partstate, state)
+        assemble_stiffnessmatrix_and_forcevector!(dh, part, partstate, state)
     end
 end
 
