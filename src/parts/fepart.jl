@@ -307,6 +307,18 @@ function eval_part_node_data(geometry::SubGridGeometry, part::Part, partstate::P
     return data[geometry.nodemapper]
 end
 
+
+function eval_part_cell_data(geometry::SubGridGeometry, part::Part, partstate::PartState, nodeoutput::VTKCellOutput{<:StressOutput}, state, globaldata)
+    #Extract stresses to interpolate
+    celldata = SymmetricTensor{2,3,Float64,6}[]
+    for lcellid in 1:length(part.cellset)
+        stresses = partstate.stresses[lcellid]
+        meanstess = mean(stresses)
+        push!(celldata, meanstess)
+    end
+    return celldata
+end
+
 function post_part!(dh, part::Part, states::StateVariables)
     
 end
@@ -380,8 +392,13 @@ function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vec
     geom_ip = Ferrite.default_interpolation(celltype)
     qr = getquadraturerule(part.element)
 
+    @show length(part.cellset)
     projector = L2Projector(geom_ip, grid; set = part.cellset)
     projecteddata = project(projector, qpdata, qr); 
+
+   # @show projector.dh.subdofhandlers
+    @show minimum(part.cellset)
+    @show projector.dh.cell_to_subdofhandler[1]
     projection_at_nodes = evaluate_at_grid_nodes(projector, projecteddata)
 
     #Reorder to the parts vtk

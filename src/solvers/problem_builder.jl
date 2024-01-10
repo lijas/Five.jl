@@ -49,8 +49,8 @@ function build_problem(func!::Function, data::ProblemData{dim,T}) where {dim,T}
     dh = DofHandler(data.grid)
     for part in data.parts
         set = get_cellset(part)
-        sdh = SubDofHandler(dh, Set(set))
         length(set) == 0 && continue 
+        sdh = SubDofHandler(dh, Set(set))
         for (field_name, field_ip) in get_fields(part)
             add!(sdh, field_name, field_ip)
         end

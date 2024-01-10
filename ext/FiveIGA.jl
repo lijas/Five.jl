@@ -20,7 +20,7 @@ Five._getinterpolation(cv::BezierCellValues) = cv.cv_bezier.ip
 
 #default_geometry(::Part{2, Float64, LinearSolidElement{2, CellValues{VectorizedInterpolation{2, RefQuadrilateral, 2, IGAInterpolation{RefQuadrilateral, 2}}, Vec{2, Float64}, Tensor{2, 2, Float64, 4}, Tensor{2, 2, Float64, 4}, Float64, Vec{2, Float64}, QuadratureRule{RefQuadrilateral, Float64, 2}, IGAInterpolation{RefQuadrilateral, 2}}, PlaneStrain{2}}, LinearElastic}, ::BezierGrid{2, BezierCell{RefQuadrilateral, 2, 9}, Float64})
 
-function Five.Part(; 
+function IGAPart(; 
     material::M,
     element::E,
     cellset,

@@ -1,16 +1,10 @@
 #https://www.osti.gov/servlets/purl/10175733
 
-@with_kw mutable struct FeSurface{dim,T,CE<:AbstractContactEntity} <: AbstractContactSearchAlgorithm
+struct NodeToSurfaceContact{dim,T,CE<:AbstractContactEntity} <: AbstractContactSearchAlgorithm
 	
-	#slaves::Vector{AbstractContactEntity}
-	#masters::Vector{FaceContactEntity{2,T,Lagrange{1,RefCube,1},2}}
-    #masters::Vector{FaceContactEntity{3,T,Lagrange{2,RefCube,1},4}}
     masters::Vector{CE}
     nodes::Vector{NodeContactEntity{dim}}
-
     bounding_boxes::Vector{AABB{dim,T}}
-
-    node_segements::Vector{Vector{Int}} #node -> list of segments it is referenced by
 
     lbox::Vector{Int} 
     nbox::Vector{Int} #number of entities in each bucket
@@ -25,7 +19,7 @@
     co_cache::Vector{ContactOutput{NodeContactEntity{dim},CE,dim,T}}
 end
 
-function FeSurface{dim,T,CE}(master_segments::Vector{CE}) where {dim,T,CE<:AbstractContactEntity}
+function NodeToSurfaceContact{dim,T,CE}(slave_nodes::Vector{NodeContactEntity}, master_surface::Vector{ContactElement}) where {dim,T,CE<:AbstractContactEntity}
     nmasters = length(master_segments)
     bounding_boxes = Vector{AABB{dim,T}}(undef, nmasters)
     
@@ -55,21 +49,13 @@ function FeSurface{dim,T,CE}(master_segments::Vector{CE}) where {dim,T,CE<:Abstr
                                         Vector{ContactOutput{NodeContactEntity{dim},CE,dim,T}}(undef, 100))
 end
 
-function update_contact!(contact::FeSurface{3,T}, x, it) where {T}
+function update_global_contact_sort!(contact::FeSurface{dim,T}, x) where {dim, T}
 
-    if it%5 != 0
-        return
-    end
-    dim = 3
-    nmasters = length(contact.masters)
+    nsegments = length(contact.masters)
     nnodes = length(contact.nodes)
 
-    @unpack_FeSurface contact
-
-    #Instead of storing minx, miny etc... store them in min_dim = []
-    minx = maxx = miny = maxy = 0.0
-    min_dim = [Inf,Inf,Inf]
-    max_dim = [-Inf,-Inf,-Inf]
+    min_dim     = [Inf,Inf,Inf]
+    max_dim     = [-Inf,-Inf,-Inf]
     bucket_size = Inf
 
     #Get maximum and minimum coordinates
@@ -105,7 +91,7 @@ function update_contact!(contact::FeSurface{3,T}, x, it) where {T}
     
     resize!(npoints, nbuckets)
 
-    @timeit "Creating nbox and lbox" for (i, node) in enumerate(nodes)
+    for (i, node) in enumerate(nodes)
 
         node_coord = x[node.dofs]
 
@@ -134,7 +120,6 @@ function update_contact!(contact::FeSurface{3,T}, x, it) where {T}
         npoints[j] = npoints[j-1] + nbox[j-1]
     end
     resize!(ndsort, sum(nbox)+1)
-
 
     #sort
     fill!(nbox, 0)
@@ -213,13 +198,6 @@ function update_contact!(contact::FeSurface{3,T}, x, it) where {T}
 
     end
 end
-
-#=struct FiniteElementMesh{dim,T} <:AbstractContactEntity
-    nodes::Vector{Vec{dim,T}}
-    elements::Vector{Cells}
-
-    bucket_sort:
-end=#
 
 function search1!(contact::FeSurface, x, timestep, should_ouput = true)
 

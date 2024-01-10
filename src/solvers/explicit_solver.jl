@@ -40,15 +40,10 @@ function step!(solver::ExplicitSolver, state, globaldata)
     state.Δd .= Δtᵢ₊₀₅ .* vᵢ₊₀₅ 
     state.d .+= state.Δd 
 
-    @show tᵢ₊₁
-    @show maximum(abs.(state.d))
-    @show any(isnan.(state.d))
-
-   zero_out_systemarrays!(state.system_arrays)
+    zero_out_systemarrays!(state.system_arrays)
 
     #Get internal force                                                                       
     @timeit "Assembling" assemble_forcevector!(globaldata.dh, state, globaldata)
-    
     @timeit "ExternalForces" apply_external_forces!(globaldata.dh, globaldata.efh, state, globaldata)
     @timeit "Apply constraint" apply_constraints!(globaldata.dh, globaldata.constraints, state, globaldata)
 
@@ -57,7 +52,7 @@ function step!(solver::ExplicitSolver, state, globaldata)
     
     #Assabmle mass matrix each iteration due to rigid bodies have non-constant mass matrix
     # @timeit "Update massmatrix" update_massmatrix!(dh, parts, materials, cellstates, elementinfos, M, dᵢ₊₁, vᵢ₊₀₅)
-    f =state.system_arrays.fᵉ - state.system_arrays.fⁱ
+    f = state.system_arrays.fᵉ - state.system_arrays.fⁱ
     #apply_zero!(M, f, globaldata.dbc)
     @timeit "Solve" state.a .= M\f
 

@@ -2,8 +2,6 @@
 #Maybe skip AbstractContactSearchAlgorithm and AbstractContactTreatment and just have AbstractSearchAlgorithm
 abstract type AbstractContactSearchAlgorithm end
 abstract type AbstractContactTreatment end
-#abstract type AbstractContactAlgorithm end
-#Maybe change name to abstract geometric entity?
 abstract type AbstractContactEntity end
 
 #=

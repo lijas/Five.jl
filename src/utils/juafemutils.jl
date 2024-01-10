@@ -5,7 +5,7 @@ Ferrite.nnodes(c::Type{<:Ferrite.AbstractCell}) = _ntupelcomponents(fieldtypes(c
 
 
 _getquadraturerule(cv::CellValues) = cv.qr
-_getinterpolation(cv::CellValues) = cv.ip
+_getinterpolation(cv::CellValues) = Ferrite.function_interpolation(cv)
 
 function Ferrite.Dirichlet(;field::Symbol,set::Set{T},func::Function,dofs::Vector{Int}) where T
     return Ferrite.Dirichlet(field, set, func, dofs)

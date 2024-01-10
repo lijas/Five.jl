@@ -204,13 +204,13 @@ function create_vtk_output(vtkoutput::VTKOutput{FiveVTKOutput}, state::StateVari
             end
         end
 
-        #for celloutput in vtkoutput.celloutputs
-        #    data = eval_part_cell_data(part, celloutput, state, globaldata)
-        #    if data !== nothing
-        #        name = outputname(celloutput)
-        #        vtk_cell_data(vtkfile, data, name)
-        #    end
-        #end
+        for celloutput in vtkoutput.celloutputs
+            data = eval_part_cell_data(geometry, part, partstate, celloutput, state, globaldata)
+            if data !== nothing
+                name = outputname(celloutput)
+                vtk_cell_data(vtkfile, data, name)
+            end
+        end
 
     end
     
