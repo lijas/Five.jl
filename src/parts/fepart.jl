@@ -392,21 +392,11 @@ function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vec
     geom_ip = Ferrite.default_interpolation(celltype)
     qr = getquadraturerule(part.element)
 
-    @show length(part.cellset)
     projector = L2Projector(geom_ip, grid; set = part.cellset)
     projecteddata = project(projector, qpdata, qr); 
 
-   # @show projector.dh.subdofhandlers
-    @show minimum(part.cellset)
-    @show projector.dh.cell_to_subdofhandler[1]
     projection_at_nodes = evaluate_at_grid_nodes(projector, projecteddata)
-
-    #Reorder to the parts vtk
-    for lcellid in 1:length(part.cellset)
-        for nodeid in globaldata.grid.cells[lcellid].nodes
-            data[nodeid] = projection_at_nodes[nodeid]
-        end
-    end
+    data .= projection_at_nodes 
 end
 
 function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}

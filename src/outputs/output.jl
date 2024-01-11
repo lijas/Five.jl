@@ -342,7 +342,7 @@ end
 struct SubGridGeometry
     grid::Ferrite.AbstractGrid
     cellset::Vector{Int}
-    nodemapper::Vector{Int}
+    nodemapper::Vector{Int} # subgridnodeid -> global_grid_nodeid
     vtkcells::Vector{WriteVTK.MeshCell}
     coords::Matrix{Float64}
 end 
