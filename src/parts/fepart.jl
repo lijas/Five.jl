@@ -485,14 +485,8 @@ function _collect_nodedata!(data::Vector{T}, part::Part{dim}, qpdata::Vector{Vec
     qr = getquadraturerule(part.element)
 
     projector = L2ProjectorByPassIGA(geom_ip, grid; set = part.cellset)
-    projecteddata = project(projector, qpdata, qr; project_to_nodes=true); 
-
-    #Reorder to the parts vtk
-    for (ic, cellid) in enumerate(part.cellset)
-        for nodeid in globaldata.grid.cells[cellid].nodes
-            data[nodeid] = projecteddata[nodeid]
-        end
-    end
+    projecteddata = project(projector, qpdata, qr; project_to_nodes=false); 
+    data .= Five._future_evaluate_at_grid_nodes(projector, projecteddata)
 end
 
 function collect_celldata!(data::Vector{FT}, part::Part{dim}, output::MaterialStateOutput, state::StateVariables{T}, globaldata) where {dim,FT,T}

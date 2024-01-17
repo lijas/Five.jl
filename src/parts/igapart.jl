@@ -139,7 +139,7 @@ function Five.assemble_stiffnessmatrix_and_forcevector!(dh::Ferrite.AbstractDofH
 end
 
 function Five.assemble_forcevector!(dh::Ferrite.AbstractDofHandler, 
-    part::Part,
+    part::IGAPart,
     state::StateVariables)
 
     Five. _assemble_part!(dh, part,state, Five.FORCEVEC)
@@ -147,7 +147,7 @@ function Five.assemble_forcevector!(dh::Ferrite.AbstractDofHandler,
 end
 
 function Five.assemble_fstar!(dh::Ferrite.AbstractDofHandler, 
-    part::Part,
+    part::IGAPart,
     state::StateVariables)
 
     Five._assemble_part!(dh, part,state, Five.FSTAR)
@@ -156,7 +156,7 @@ end
 
 function Five.assemble_dissipation!(
     dh    ::Ferrite.AbstractDofHandler, 
-    part  ::Part,
+    part  ::IGAPart,
     state ::StateVariables)
 
     if !(Five.is_dissipative(part.material) || Five.is_dissipative(part.element))

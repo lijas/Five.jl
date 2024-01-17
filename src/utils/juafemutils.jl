@@ -546,3 +546,47 @@ function Ferrite._check_same_celltype(grid::Ferrite.AbstractGrid, boundaryset::A
         end
     end
 end
+
+
+#
+#
+#
+
+function _future_evaluate_at_grid_nodes(
+    proj::L2Projector, vals::AbstractVector{S}
+) where {order, dim, T, M, S <: Union{Tensor{order,dim,T,M}, SymmetricTensor{order,dim,T,M}}}
+    dh = proj.dh
+    # The internal dofhandler in the projector is a scalar field, but the values in vals
+    # can be any tensor field, however, the number of dofs should always match the length of vals
+    @assert ndofs(dh) == length(vals)
+
+    data = fill(NaN * zero(S), getnnodes(dh.grid))
+
+    ip, gip = proj.func_ip, proj.geom_ip
+    refdim, refshape = Ferrite.getdim(ip), Ferrite.getrefshape(ip)
+    local_node_coords = Ferrite.reference_coordinates(gip)
+    qr = QuadratureRule{refdim, refshape, Float64}(zeros(Float64, length(local_node_coords)), local_node_coords)
+    cv = CellScalarValues(qr, ip)
+    # Function barrier
+    return _future_evaluate_at_grid_nodes!(data, cv, dh, proj.set, vals)
+end
+
+function _future_evaluate_at_grid_nodes!(data, cv, dh, set, u::AbstractVector{S}) where S
+    ue = zeros(S, getnbasefunctions(cv))
+    for cell in CellIterator(dh, set)
+        @assert getnquadpoints(cv) == length(cell.nodes)
+        for (i, I) in pairs(cell.dofs)
+            ue[i] = u[I]
+        end
+        for (qp, nodeid) in pairs(cell.nodes)
+
+            val = zero(S)
+            for i in 1:getnbasefunctions(cv)
+                val += shape_value(cv, qp, i) * ue[i]
+            end
+
+            data[nodeid] = val
+        end
+    end
+    return data
+end
