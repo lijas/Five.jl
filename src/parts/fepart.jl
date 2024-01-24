@@ -319,6 +319,26 @@ function eval_part_cell_data(geometry::SubGridGeometry, part::Part, partstate::P
     return celldata
 end
 
+function eval_part_cell_data(geometry::SubGridGeometry, part::Part, partstate::PartState, output::VTKCellOutput{MaterialStateOutput{DT}}, state, globaldata) where DT
+    
+    #Check if field exist in materialstate
+    first_state = first(first(partstate.materialstates))
+    if !hasproperty(first_state, output.type.field) 
+        return
+    end
+
+    #Extract stresses to interpolate
+    celldata = DT[]
+    for (ic, cellid) in enumerate(part.cellset)
+        matstates = partstate.materialstates[ic]
+        field_states = getproperty.(matstates, output.type.field)
+        mean_field = mean(field_states)
+        push!(celldata, mean_field)
+    end
+
+    return celldata
+end
+
 function post_part!(dh, part::Part, states::StateVariables)
     
 end

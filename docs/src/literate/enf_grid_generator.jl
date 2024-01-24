@@ -65,10 +65,10 @@ function construct_interfacer_cells!(grid, setname1::String, setname2::String, C
             push!(cz_nodes, botcell.nodes[j])
         end
 
-        if CohesiveCellType === Five.CZQuadraticLine
-            push!(cz_nodes, topcell.nodes[7])
-            push!(cz_nodes, botcell.nodes[5])
-        end
+        #if CohesiveCellType === Five.CZQuadraticQuadrilateral
+        #    push!(cz_nodes, topcell.nodes[7])
+        #    push!(cz_nodes, botcell.nodes[5])
+        #end
 
         #cell_nodes = [topface[2], topface[1], botface[1], botface[2]]
         new_cell = CohesiveCellType(Tuple(cz_nodes))

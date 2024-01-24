@@ -8,7 +8,7 @@ include("enf_grid_generator.jl")
 a0 = 30.9
 
 #Celltype
-CohesiveCellType = Five.CZLine
+CohesiveCellType = Five.CZQuadrilateral
 SolidCellType = Ferrite.Quadrilateral
 
 #Dimension
@@ -139,11 +139,6 @@ vtkoutput = VTKCellOutput(
 )
 Five.push!(data.vtk_output, vtkoutput)
 
-vtkoutput = VTKNodeOutput(
-    type = Five.StressOutput(),
-)
-Five.push!(data.vtk_output, vtkoutput)
-
 state, globaldata = build_problem(data)
 
 solver = LocalDissipationSolver(
@@ -158,7 +153,7 @@ solver = LocalDissipationSolver(
     optitr       = 8,
     maxitr       = 13,
     maxitr_first_step = 50,
-    maxsteps     = 10,
+    maxsteps     = 10, #set low for testing
     λ_max        = 1200.0,
     λ_min        = -100.0,
     tol          = 1e-8,

@@ -29,9 +29,9 @@ function CohesiveElement(;
     
     ip      = Ferrite.default_interpolation(celltype)
     geom_ip = Ferrite.default_interpolation(celltype)
-    refshape = Ferrite.getrefshape(ip)
+    refshape = get_cz_refshape(ip)
     mid_qr = QuadratureRule{refshape}(qr_order)
-    sdim = Ferrite.getdim(ip)+1
+    sdim = Ferrite.getdim(ip)
     cv = SurfaceVectorValues(mid_qr, ip, geom_ip)
 
     return CohesiveElement{sdim,typeof(cv)}(thickness, celltype, cv)

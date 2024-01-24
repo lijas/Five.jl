@@ -21,6 +21,30 @@ function constitutive_driver_dissipation(::AbstractMaterial, ε::T, args...; kwa
     return zero(Float64), zero(ε)
 end
 
+####
+struct CZLinearElastic <: MaterialModels.AbstractMaterial
+    K::Float64
+end
+
+CZLinearElastic(; K::Float64) = CZLinearElastic(K)
+
+struct CZLinearElasticState <: MaterialModels.AbstractMaterialState
+end
+
+function MaterialModels.initial_material_state(mp::CZLinearElastic)
+    return CZLinearElasticState()
+end
+
+get_material_state_type(::Type{CZLinearElastic}) = CZLinearElasticState
+is_dissipative(::CZLinearElastic) = false
+
+function MaterialModels.material_response(mp::CZLinearElastic, J::Vec{dim,T}, ::CZLinearElasticState) where {dim,T}
+    
+    D = one(SymmetricTensor{2,dim,T}) * mp.K
+    t = D ⋅ J
+    return t, D, CZLinearElasticState()
+end
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # MatElasticSpring - Massless spring 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

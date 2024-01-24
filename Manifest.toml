@@ -209,7 +209,7 @@ version = "1.2.8"
 
 [[deps.Ferrite]]
 deps = ["EnumX", "LinearAlgebra", "NearestNeighbors", "Preferences", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "fd866018f00005320edd0b35d0d5670fa0666756"
+git-tree-sha1 = "251e85da52ac1ae1944265af9c42629df72c61e0"
 repo-rev = "master"
 repo-url = "https://github.com/Ferrite-FEM/Ferrite.jl.git"
 uuid = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
@@ -570,6 +570,12 @@ git-tree-sha1 = "5d0a598c95f67ee0787723e38745cb954d143684"
 uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
 version = "0.2.0"
 
+[[deps.PrecompileTools]]
+deps = ["Preferences"]
+git-tree-sha1 = "03b4c25b43cb84cee5c90aa9b5ea0a78fd848d2f"
+uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+version = "1.2.0"
+
 [[deps.Preconditioners]]
 deps = ["AlgebraicMultigrid", "LimitedLDLFactorizations", "LinearAlgebra", "SparseArrays"]
 git-tree-sha1 = "aa2361f7ca0daf99ea38444ef52e6c989047751b"
@@ -798,10 +804,10 @@ uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 version = "1.10.0"
 
 [[deps.Tensors]]
-deps = ["ForwardDiff", "LinearAlgebra", "SIMD", "SnoopPrecompile", "StaticArrays", "Statistics"]
-git-tree-sha1 = "71f054343e85ab1eab12bf8336004309002ff82d"
+deps = ["ForwardDiff", "LinearAlgebra", "PrecompileTools", "SIMD", "StaticArrays", "Statistics"]
+git-tree-sha1 = "957f256fb380cad64cae4da39e562ecfb5c3fec9"
 uuid = "48a634ad-e948-5137-8d70-aa71f2a747f4"
-version = "1.13.1"
+version = "1.16.1"
 
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
