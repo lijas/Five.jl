@@ -98,7 +98,7 @@ function integrate_forcevector_and_stiffnessmatrix!(
         ∇u = function_gradient(cellvalues, q_point, ue)
         ɛ = symmetric(∇u)
 
-        σ, ∂σ∂ɛ, new_matstate = material_response(element.dimstate, material, ɛ, materialstate[q_point])
+        σ, ∂σ∂ɛ, new_matstate = material_response(element.dimstate, material, ɛ, materialstate[q_point], dt)
         materialstate[q_point] = new_matstate
         stresses[q_point] = dim==3 ? σ : MaterialModels.increase_dim(σ)
         strains[q_point] = dim==3 ? ɛ : MaterialModels.increase_dim(ɛ)
@@ -154,6 +154,23 @@ function integrate_dissipation!(
     Δt            :: T
     ) where T
 
-    error("function not implemented for $(typeof(element))")
+    cellvalues = element.cv
+    reinit!(cellvalues, coords)
+    n_basefuncs = getnbasefunctions(cellvalues)
+
+    for q_point in 1:getnquadpoints(cellvalues)
+
+        ∇u = function_gradient(cellvalues, q_point, ue)
+        ɛ = symmetric(∇u)
+
+        D, dDdε = constitutive_driver_dissipation(element.dimstate, material, ɛ, materialstate[q_point])
+
+        dΩ = getdetJdV(cellvalues, q_point) * element.thickness
+
+        for i in 1:n_basefuncs
+            δɛi = symmetric(shape_gradient(cellvalues, q_point, i))
+            fe[i] += (dDdε ⊡ δɛi) * dΩ
+        end
+    end
     
 end

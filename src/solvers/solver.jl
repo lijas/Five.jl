@@ -37,6 +37,8 @@ function solvethis(solver::AbstractSolver, state::StateVariables, globaldata)
 
     #Some solvers want the store the initial external force vector
     @info "[SOLVER] Init system arrays"
+
+    state.Δt = 1e10 #For time dependent material, set a large Δt
     @timeit "build system arrays" init_system_arrays!(solver, state, globaldata)
 
     prev_state = deepcopy(state)
