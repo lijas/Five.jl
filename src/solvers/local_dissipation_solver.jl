@@ -59,7 +59,7 @@ function step!(solver::LocalDissipationSolver, state::StateVariables, globaldata
     set_initial_guess!(solver, state, ntries)
     Δd0 = copy(state.v) #Needed for riks solver
 
-    println("Mode: $(state.solvermode), ntries: $(ntries), prev_state.λ = $(state.λ-state.Δλ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
+    println("Mode: $(state.solvermode), state.t: $(state.t), ntries: $(ntries), prev_state.λ = $(state.λ-state.Δλ), Δλ = $(state.Δλ), ΔL = $(state.ΔL)")
     
     state.newton_itr = 0
     while true

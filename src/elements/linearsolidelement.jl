@@ -167,6 +167,7 @@ function integrate_dissipation!(
 
         dΩ = getdetJdV(cellvalues, q_point) * element.thickness
 
+        ge[] += D
         for i in 1:n_basefuncs
             δɛi = symmetric(shape_gradient(cellvalues, q_point, i))
             fe[i] += (dDdε ⊡ δɛi) * dΩ
